@@ -5,48 +5,37 @@
 // ---------------------------------------
 
 import { Routes } from '@angular/router';
-import { AuthGuard } from './services/auth-guard';
 
 export const routes: Routes = [
   {
     path: '',
-    loadComponent: () => import('./components/home/home.component').then(m => m.HomeComponent),
-    canActivate: [AuthGuard],
-    title: 'Home'
-  },
-  {
-    path: 'login',
-    loadComponent: () => import('./components/login/login.component').then(m => m.LoginComponent),
-    title: 'Login'
-  },
-  {
-    path: 'customers',
-    loadComponent: () => import('./components/customers/customers.component').then(m => m.CustomersComponent),
-    canActivate: [AuthGuard],
-    title: 'Customers'
-  },
-  {
-    path: 'products',
-    loadComponent: () => import('./components/products/products.component').then(m => m.ProductsComponent),
-    canActivate: [AuthGuard],
-    title: 'Products'
-  },
-  {
-    path: 'orders',
-    loadComponent: () => import('./components/orders/orders.component').then(m => m.OrdersComponent),
-    canActivate: [AuthGuard],
-    title: 'Orders'
-  },
-  {
-    path: 'settings',
-    loadComponent: () => import('./components/settings/settings.component').then(m => m.SettingsComponent),
-    canActivate: [AuthGuard],
-    title: 'Settings'
+    loadComponent: () => import('./components/portfolio/portfolio-home.component').then(m => m.PortfolioHomeComponent),
+    title: 'Portfolio - Home'
   },
   {
     path: 'about',
-    loadComponent: () => import('./components/about/about.component').then(m => m.AboutComponent),
-    title: 'About Us'
+    loadComponent: () => import('./components/portfolio/portfolio-about.component').then(m => m.PortfolioAboutComponent),
+    title: 'About Me'
+  },
+  {
+    path: 'projects',
+    loadComponent: () => import('./components/portfolio/portfolio-projects.component').then(m => m.PortfolioProjectsComponent),
+    title: 'My Projects'
+  },
+  {
+    path: 'skills',
+    loadComponent: () => import('./components/portfolio/portfolio-skills.component').then(m => m.PortfolioSkillsComponent),
+    title: 'Skills & Technologies'
+  },
+  {
+    path: 'contact',
+    loadComponent: () => import('./components/portfolio/portfolio-contact.component').then(m => m.PortfolioContactComponent),
+    title: 'Contact Me'
+  },
+  {
+    path: 'admin',
+    loadComponent: () => import('./components/admin/admin-dashboard.component').then(m => m.AdminDashboardComponent),
+    title: 'Admin Dashboard'
   },
   {
     path: 'home',

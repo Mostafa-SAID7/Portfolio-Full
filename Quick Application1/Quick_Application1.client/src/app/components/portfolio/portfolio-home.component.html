@@ -1,0 +1,89 @@
+<!-- Hero Section -->
+<section class="hero-section">
+  <div class="container">
+    <h1 class="hero-title">Welcome to My Portfolio</h1>
+    <p class="hero-subtitle">Full-Stack Developer | Software Engineer | Problem Solver</p>
+    <div class="hero-buttons">
+      <a routerLink="/projects" class="btn btn-light btn-lg">View My Work</a>
+      <a routerLink="/contact" class="btn btn-outline-light btn-lg">Get In Touch</a>
+    </div>
+  </div>
+</section>
+
+<!-- About Preview -->
+<section class="portfolio-section" *ngIf="aboutSection">
+  <div class="container">
+    <h2 class="section-title">About Me</h2>
+    <div class="row">
+      <div class="col-lg-8 mx-auto">
+        <div class="text-center">
+          <div [innerHTML]="aboutSection.content | slice:0:300" class="mb-4"></div>
+          <a routerLink="/about" class="btn btn-primary">Read More</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Featured Projects -->
+<section class="portfolio-section bg-light" *ngIf="featuredProjects.length > 0">
+  <div class="container">
+    <h2 class="section-title">Featured Projects</h2>
+    <p class="section-subtitle">Check out some of my recent work</p>
+
+    <div class="row">
+      <div class="col-md-4 mb-4" *ngFor="let project of featuredProjects">
+        <div class="portfolio-card card h-100">
+          <img [src]="project.imageUrl || 'assets/images/project-placeholder.jpg'"
+               [alt]="project.title" class="card-img-top">
+          <div class="card-body">
+            <h5 class="card-title">{{project.title}}</h5>
+            <p class="card-text">{{project.description | slice:0:100}}...</p>
+            <div class="mb-3" *ngIf="project.technologies">
+              <small class="text-muted">
+                <strong>Tech:</strong> {{project.technologies}}
+              </small>
+            </div>
+            <a [href]="project.projectUrl" target="_blank" class="btn btn-primary"
+               *ngIf="project.projectUrl">View Project</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="text-center mt-4">
+      <a routerLink="/projects" class="btn btn-outline-primary btn-lg">View All Projects</a>
+    </div>
+  </div>
+</section>
+
+<!-- Skills Preview -->
+<section class="portfolio-section" *ngIf="skills.length > 0">
+  <div class="container">
+    <h2 class="section-title">Skills & Technologies</h2>
+    <p class="section-subtitle">Technologies I work with</p>
+
+    <div class="skills-grid">
+      <div class="skill-item" *ngFor="let skill of skills">
+        <div class="skill-icon">
+          <i class="fas fa-code"></i>
+        </div>
+        <div class="skill-name">{{skill.title}}</div>
+        <div class="skill-level">{{skill.description}}</div>
+      </div>
+    </div>
+
+    <div class="text-center mt-4">
+      <a routerLink="/skills" class="btn btn-outline-primary">View All Skills</a>
+    </div>
+  </div>
+</section>
+
+<!-- Call to Action -->
+<section class="portfolio-section bg-primary text-white">
+  <div class="container text-center">
+    <h2 class="section-title text-white">Let's Work Together</h2>
+    <p class="section-subtitle text-white-50">I'm always interested in new opportunities and exciting projects</p>
+    <a routerLink="/contact" class="btn btn-light btn-lg">Contact Me</a>
+  </div>
+</section>

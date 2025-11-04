@@ -1,127 +1,79 @@
-<div class="app-component app-container">
-  <ngx-toasta></ngx-toasta>
+<!-- ---------------------------------------
+Email: quickapp@ebenmonney.com
+Templates: www.ebenmonney.com/templates
+(c) 2024 www.ebenmonney.com/mit-license
+--------------------------------------- -->
 
-  <nav id="header" class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top">
-    <div class="container-xl px-md-3 px-xxl-4">
-      <a ngPreserveWhitespaces class="navbar-brand" routerLink="/" (click)="isMenuCollapsed = true">
-        <img src="images/logo-white.png" class="d-inline-block align-top" alt="logo">
-        <span class="d-lg-none d-xl-inline">{{appTitle}}</span>
-      </a>
-      <button type="button" class="navbar-toggler" (click)="isMenuCollapsed = !isMenuCollapsed">
-        <span class="navbar-toggler-icon"></span>
-      </button>
+<!-- Navigation -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top">
+  <div class="container">
+    <a class="navbar-brand" routerLink="/">
+      <img src="assets/images/logo-white.png" alt="Logo" height="40" class="me-2">
+      {{fullName || 'Portfolio'}}
+    </a>
 
-      @if (isUserLoggedIn) {
-      <div [ngbCollapse]="isMenuCollapsed" class="collapse navbar-collapse">
-        <ul class="nav nav-pills flex-column flex-lg-row flex-fill">
-          <li class="nav-item" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
-            <a class="nav-link" routerLink="" (click)="isMenuCollapsed = true">
-              <i class="fa fa-home"></i>
-            </a>
-          </li>
-          @if (canViewCustomers) {
-          <li class="nav-item" routerLinkActive="active">
-            <a class="nav-link" routerLink="/customers" (click)="isMenuCollapsed = true">
-              {{'mainMenu.Customers' | translate}}
-            </a>
-          </li>
-          }
-          @if (canViewProducts) {
-          <li class="nav-item" routerLinkActive="active">
-            <a class="nav-link" routerLink="/products" (click)="isMenuCollapsed = true">
-              {{'mainMenu.Products' | translate}}
-            </a>
-          </li>
-          }
-          @if (canViewOrders) {
-          <li class="nav-item" routerLinkActive="active">
-            <a class="nav-link" routerLink="/orders" (click)="isMenuCollapsed = true">
-              {{'mainMenu.Orders' | translate}}
-            </a>
-          </li>
-          }
-          <li class="nav-item" routerLinkActive="active">
-            <a class="nav-link" routerLink="/about" (click)="isMenuCollapsed = true">
-              {{'mainMenu.About' | translate}}
-            </a>
-          </li>
-          <li class="nav-item ms-lg-auto me-lg-2" routerLinkActive="active">
-            <a class="nav-link" routerLink="/settings" (click)="isMenuCollapsed = true">
-              <i class="fa fa-cog"></i>
-            </a>
-          </li>
-        </ul>
-        <span class="navbar-text notifications-popup d-lg-none d-xl-inline-block">{{'app.Welcome' | translate}}</span>
-        <a class="nav-link user-name d-inline-block px-1" [ngbPopover]="popTemplate"
-           (hidden)="markNotificationsAsRead()" placement="bottom" [popoverTitle]="notificationsTitle"
-           href="javascript:;" triggers="focus" popoverClass="notifications-popup">
-          {{userName}}
-          @if (newNotificationCount > 0) {
-          <span class="badge bg-secondary">{{newNotificationCount}}</span>
-          }
-        </a>
-        <ng-template #popTemplate>
-          <app-notifications-viewer [isViewOnly]="true"></app-notifications-viewer>
-        </ng-template>
-        @if (newNotificationCount > 0) {
-        <span class="navbar-text d-none d-lg-inline">, </span>
-        }
-        <ul class="nav nav-pills flex-column flex-lg-row ms-lg-1">
-          <li class="nav-item">
-            <a class="nav-link" href="javascript:;" (click)="logout(); isMenuCollapsed = true">
-              <i class="fa fa-sign-out"></i> {{'mainMenu.Logout' | translate}}
-            </a>
-          </li>
-        </ul>
-      </div>
-      }
-      @else {
-      <div [ngbCollapse]="isMenuCollapsed" class="collapse navbar-collapse">
-        <ul class="nav nav-pills flex-column flex-lg-row ms-auto">
-          <li class="nav-item" routerLinkActive="active">
-            @if (router.isActive('/about', false)) {
-            <a class="nav-link" routerLink="/login" (click)="isMenuCollapsed = true">
-              <i class="fa fa-sign-in"></i>
-            </a>
-            } @else {
-            <a class="nav-link" routerLink="/about" (click)="isMenuCollapsed = true">
-              <i class="fa fa-info-circle"></i>
-            </a>
-            }
-          </li>
-        </ul>
-      </div>
-      }
-    </div>
-  </nav>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+      <span class="navbar-toggler-icon"></span>
+    </button>
 
-  @if (!isAppLoaded) {
-  <div id="pre-bootstrap" class="prebootStep prebootShow">
-    <div class="messaging">
-      <h1>
-        Loaded!
-      </h1>
-      <p>
-        QUICK APPLICATION SYSTEM - <span style="font-style:italic">quick</span>App &copy;
-        <a class="text-link" href="https://www.ebenmonney.com">WWW.EBENMONNEY.COM</a>
-      </p>
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <ul class="navbar-nav me-auto">
+        <li class="nav-item">
+          <a class="nav-link" routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">Home</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" routerLink="/about" routerLinkActive="active">About</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" routerLink="/projects" routerLinkActive="active">Projects</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" routerLink="/skills" routerLinkActive="active">Skills</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" routerLink="/contact" routerLinkActive="active">Contact</a>
+        </li>
+      </ul>
+
+      <ul class="navbar-nav">
+        <li class="nav-item dropdown" *ngIf="isUserLoggedIn">
+          <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown">
+            <i class="fas fa-cog"></i> Admin
+          </a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" routerLink="/admin"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="#" (click)="logout()"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+          </ul>
+        </li>
+        <li class="nav-item" *ngIf="!isUserLoggedIn">
+          <a class="nav-link" href="#" (click)="openLoginModal()"><i class="fas fa-sign-in-alt"></i> Login</a>
+        </li>
+      </ul>
     </div>
   </div>
-  }
+</nav>
 
-  <main class="container-xl px-3 px-md-4 px-xxl-5">
-    <router-outlet></router-outlet>
-    <div class="footer-height"></div>
-  </main>
+<!-- Main Content -->
+<main class="main-content">
+  <router-outlet></router-outlet>
+</main>
 
-  <footer class="footer fixed-bottom">
-    <div class="container">
-      <p class="text-center text-muted">
-        <span style="font-style:italic">quick</span>App &copy; {{getYear()}}
-        <a class="text-link" href="https://www.ebenmonney.com" target="_blank">www.ebenmonney.com</a>
-        <!--<span class="small display-none">- Powered by <a href="https://www.ebenmonney.com/quickapp"
-        target="_blank"><span style="font-style:italic">quick</span>App</a></span>-->
-      </p>
+<!-- Footer -->
+<footer class="bg-dark text-light py-4 mt-5">
+  <div class="container">
+    <div class="row">
+      <div class="col-md-6">
+        <p class="mb-0">&copy; {{getYear()}} {{fullName || 'Portfolio'}}. All rights reserved.</p>
+      </div>
+      <div class="col-md-6 text-md-end">
+        <a href="#" class="text-light me-3"><i class="fab fa-github"></i></a>
+        <a href="#" class="text-light me-3"><i class="fab fa-linkedin"></i></a>
+        <a href="#" class="text-light"><i class="fab fa-twitter"></i></a>
+      </div>
     </div>
-  </footer>
-</div>
+  </div>
+</footer>
+
+<!-- Notifications -->
+<notifications-viewer></notifications-viewer>

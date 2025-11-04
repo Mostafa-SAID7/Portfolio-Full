@@ -6,80 +6,91 @@
 
 using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
-using Quick_Application1.Core.Services;
-using Quick_Application1.Core.Services.Shop;
+using Quick_Application1.Core.Services.Portfolio;
 using Quick_Application1.Server.Services.Email;
-using Quick_Application1.Server.ViewModels.Shop;
+using Quick_Application1.Server.ViewModels.Portfolio;
 
 namespace Quick_Application1.Server.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class CustomerController : ControllerBase
+    public class PortfolioController : ControllerBase
     {
         private readonly IMapper _mapper;
         private readonly ILogger _logger;
         private readonly IEmailSender _emailSender;
-        private readonly ICustomerService _customerService;
+        private readonly IPortfolioService _portfolioService;
 
-        public CustomerController(IMapper mapper, ILogger<CustomerController> logger, IEmailSender emailSender,
-            ICustomerService customerService)
+        public PortfolioController(IMapper mapper, ILogger<PortfolioController> logger, IEmailSender emailSender,
+            IPortfolioService portfolioService)
         {
             _mapper = mapper;
             _logger = logger;
             _emailSender = emailSender;
-            _customerService = customerService;
+            _portfolioService = portfolioService;
         }
 
-        [HttpGet]
-        public IActionResult Get()
+        [HttpGet("sections")]
+        public IActionResult GetSections()
         {
-            var allCustomers = _customerService.GetAllCustomersData();
-            return Ok(_mapper.Map<IEnumerable<CustomerVM>>(allCustomers));
+            var sections = _portfolioService.GetAllSections();
+            return Ok(_mapper.Map<IEnumerable<PortfolioSectionVM>>(sections));
         }
 
-        [HttpGet("throw")]
-        public IEnumerable<CustomerVM> Throw()
+        [HttpGet("items")]
+        public IActionResult GetItems()
         {
-            throw new CustomerException($"This is a test exception: {DateTime.Now}");
+            var items = _portfolioService.GetAllItems();
+            return Ok(_mapper.Map<IEnumerable<PortfolioItemVM>>(items));
         }
 
-        [HttpGet("email")]
-        public async Task<string> Email()
+        [HttpGet("sections/{sectionName}")]
+        public IActionResult GetSection(string sectionName)
         {
-            var recipientName = "QickApp Tester"; //         <===== Put the recipient's name here
-            var recipientEmail = "test@ebenmonney.com"; //   <===== Put the recipient's email here
+            var section = _portfolioService.GetSectionByName(sectionName);
+            if (section == null)
+                return NotFound();
 
-            var message = EmailTemplates.GetTestEmail(recipientName, DateTime.UtcNow);
+            return Ok(_mapper.Map<PortfolioSectionVM>(section));
+        }
 
-            (var success, var errorMsg) = await _emailSender.SendEmailAsync(recipientName, recipientEmail,
-                "Test Email from Quick_Application1", message);
+        [HttpGet("items/{type}")]
+        public IActionResult GetItemsByType(string type)
+        {
+            var items = _portfolioService.GetItemsByType(type);
+            return Ok(_mapper.Map<IEnumerable<PortfolioItemVM>>(items));
+        }
+
+        [HttpPost("contact")]
+        public async Task<IActionResult> SendContactMessage([FromBody] ContactMessageVM message)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            // Send email notification
+            var emailBody = $@"
+                New Contact Message from Portfolio:
+
+                Name: {message.Name}
+                Email: {message.Email}
+                Subject: {message.Subject}
+
+                Message:
+                {message.Message}
+
+                Sent at: {DateTime.UtcNow}
+            ";
+
+            var (success, errorMsg) = await _emailSender.SendEmailAsync(
+                "Portfolio Contact", // recipient name
+                "your-email@example.com", // replace with your email
+                $"Portfolio Contact: {message.Subject}",
+                emailBody);
 
             if (success)
-                return "Success";
-
-            return $"Error: {errorMsg}";
-        }
-
-        [HttpGet("{id}")]
-        public string Get(int id)
-        {
-            return $"value: {id}";
-        }
-
-        [HttpPost]
-        public void Post([FromBody] string value)
-        {
-        }
-
-        [HttpPut("{id}")]
-        public void Put(int id, [FromBody] string value)
-        {
-        }
-
-        [HttpDelete("{id}")]
-        public void Delete(int id)
-        {
+                return Ok(new { message = "Message sent successfully" });
+            else
+                return BadRequest(new { message = $"Failed to send message: {errorMsg}" });
         }
     }
 }

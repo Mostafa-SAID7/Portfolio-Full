@@ -1,0 +1,79 @@
+<!-- Projects Header -->
+<section class="portfolio-section">
+  <div class="container">
+    <h1 class="section-title">My Projects</h1>
+    <p class="section-subtitle">A showcase of my work and technical expertise</p>
+
+    <!-- Filter Buttons -->
+    <div class="filter-buttons mb-5">
+      <button
+        *ngFor="let category of categories"
+        class="btn me-2 mb-2"
+        [class.active]="selectedCategory === category"
+        [class.btn-primary]="selectedCategory === category"
+        [class.btn-outline-primary]="selectedCategory !== category"
+        (click)="filterProjects(category)">
+        {{category | titlecase}}
+      </button>
+    </div>
+  </div>
+</section>
+
+<!-- Projects Grid -->
+<section class="portfolio-section bg-light">
+  <div class="container">
+    <div class="row" *ngIf="projects.length > 0; else noProjects">
+      <div class="col-lg-4 col-md-6 mb-4" *ngFor="let project of projects">
+        <div class="project-card card h-100">
+          <div class="card-img-container">
+            <img [src]="getProjectImage(project)"
+                 [alt]="project.title" class="card-img-top">
+            <div class="card-overlay">
+              <div class="overlay-content">
+                <a [href]="project.projectUrl" target="_blank" class="btn btn-light btn-sm me-2"
+                   *ngIf="project.projectUrl">
+                  <i class="fas fa-external-link-alt"></i> View Live
+                </a>
+                <button class="btn btn-light btn-sm" (click)="openProjectModal(project)">
+                  <i class="fas fa-info-circle"></i> Details
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card-body">
+            <h5 class="card-title">{{project.title}}</h5>
+            <p class="card-text">{{project.description}}</p>
+
+            <div class="project-tech mb-3" *ngIf="project.technologies">
+              <small class="text-muted">
+                <strong>Technologies:</strong>
+                <span class="tech-tag" *ngFor="let tech of project.technologies.split(',')">
+                  {{tech.trim()}}
+                </span>
+              </small>
+            </div>
+          </div>
+
+          <div class="card-footer bg-transparent">
+            <small class="text-muted">
+              <i class="fas fa-calendar-alt me-1"></i>
+              {{project.createdDate | date:'MMM yyyy'}}
+            </small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <ng-template #noProjects>
+      <div class="text-center py-5">
+        <i class="fas fa-folder-open fa-3x text-muted mb-3"></i>
+        <h3>No projects found</h3>
+        <p class="text-muted">Try selecting a different category or check back later.</p>
+      </div>
+    </ng-template>
+  </div>
+</section>
+
+<!-- Project Modal (would be implemented with NgbModal) -->
+<!-- This would show detailed project information -->
