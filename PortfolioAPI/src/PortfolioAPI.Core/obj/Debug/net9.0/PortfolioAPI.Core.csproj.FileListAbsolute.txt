@@ -1,0 +1,12 @@
+c:\Users\Mostafa\OneDrive\Desktop\Projects\Quick Application1\PortfolioAPI\src\PortfolioAPI.Core\bin\Debug\net9.0\PortfolioAPI.Core.deps.json
+c:\Users\Mostafa\OneDrive\Desktop\Projects\Quick Application1\PortfolioAPI\src\PortfolioAPI.Core\bin\Debug\net9.0\PortfolioAPI.Core.dll
+c:\Users\Mostafa\OneDrive\Desktop\Projects\Quick Application1\PortfolioAPI\src\PortfolioAPI.Core\bin\Debug\net9.0\PortfolioAPI.Core.pdb
+c:\Users\Mostafa\OneDrive\Desktop\Projects\Quick Application1\PortfolioAPI\src\PortfolioAPI.Core\obj\Debug\net9.0\PortfolioAPI.Core.GeneratedMSBuildEditorConfig.editorconfig
+c:\Users\Mostafa\OneDrive\Desktop\Projects\Quick Application1\PortfolioAPI\src\PortfolioAPI.Core\obj\Debug\net9.0\PortfolioAPI.Core.AssemblyInfoInputs.cache
+c:\Users\Mostafa\OneDrive\Desktop\Projects\Quick Application1\PortfolioAPI\src\PortfolioAPI.Core\obj\Debug\net9.0\PortfolioAPI.Core.AssemblyInfo.cs
+c:\Users\Mostafa\OneDrive\Desktop\Projects\Quick Application1\PortfolioAPI\src\PortfolioAPI.Core\obj\Debug\net9.0\PortfolioAPI.Core.csproj.CoreCompileInputs.cache
+c:\Users\Mostafa\OneDrive\Desktop\Projects\Quick Application1\PortfolioAPI\src\PortfolioAPI.Core\obj\Debug\net9.0\PortfolioAPI.Core.sourcelink.json
+c:\Users\Mostafa\OneDrive\Desktop\Projects\Quick Application1\PortfolioAPI\src\PortfolioAPI.Core\obj\Debug\net9.0\PortfolioAPI.Core.dll
+c:\Users\Mostafa\OneDrive\Desktop\Projects\Quick Application1\PortfolioAPI\src\PortfolioAPI.Core\obj\Debug\net9.0\refint\PortfolioAPI.Core.dll
+c:\Users\Mostafa\OneDrive\Desktop\Projects\Quick Application1\PortfolioAPI\src\PortfolioAPI.Core\obj\Debug\net9.0\PortfolioAPI.Core.pdb
+c:\Users\Mostafa\OneDrive\Desktop\Projects\Quick Application1\PortfolioAPI\src\PortfolioAPI.Core\obj\Debug\net9.0\ref\PortfolioAPI.Core.dll
