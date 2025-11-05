@@ -6326,11 +6326,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "c:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\tests\\PortfolioAPI.IntegrationTests\\PortfolioAPI.IntegrationTests.csproj",
+      "projectUniqueName": "C:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\tests\\PortfolioAPI.IntegrationTests\\PortfolioAPI.IntegrationTests.csproj",
       "projectName": "PortfolioAPI.IntegrationTests",
-      "projectPath": "c:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\tests\\PortfolioAPI.IntegrationTests\\PortfolioAPI.IntegrationTests.csproj",
+      "projectPath": "C:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\tests\\PortfolioAPI.IntegrationTests\\PortfolioAPI.IntegrationTests.csproj",
       "packagesPath": "C:\\Users\\Mostafa\\.nuget\\packages\\",
-      "outputPath": "c:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\tests\\PortfolioAPI.IntegrationTests\\obj\\",
+      "outputPath": "C:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\tests\\PortfolioAPI.IntegrationTests\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -6351,8 +6351,8 @@
         "net9.0": {
           "targetAlias": "net9.0",
           "projectReferences": {
-            "c:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI\\PortfolioAPI.csproj": {
-              "projectPath": "c:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI\\PortfolioAPI.csproj"
+            "C:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI\\PortfolioAPI.csproj": {
+              "projectPath": "C:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI\\PortfolioAPI.csproj"
             }
           }
         }

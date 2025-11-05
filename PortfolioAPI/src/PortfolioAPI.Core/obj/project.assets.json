@@ -14,11 +14,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "c:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Core\\PortfolioAPI.Core.csproj",
+      "projectUniqueName": "C:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Core\\PortfolioAPI.Core.csproj",
       "projectName": "PortfolioAPI.Core",
-      "projectPath": "c:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Core\\PortfolioAPI.Core.csproj",
+      "projectPath": "C:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Core\\PortfolioAPI.Core.csproj",
       "packagesPath": "C:\\Users\\Mostafa\\.nuget\\packages\\",
-      "outputPath": "c:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Core\\obj\\",
+      "outputPath": "C:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Core\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

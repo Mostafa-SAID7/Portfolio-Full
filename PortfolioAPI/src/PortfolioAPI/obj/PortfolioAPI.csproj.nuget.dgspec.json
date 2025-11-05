@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "c:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI\\PortfolioAPI.csproj": {}
+    "C:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI\\PortfolioAPI.csproj": {}
   },
   "projects": {
-    "c:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Application\\PortfolioAPI.Application.csproj": {
+    "C:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Application\\PortfolioAPI.Application.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "c:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Application\\PortfolioAPI.Application.csproj",
+        "projectUniqueName": "C:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Application\\PortfolioAPI.Application.csproj",
         "projectName": "PortfolioAPI.Application",
-        "projectPath": "c:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Application\\PortfolioAPI.Application.csproj",
+        "projectPath": "C:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Application\\PortfolioAPI.Application.csproj",
         "packagesPath": "C:\\Users\\Mostafa\\.nuget\\packages\\",
-        "outputPath": "c:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Application\\obj\\",
+        "outputPath": "C:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Application\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -32,8 +32,8 @@
           "net9.0": {
             "targetAlias": "net9.0",
             "projectReferences": {
-              "c:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Core\\PortfolioAPI.Core.csproj": {
-                "projectPath": "c:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Core\\PortfolioAPI.Core.csproj"
+              "C:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Core\\PortfolioAPI.Core.csproj": {
+                "projectPath": "C:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Core\\PortfolioAPI.Core.csproj"
               }
             }
           }
@@ -83,14 +83,14 @@
         }
       }
     },
-    "c:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Core\\PortfolioAPI.Core.csproj": {
+    "C:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Core\\PortfolioAPI.Core.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "c:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Core\\PortfolioAPI.Core.csproj",
+        "projectUniqueName": "C:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Core\\PortfolioAPI.Core.csproj",
         "projectName": "PortfolioAPI.Core",
-        "projectPath": "c:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Core\\PortfolioAPI.Core.csproj",
+        "projectPath": "C:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Core\\PortfolioAPI.Core.csproj",
         "packagesPath": "C:\\Users\\Mostafa\\.nuget\\packages\\",
-        "outputPath": "c:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Core\\obj\\",
+        "outputPath": "C:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Core\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -148,14 +148,14 @@
         }
       }
     },
-    "c:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Infrastructure\\PortfolioAPI.Infrastructure.csproj": {
+    "C:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Infrastructure\\PortfolioAPI.Infrastructure.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "c:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Infrastructure\\PortfolioAPI.Infrastructure.csproj",
+        "projectUniqueName": "C:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Infrastructure\\PortfolioAPI.Infrastructure.csproj",
         "projectName": "PortfolioAPI.Infrastructure",
-        "projectPath": "c:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Infrastructure\\PortfolioAPI.Infrastructure.csproj",
+        "projectPath": "C:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Infrastructure\\PortfolioAPI.Infrastructure.csproj",
         "packagesPath": "C:\\Users\\Mostafa\\.nuget\\packages\\",
-        "outputPath": "c:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Infrastructure\\obj\\",
+        "outputPath": "C:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Infrastructure\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -176,8 +176,8 @@
           "net9.0": {
             "targetAlias": "net9.0",
             "projectReferences": {
-              "c:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Core\\PortfolioAPI.Core.csproj": {
-                "projectPath": "c:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Core\\PortfolioAPI.Core.csproj"
+              "C:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Core\\PortfolioAPI.Core.csproj": {
+                "projectPath": "C:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Core\\PortfolioAPI.Core.csproj"
               }
             }
           }
@@ -241,14 +241,14 @@
         }
       }
     },
-    "c:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI\\PortfolioAPI.csproj": {
+    "C:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI\\PortfolioAPI.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "c:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI\\PortfolioAPI.csproj",
+        "projectUniqueName": "C:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI\\PortfolioAPI.csproj",
         "projectName": "PortfolioAPI",
-        "projectPath": "c:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI\\PortfolioAPI.csproj",
+        "projectPath": "C:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI\\PortfolioAPI.csproj",
         "packagesPath": "C:\\Users\\Mostafa\\.nuget\\packages\\",
-        "outputPath": "c:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI\\obj\\",
+        "outputPath": "C:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -269,14 +269,14 @@
           "net9.0": {
             "targetAlias": "net9.0",
             "projectReferences": {
-              "c:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Application\\PortfolioAPI.Application.csproj": {
-                "projectPath": "c:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Application\\PortfolioAPI.Application.csproj"
+              "C:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Application\\PortfolioAPI.Application.csproj": {
+                "projectPath": "C:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Application\\PortfolioAPI.Application.csproj"
               },
-              "c:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Core\\PortfolioAPI.Core.csproj": {
-                "projectPath": "c:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Core\\PortfolioAPI.Core.csproj"
+              "C:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Core\\PortfolioAPI.Core.csproj": {
+                "projectPath": "C:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Core\\PortfolioAPI.Core.csproj"
               },
-              "c:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Infrastructure\\PortfolioAPI.Infrastructure.csproj": {
-                "projectPath": "c:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Infrastructure\\PortfolioAPI.Infrastructure.csproj"
+              "C:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Infrastructure\\PortfolioAPI.Infrastructure.csproj": {
+                "projectPath": "C:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\src\\PortfolioAPI.Infrastructure\\PortfolioAPI.Infrastructure.csproj"
               }
             }
           }
