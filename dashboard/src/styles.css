@@ -1,0 +1,208 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-primary: 213 134 76;
+    --canvas: #110f0e;
+    --surface: #171311;
+    --surface-raised: #201a17;
+    --surface-soft: #2a211c;
+    --ink: #f6eee6;
+    --muted: #a5968d;
+    --line: rgba(246, 238, 230, 0.1);
+    --orange: #d5864c;
+    --orange-soft: rgba(213, 134, 76, 0.16);
+    --mint: #b7c0a1;
+    --violet: #b7a094;
+  }
+
+  html {
+    @apply antialiased;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    margin: 0;
+    background:
+      radial-gradient(circle at 84% -10%, rgba(213, 134, 76, 0.13), transparent 26rem),
+      var(--canvas);
+    color: var(--ink);
+    font-family: 'DM Sans', 'Segoe UI', system-ui, sans-serif;
+    font-feature-settings: 'rlig' 1, 'calt' 1;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #5a493f;
+  border-radius: 9999px;
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #7a6454;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #5a493f transparent;
+  box-sizing: border-box;
+}
+
+button, a, input, select {
+  font: inherit;
+}
+
+button, a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.font-display {
+  font-family: 'Space Grotesk', 'DM Sans', sans-serif;
+}
+
+.app-shell {
+  min-height: 100vh;
+  background: var(--canvas);
+}
+
+.surface-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+}
+
+.surface-card-raised {
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+}
+
+.eyebrow {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.orange-glow {
+  box-shadow: 0 12px 36px rgba(213, 134, 76, 0.2);
+}
+
+.shell-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border: 1px solid transparent;
+  border-radius: 0.75rem;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  padding: 0.7rem 0.75rem;
+  transition: color 160ms ease, background 160ms ease, border-color 160ms ease;
+}
+
+.shell-nav svg {
+  width: 1.125rem;
+  height: 1.125rem;
+  flex: 0 0 auto;
+}
+
+.shell-nav:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--ink);
+}
+
+.shell-nav.nav-active {
+  background: rgba(213, 134, 76, 0.13);
+  border-color: rgba(213, 134, 76, 0.2);
+  color: #e89b6d;
+}
+
+/* Keep the existing CRUD screens in the same visual system while they are
+   being migrated from their original utility-only presentation. */
+.bg-white {
+  background-color: var(--surface) !important;
+}
+
+.bg-gray-100,
+.bg-gray-700,
+.bg-gray-800 {
+  background-color: var(--surface-raised) !important;
+}
+
+.text-gray-900,
+.text-gray-800,
+.text-gray-700 {
+  color: var(--ink) !important;
+}
+
+.text-gray-600,
+.text-gray-500,
+.text-gray-400 {
+  color: var(--muted) !important;
+}
+
+.border-gray-200,
+.border-gray-300,
+.border-gray-600,
+.border-gray-700 {
+  border-color: var(--line) !important;
+}
+
+.bg-blue-600,
+.bg-green-600 {
+  background-color: var(--orange) !important;
+  color: #1d120d !important;
+}
+
+.text-blue-600,
+.text-blue-400,
+.text-green-600 {
+  color: var(--orange) !important;
+}
+
+/* The reference uses one warm, cinematic family instead of a rainbow
+   productivity palette. Remap older literal utility classes without making
+   every component repeat the same color values. */
+[class*="#0b0d12"] { background-color: var(--canvas) !important; }
+[class*="#0f1218"] { background-color: #151210 !important; }
+[class*="#171b24"] { background-color: var(--surface-raised) !important; }
+[class*="#1d222d"] { background-color: var(--surface-soft) !important; }
+[class*="#ff6b35"] { color: var(--orange) !important; }
+[class*="#ff8254"] { color: #ee9b5c !important; }
+[class*="#ff8b61"] { color: #e89b6d !important; }
+[class*="#ff9d7c"] { color: #d9b29b !important; }
+[class*="#ffb38e"] { color: #d5b29a !important; }
+[class*="#f4f1ea"] { color: var(--ink) !important; }
+[class*="#8f96a5"] { color: var(--muted) !important; }
+[class*="#687080"] { color: #776860 !important; }
+[class*="#c8ccd4"] { color: #d1c5ba !important; }
+[class*="#9b8cff"] { color: #b7a094 !important; }
+[class*="#7ee2c0"] { color: var(--mint) !important; }
+[class*="bg-[#ff6b35]"] { background-color: var(--orange) !important; }
+[class*="bg-[#ff8254]"] { background-color: #ee9b5c !important; }
+[class*="bg-[#9b8cff]"] { background-color: #b7a094 !important; }
+[class*="bg-[#7ee2c0]"] { background-color: var(--mint) !important; }
+[class*="border-[#ff6b35]"] { border-color: var(--orange) !important; }
