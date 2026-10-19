@@ -30,12 +30,15 @@ namespace PortfolioAPI.Infrastructure.Repositories
 
         public async Task<IEnumerable<T>> GetAllAsync()
         {
-            return await _dbSet.ToListAsync();
+            // Read-only list endpoint: no change tracking. EF would otherwise
+            // build a snapshot for every row (47 skills + 13 projects per
+            // dashboard load) that nobody ever uses.
+            return await _dbSet.AsNoTracking().ToListAsync();
         }
 
         public async Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate)
         {
-            return await _dbSet.Where(predicate).ToListAsync();
+            return await _dbSet.AsNoTracking().Where(predicate).ToListAsync();
         }
 
         public async Task<T> AddAsync(T entity)

@@ -6,13 +6,14 @@ import { Observable, firstValueFrom } from 'rxjs';
 import { ProjectService } from '../../../core/services/project.service';
 import { ProjectMetric, ProjectPayload } from '../../../core/models/project.model';
 import { resolvePortfolioImage } from '../../../core/portfolio-origin';
+import { SelectFieldComponent } from '../../../shared/select-field.component';
 
 const MAX_COVER_BYTES = 10 * 1024 * 1024; // API-side cap is 10MB.
 
 @Component({
   selector: 'app-project-form',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, SelectFieldComponent],
   template: `
     <div class="mx-auto max-w-3xl">
       <div class="mb-8">
@@ -81,22 +82,14 @@ const MAX_COVER_BYTES = 10 * 1024 * 1024; // API-side cap is 10MB.
               <input id="client" type="text" formControlName="client" class="input" placeholder="Under Armour" />
             </div>
             <div>
-              <label for="type" class="field-label">Type</label>
-              <select id="type" formControlName="type" class="input">
-                <option value="">—</option>
-                @for (option of typeOptions; track option) { <option [value]="option">{{ option }}</option> }
-              </select>
+              <app-select-field formControlName="type" label="Type" [options]="typeOptions" />
             </div>
             <div>
               <label for="database" class="field-label">Database</label>
               <input id="database" type="text" formControlName="database" class="input" placeholder="PostgreSQL" />
             </div>
             <div>
-              <label for="status" class="field-label">Build status</label>
-              <select id="status" formControlName="status" class="input">
-                <option value="">—</option>
-                @for (option of statusOptions; track option) { <option [value]="option">{{ option }}</option> }
-              </select>
+              <app-select-field formControlName="status" label="Build status" [options]="statusOptions" />
             </div>
             <div>
               <label for="badges" class="field-label">Badges</label>

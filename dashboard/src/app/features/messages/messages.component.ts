@@ -126,7 +126,9 @@ export class MessagesComponent implements OnInit {
   }
 
   load(): void {
-    this.service.loadMessages().subscribe({ error: () => undefined });
+    // The inbox is where messages are worked on — always fetch the current
+    // state instead of the shell's (at most 30 s old) copy.
+    this.service.loadMessages({ force: true }).subscribe({ error: () => undefined });
   }
 
   selectFilter(value: 'all' | 'unread'): void {

@@ -33,6 +33,7 @@ namespace PortfolioAPI.Infrastructure.Repositories
                        OR [Description] LIKE {like}
                        OR [Technologies] LIKE {like}
                     """)
+                .AsNoTracking()
                 .ToListAsync();
         }
 
@@ -46,6 +47,7 @@ namespace PortfolioAPI.Infrastructure.Repositories
                     WHERE [IsActive] = 1
                       AND [Technologies] LIKE {like}
                     """)
+                .AsNoTracking()
                 .ToListAsync();
         }
 

@@ -9,6 +9,7 @@ using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
@@ -99,6 +100,20 @@ var originRegexes = allowedOrigins
         | System.Text.RegularExpressions.RegexOptions.CultureInvariant
         | System.Text.RegularExpressions.RegexOptions.Compiled))
     .ToArray();
+
+// Response compression: the JSON payloads (projects/skills lists) are 8-9 KB
+// uncompressed; gzip cuts them to ~1 KB, which matters a lot on the Vercel
+// → MonsterASP hop and on mobile connections.
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(new[]
+    {
+        "application/json",
+        "application/problem+json",
+        "application/octet-stream"
+    });
+});
 
 builder.Services.AddCors(options =>
 {
@@ -352,6 +367,9 @@ app.Use(async (context, next) =>
     context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
     await next();
 });
+
+// Compress JSON responses (gzip) — must sit before the endpoints write.
+app.UseResponseCompression();
 
 // Use CORS (policy name set up above)
 app.UseCors("Frontends");

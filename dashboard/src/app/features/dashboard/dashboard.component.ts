@@ -1,5 +1,6 @@
 import { Component, computed, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { RouterLink } from '@angular/router';
 import { ProjectService } from '../../core/services/project.service';
 import { SkillService } from '../../core/services/skill.service';
@@ -191,6 +192,12 @@ export class DashboardComponent implements OnInit {
   private readonly experienceService = inject(ExperienceService);
   private readonly contactService = inject(ContactService);
   private readonly authService = inject(AuthService);
+  private readonly sanitizer = inject(DomSanitizer);
+
+  /** Angular's default sanitizer strips <svg> from innerHTML — mark the hardcoded icon strings trusted. */
+  private trust(icon: string): SafeHtml {
+    return this.sanitizer.bypassSecurityTrustHtml(icon);
+  }
 
   readonly projects = this.projectService.projects;
   readonly skills = this.skillService.skills;
@@ -249,19 +256,19 @@ export class DashboardComponent implements OnInit {
       label: 'Projects',
       value: this.projectCount(),
       hint: `${this.featuredCount()} featured`,
-      icon: '<svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M4 7.5a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-10Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>'
+      icon: this.trust('<svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M4 7.5a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-10Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>')
     },
     {
       label: 'Skills',
       value: this.skillCount(),
       hint: `${this.visibleSkills()} visible`,
-      icon: '<svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="m12 4 2.1 4.3 4.7.7-3.4 3.3.8 4.7-4.2-2.2-4.2 2.2.8-4.7-3.4-3.3 4.7-.7L12 4Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>'
+      icon: this.trust('<svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="m12 4 2.1 4.3 4.7.7-3.4 3.3.8 4.7-4.2-2.2-4.2 2.2.8-4.7-3.4-3.3 4.7-.7L12 4Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>')
     },
     {
       label: 'Unread messages',
       value: this.unreadCount(),
       hint: `${this.messages().length} total`,
-      icon: '<svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v8a2.5 2.5 0 0 1-2.5 2.5H9l-4 3.5v-3.5A2.5 2.5 0 0 1 4 14.5v-8Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>'
+      icon: this.trust('<svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v8a2.5 2.5 0 0 1-2.5 2.5H9l-4 3.5v-3.5A2.5 2.5 0 0 1 4 14.5v-8Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>')
     }
   ]);
 

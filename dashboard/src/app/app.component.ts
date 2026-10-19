@@ -1,5 +1,6 @@
 import { Component, HostListener, computed, inject, isDevMode, signal, PLATFORM_ID } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
 import { AuthService } from './core/services/auth.service';
@@ -11,7 +12,7 @@ import { ToastComponent } from './shared/toast.component';
 interface NavItem {
   link: string;
   label: string;
-  icon: string;
+  icon: SafeHtml;
   exact?: boolean;
 }
 
@@ -153,7 +154,13 @@ export class AppComponent {
   private readonly themeService = inject(ThemeService);
   private readonly router = inject(Router);
   private readonly platformId = inject(PLATFORM_ID);
+  private readonly sanitizer = inject(DomSanitizer);
   private mediaQueryList?: MediaQueryList;
+
+  /** Angular's default sanitizer strips <svg> from innerHTML — mark the hardcoded icon strings trusted. */
+  private trust(icon: string): SafeHtml {
+    return this.sanitizer.bypassSecurityTrustHtml(icon);
+  }
 
   readonly isAuthenticated = this.authService.isAuthenticated;
   readonly currentUser = this.authService.currentUser;
@@ -172,22 +179,22 @@ export class AppComponent {
       link: '/dashboard',
       label: 'Overview',
       exact: true,
-      icon: '<svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M4 13.5 12 5l8 8.5M6.5 11.5v7h11v-7M9.5 18.5v-4h5v4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+      icon: this.trust('<svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M4 13.5 12 5l8 8.5M6.5 11.5v7h11v-7M9.5 18.5v-4h5v4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>')
     },
     {
       link: '/projects',
       label: 'Projects',
-      icon: '<svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M4 7.5a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-10Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>'
+      icon: this.trust('<svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M4 7.5a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-10Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>')
     },
     {
       link: '/messages',
       label: 'Messages',
-      icon: '<svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v8a2.5 2.5 0 0 1-2.5 2.5H9l-4 3.5v-3.5A2.5 2.5 0 0 1 4 14.5v-8Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>'
+      icon: this.trust('<svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v8a2.5 2.5 0 0 1-2.5 2.5H9l-4 3.5v-3.5A2.5 2.5 0 0 1 4 14.5v-8Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>')
     },
     {
       link: '/content',
       label: 'Content',
-      icon: '<svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M6 4.75h8.5L18 8.25v11H6v-14.5Z" stroke="currentColor" stroke-width="1.7"/><path d="M14 4.75v3.5h4M9 12h6M9 15.5h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>'
+      icon: this.trust('<svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M6 4.75h8.5L18 8.25v11H6v-14.5Z" stroke="currentColor" stroke-width="1.7"/><path d="M14 4.75v3.5h4M9 12h6M9 15.5h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>')
     }
   ];
 
