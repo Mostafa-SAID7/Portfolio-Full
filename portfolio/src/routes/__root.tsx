@@ -53,7 +53,7 @@ function ArabicFonts() {
   return null;
 }
 
-function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
+function ErrorComponent({ error, reset }: { error: unknown; reset: () => void }) {
   // Use error-capture's describeError to properly format error details
   const errorMessage = describeError(error);
   console.error(errorMessage);
