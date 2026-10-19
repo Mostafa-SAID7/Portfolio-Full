@@ -149,7 +149,8 @@ No secrets exist in either frontend. `VITE_*` values are public by design.
 
 | Symptom | Cause / fix |
 | --- | --- |
-| Vercel portfolio build fails at install | `bun.lock` vs `package-lock.json` conflict — `installCommand: npm ci` in `vercel.json` prevents this; if overridden, remove `bun.lock` |
+| Vercel portfolio build fails at install | `bun.lock` vs `package-lock.json` conflict — `installCommand: npm ci` in `vercel.json` prevents this (Vercel only reads `package-lock.json`; `bun.lock` may lag behind `package.json` and is ignored) |
+| Vercel `403 Blocked by Vercel: @tanstack/... XSS (CVE-2026-102989)` | TanStack Start below the patched release — `package.json` now pins the matched set (`react-start 1.169.3`, `react-router 1.170.45`, `router-plugin 1.168.47`). Always move **all** `@tanstack/*` packages together: a single-package bump causes `MISSING_EXPORT` bundle errors from mismatched `router-core` |
 | Portfolio shows fallback (local) content instead of API data | `/api` rewrite missing or API down — `curl https://<domain>/api/health` |
 | Dashboard deep link 404s on Vercel | SPA rewrite missing — must come *after* the `/api` rewrite in `dashboard/vercel.json` |
 | API 502/500 after upload | `appsettings.Production.json` not uploaded next to `web.config`, or env var missing — check logs for the fail-fast connection-string message |
