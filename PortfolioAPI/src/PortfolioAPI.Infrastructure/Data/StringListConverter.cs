@@ -8,7 +8,7 @@ using PortfolioAPI.Core.Entities;
 namespace PortfolioAPI.Infrastructure.Data
 {
     /// <summary>
-    /// Converts the <c>List&lt;string&gt;</c> collections on Project/Experience/BlogPost
+    /// Converts the <c>List&lt;string&gt;</c> collections on Project/Experience
     /// into a comma-separated column (and back), so no schema-level array support
     /// is required from the database provider.
     /// </summary>

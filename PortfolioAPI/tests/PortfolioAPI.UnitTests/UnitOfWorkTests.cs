@@ -96,17 +96,6 @@ namespace PortfolioAPI.UnitTests
         }
 
         [Fact]
-        public void BlogPosts_ShouldReturnRepositoryInstance()
-        {
-            // Act
-            var repository = _unitOfWork.BlogPosts;
-
-            // Assert
-            repository.Should().NotBeNull();
-            repository.Should().BeOfType<Repository<BlogPost>>();
-        }
-
-        [Fact]
         public void Projects_ShouldReturnSameInstance_OnMultipleCalls()
         {
             // Act

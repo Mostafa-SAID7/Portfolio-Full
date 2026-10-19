@@ -1,44 +1,82 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { AdminUser } from '../models/user.model';
+import { Observable, tap } from 'rxjs';
+import { AdminSession, AdminUser } from '../models/user.model';
+import { API_URL } from '../api.config';
+
+interface LoginResponse {
+  token: string;
+  expiresAt: string;
+  user: { id: number; name: string; email: string };
+}
 
 /**
- * Local admin session.
+ * JWT-backed admin session (issues #12/#1/#6).
  *
- * PortfolioAPI has no auth endpoints yet, so signing in simply unlocks the
- * admin workspace and stores the identity locally. When JWT auth lands on
- * the API, replace signIn() with a real POST /api/Auth/login and keep the
- * rest of the surface identical.
+ * `signIn()` performs a real POST /api/auth/login against the API, which
+ * validates the server-configured Auth:Username / Auth:Password and returns
+ * a signed JWT (503 with instructions when auth is not configured server-side).
+ * The session is persisted and the token attached to every API request by
+ * `authInterceptor`; a 401 anywhere clears it (see api-error.interceptor).
  */
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly router = inject(Router);
+  private readonly http = inject(HttpClient);
   private readonly storageKey = 'portfolio_admin_session';
 
-  private readonly userSignal = signal<AdminUser | null>(this.loadSession());
+  private readonly sessionSignal = signal<AdminSession | null>(this.restoreSession());
 
-  readonly currentUser = this.userSignal.asReadonly();
-  readonly isAuthenticated = computed(() => this.userSignal() !== null);
+  readonly currentUser = computed<AdminUser | null>(() => this.sessionSignal()?.user ?? null);
+  readonly isAuthenticated = computed(() => this.sessionSignal() !== null);
+  /** Bearer token for outgoing API requests, or null while signed out. */
+  readonly token = computed(() => this.sessionSignal()?.token ?? null);
 
-  signIn(name: string, email: string): void {
-    const user: AdminUser = {
-      id: this.slugify(email),
-      name: name.trim(),
-      email: email.trim().toLowerCase()
-    };
-    this.userSignal.set(user);
-    localStorage.setItem(this.storageKey, JSON.stringify(user));
-    this.router.navigate(['/dashboard']);
+  /**
+   * Real backend sign-in. Errors (401 invalid credentials, 503 unconfigured,
+   * 429 rate limited, network) propagate to the login form untouched —
+   * the API's `message` is rendered verbatim.
+   */
+  signIn(username: string, password: string): Observable<LoginResponse> {
+    return this.http.post<LoginResponse>(`${API_URL}/auth/login`, { username, password }).pipe(
+      tap(res => {
+        const session: AdminSession = {
+          token: res.token,
+          expiresAt: res.expiresAt,
+          user: {
+            id: String(res.user?.id ?? ''),
+            name: res.user?.name?.trim() || username.trim(),
+            email: res.user?.email ?? ''
+          }
+        };
+        this.sessionSignal.set(session);
+        localStorage.setItem(this.storageKey, JSON.stringify(session));
+        this.router.navigate(['/dashboard']);
+      })
+    );
   }
 
   logout(): void {
-    this.userSignal.set(null);
+    this.sessionSignal.set(null);
     localStorage.removeItem(this.storageKey);
     this.router.navigate(['/auth/login']);
   }
 
+  /**
+   * Called by the HTTP layer when the API answers 401 — the token expired or
+   * was revoked. Drops the session (the router guard then keeps the user on
+   * the login screen) without double-handling login-page failures.
+   */
+  handleAuthFailure(): void {
+    if (this.sessionSignal() === null) {
+      return; // Already signed out (e.g., the failed request WAS the login attempt).
+    }
+    this.logout();
+  }
+
   initials(): string {
-    const name = this.userSignal()?.name ?? 'Admin';
+    const name = this.userSignalName();
     return name
       .split(/\s+/)
       .filter(Boolean)
@@ -47,16 +85,27 @@ export class AuthService {
       .join('');
   }
 
-  private loadSession(): AdminUser | null {
+  private userSignalName(): string {
+    return this.sessionSignal()?.user?.name ?? 'Admin';
+  }
+
+  private restoreSession(): AdminSession | null {
     try {
       const raw = localStorage.getItem(this.storageKey);
-      return raw ? (JSON.parse(raw) as AdminUser) : null;
+      if (!raw) return null;
+
+      const session = JSON.parse(raw) as AdminSession;
+      if (!session?.token || !session.user) return null;
+
+      // Expired tokens are worthless — drop them instead of firing doomed requests.
+      if (session.expiresAt && Date.parse(session.expiresAt) <= Date.now()) {
+        localStorage.removeItem(this.storageKey);
+        return null;
+      }
+
+      return session;
     } catch {
       return null;
     }
-  }
-
-  private slugify(value: string): string {
-    return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'admin';
   }
 }

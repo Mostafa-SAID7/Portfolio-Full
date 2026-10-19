@@ -21,9 +21,9 @@ Verified by direct HTTP probes — not claims:
 
 - Backend live: `http://portfolio-market.runasp.net`
   - `/` → `302` to `/swagger` (root 404 fixed) ✔
-  - `/api/health` → `200 {"status":"ok","database":"ok",...}` (real DB check) ✔
+  - `/api/v1/health` → `200 {"status":"ok","database":"ok",...}` (real DB check) ✔
   - `/swagger/index.html` + `/swagger/v1/swagger.json` → `200` (Swagger ON in production by default) ✔
-  - `/api/public/projects`, `/api/public/credentials` → `200` ✔
+  - `/api/v1/public/projects`, `/api/v1/public/credentials` → `200` ✔
 - **HTTPS on the API is NOT working yet** (TLS handshake fails) — manual panel step, see §6.
 - Frontends: **production builds verified locally**, not yet deployed:
   - portfolio: `npm run build` → `.vercel/output/` (Vercel Build Output API v3: static + `__server.func` SSR) ✔
@@ -49,8 +49,10 @@ Verified by direct HTTP probes — not claims:
 - Content root: IIS runs the app from the folder containing `web.config`, which is where
   `appsettings.Production.json` lives. (If you ever run `dotnet PortfolioAPI.dll` by hand,
   do it *from the app folder* — settings are resolved relative to the working directory.)
-- Schema: at startup the API runs `EnsureCreated` + idempotent `ALTER TABLE` patches against the
-  remote DB (no migrations; never destructive).
+- Schema: EF Core **migrations** are the source of truth (`EnsureCreated` is gone). At startup the
+  API baselines legacy (pre-migration) databases by recording the existing migrations as applied —
+  **no DDL runs against existing tables, no data is touched** — then `Migrate()` applies only
+  migrations added after the baseline. Never destructive.
 
 ### Environment variables (optional — the file-based config already works)
 Set these in the hosting panel only if you prefer env config (they override the JSON files):
@@ -63,13 +65,16 @@ Set these in the hosting panel only if you prefer env config (they override the 
 | `Swagger__Enabled` | `true` (default) / `false` to hide `/swagger` |
 
 ### Updating the API later
-Re-run the publish command, upload `publish/` again, done. No migrations to run.
+Re-run the publish command, upload `publish/` again, done. Pending migrations apply automatically
+at startup. **Schema changes** require a new migration — never edit an applied migration and never
+use `EnsureCreated`:
+`dotnet ef migrations add <Name> --project PortfolioAPI/src/PortfolioAPI.Infrastructure --startup-project PortfolioAPI/src/PortfolioAPI`
 
 ---
 
 ## 2. Vercel — main portfolio (`portfolio/`)
 
-1. Push the repository to GitHub (see §6 — commit not yet made).
+1. Push the repository to GitHub (see §6 for the manual API upload step).
 2. Vercel → **Add New → Project** → import the repo → set **Root Directory = `portfolio`**.
 3. Framework is auto-detected (Vite). Build command/output come from `portfolio/vercel.json`:
    - install: `npm ci` (pinned so the stray `bun.lock` never hijacks the build)
@@ -85,7 +90,9 @@ Re-run the publish command, upload `publish/` again, done. No migrations to run.
    `VITE_*` variables are **build-time** — changing them requires a redeploy.
 
 The `vercel.json` rewrite `"source": "/api/:path*"` proxies to the API server-side, so
-SSR and the browser both work with zero configuration. If the API ever moves, edit that one URL.
+SSR and the browser both work with zero configuration. The pattern covers the
+versioned namespace too (`/api/v1/...` → same proxy; see `docs/API_VERSIONING.md`).
+If the API ever moves, edit that one URL.
 
 ## 3. Vercel — dashboard (`dashboard/`)
 
@@ -95,8 +102,9 @@ SSR and the browser both work with zero configuration. If the API ever moves, ed
    - output: `dist/portfolio-dashboard/browser` (verified path)
    - rewrites: `/api/*` → proxied to the Portfolio API, everything else → `/index.html` (SPA routing)
 3. **No environment variables needed.**
-4. Deploy. Dashboard auth remains the local unlock session (backend JWT is a later, isolated change
-   in `AuthService`).
+4. Deploy. The dashboard signs in through the API's `POST /api/v1/auth/login` (JWT). Set
+   `Auth:Username` / `Auth:Password` on the API (§5) — while they are empty, login fails closed
+   with `503`.
 
 Both apps must sit at their **domain root** (base href `/`). If you ever mount one under a path,
 adjust `--base-href`/`baseHref` accordingly.
@@ -122,10 +130,31 @@ adjust `--base-href`/`baseHref` accordingly.
 | Vercel (portfolio) | `VITE_API_BASE_URL` | optional direct API origin (post-TLS only) |
 | MonsterASP (optional) | `ConnectionStrings__DefaultConnection` | SQL Server connection string |
 | MonsterASP (optional) | `ASPNETCORE_ENVIRONMENT` | `Production` |
+| MonsterASP (optional) | `Auth__Username` / `Auth__Password` | admin login credentials (required for dashboard sign-in — unset/empty = `POST /api/v1/auth/login` returns 503) |
+| MonsterASP (optional) | `Auth__SigningKey` | JWT signing key (optional — an ephemeral per-process key is generated when unset, so tokens don't survive restarts) |
 | MonsterASP (optional) | `Cors__AllowedOrigins` | browser origins for direct API calls (comma-separated, `*` wildcard allowed like `https://*.vercel.app`) |
 | MonsterASP (optional) | `Swagger__Enabled` | Swagger UI toggle (default on) |
 
 No secrets exist in either frontend. `VITE_*` values are public by design.
+
+### SSR API origin resolution (portfolio) — required env vars
+
+`portfolio/src/lib/api-origin.ts` resolves the absolute origin that SSR needs
+for its API fetches, in this order:
+
+| Variable | Scope | What it does |
+| --- | --- | --- |
+| `VITE_API_BASE_URL` | Build-time (`import.meta.env`) **and** runtime on the server (`process.env`) | Optional override of the API origin, read consistently on **both** the server and client paths with identical normalization (trailing slash stripped, `https://` prefixed when the scheme is missing; empty string = "not configured"). Leave unset to keep the default same-origin `/api` rewrite. |
+| `VERCEL_PROJECT_PRODUCTION_URL` | Vercel-provided (build + runtime) | The deployment's own production hostname; SSR calls back as `https://<hostname>/api/...` through the existing `/api` rewrite. |
+| `VERCEL_URL` | Vercel-provided (build + runtime) | Per-deployment hostname, used when the production URL is absent — so **preview deployments resolve to the same production API by default**. |
+
+- When none of these resolve server-side, the resolver logs **one**
+  `[api-origin] no VERCEL_*/VITE_API_BASE_URL configured …` warning and
+  returns `""` (same-origin) — in that case the **`/api` rewrite in
+  `portfolio/vercel.json` is the fallback** for both SSR and browser calls.
+- The current production setup (Vercel same-origin rewrite, no
+  `VITE_API_BASE_URL` set) behaves exactly as before; no API host is
+  hardcoded in application code.
 
 ## 6. Manual checklist (things only you can do)
 
@@ -145,8 +174,10 @@ No secrets exist in either frontend. `VITE_*` values are public by design.
 - [ ] Optional/follow-up: rewrite `PortfolioAPI.UnitTests` to the current `Result<T>` service API
       (pre-existing broken since HEAD — ~150 compile errors across `ControllerTests`, `ProjectServiceTests`,
       `ValidatorsTests`, `AutoMapperTests`, `RepositoryTests`…).
-- [ ] Before opening the admin API to the world: add JWT in `AuthService` — admin `/api/*` write endpoints
-      are currently unauthenticated (Swagger documents them; the dashboard uses a local unlock).
+- [x] **JWT admin auth** — implemented: `POST /api/v1/auth/login` + `[Authorize]` on all admin
+      mutations (rate-limited login).
+- [ ] **Set `Auth:Username` / `Auth:Password`** in `appsettings.Production.json` (or the matching
+      env vars) — while unset, login fails closed with `503` and no admin mutation is possible.
 
 ## 7. Troubleshooting
 
@@ -154,7 +185,7 @@ No secrets exist in either frontend. `VITE_*` values are public by design.
 | --- | --- |
 | Vercel portfolio build fails at install | `bun.lock` vs `package-lock.json` conflict — `installCommand: npm ci` in `vercel.json` prevents this (Vercel only reads `package-lock.json`; `bun.lock` may lag behind `package.json` and is ignored) |
 | Vercel `403 Blocked by Vercel: @tanstack/... XSS (CVE-2026-102989)` | TanStack Start below the patched release — `package.json` now pins the matched set (`react-start 1.169.3`, `react-router 1.170.45`, `router-plugin 1.168.47`). Always move **all** `@tanstack/*` packages together: a single-package bump causes `MISSING_EXPORT` bundle errors from mismatched `router-core` |
-| Portfolio shows fallback (local) content instead of API data | `/api` rewrite missing or API down — `curl https://<domain>/api/health` |
+| Portfolio shows empty content instead of API data | `/api` rewrite missing or API down — `curl https://<domain>/api/v1/health` (the portfolio never falls back to bundled data by design) |
 | Dashboard deep link 404s on Vercel | SPA rewrite missing — must come *after* the `/api` rewrite in `dashboard/vercel.json` |
 | API 502/500 after upload | `appsettings.Production.json` not uploaded next to `web.config`, or env var missing — check logs for the fail-fast connection-string message |
 | SEO points to lovable.app | `VITE_SITE_URL` not set (build-time) — set it and **redeploy** |

@@ -6,6 +6,7 @@ import { AuthService } from './core/services/auth.service';
 import { ContactService } from './core/services/contact.service';
 import { ThemeService } from './core/services/theme.service';
 import { ConfirmDialogComponent } from './shared/confirm-dialog.component';
+import { ToastComponent } from './shared/toast.component';
 
 interface NavItem {
   link: string;
@@ -17,7 +18,7 @@ interface NavItem {
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive, ConfirmDialogComponent],
+  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive, ConfirmDialogComponent, ToastComponent],
   template: `
     <div class="app-shell">
       @if (isAuthenticated()) {
@@ -140,6 +141,9 @@ interface NavItem {
       } @else {
         <router-outlet />
       }
+
+      <!-- Global toast: session expiry / permission errors (issue #20). -->
+      <app-toast />
     </div>
   `
 })

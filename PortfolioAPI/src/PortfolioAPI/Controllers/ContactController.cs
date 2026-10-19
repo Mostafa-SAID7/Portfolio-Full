@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PortfolioAPI.Core.DTOs;
 using PortfolioAPI.Core.Entities;
@@ -5,7 +6,11 @@ using PortfolioAPI.Core.Interfaces.Services;
 
 namespace PortfolioAPI.Controllers
 {
+    // The whole inbox (reads include visitor PII + every mutation) is admin-
+    // only. The public submission path is POST /api/public/contact.
+    [Authorize]
     [ApiController]
+    [Route("api/v1/[controller]")]
     [Route("api/[controller]")]
     public class ContactController : ControllerBase
     {
@@ -41,11 +46,10 @@ namespace PortfolioAPI.Controllers
         [HttpPost]
         public async Task<ActionResult<ContactDto>> CreateContact([FromBody] CreateContactDto dto)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
-
+            // Validation runs in ContactService via ContactValidator — failures
+            // surface as 400 { message, errors } from the exception middleware
+            // (the old ModelState branch never fired: no DataAnnotations exist
+            // on the DTO, and its shape differed from the API contract — #16).
             var contact = new Contact
             {
                 Name = dto.Name.Trim(),

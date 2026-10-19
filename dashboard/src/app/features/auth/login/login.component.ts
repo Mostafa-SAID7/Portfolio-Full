@@ -26,7 +26,7 @@ import { AuthService } from '../../../core/services/auth.service';
               Run your portfolio<br><span class="text-accent">from one place.</span>
             </h1>
             <p class="mt-7 max-w-sm text-base leading-7 text-soft">
-              Projects, skills, experience, blog posts and visitor messages — all served live by the Portfolio API.
+              Projects, skills, experience and visitor messages — all served live by the Portfolio API.
             </p>
           </div>
           <div class="flex items-center justify-between text-xs text-muted"><span>© {{ year }}</span><span>Portfolio API · v1</span></div>
@@ -43,49 +43,56 @@ import { AuthService } from '../../../core/services/auth.service';
             <p class="eyebrow mb-3 text-accent-text">Welcome back</p>
             <h2 class="font-display text-3xl font-semibold tracking-[-0.05em]">Open the dashboard</h2>
             <p class="mt-3 text-sm leading-6 text-soft">
-              Enter your name and email to unlock the admin workspace on this device.
+              Sign in with your admin credentials — they are verified by the Portfolio API and a JWT is issued for this session.
             </p>
           </div>
 
           <form [formGroup]="signInForm" (ngSubmit)="onSubmit()" class="space-y-5" novalidate>
             <div>
-              <label for="name" class="field-label">Your name</label>
+              <label for="username" class="field-label">Username</label>
               <input
-                id="name"
+                id="username"
                 type="text"
-                formControlName="name"
-                autocomplete="name"
-                placeholder="Mostafa Said"
+                formControlName="username"
+                autocomplete="username"
+                placeholder="admin"
                 class="input"
-                [attr.aria-invalid]="signInForm.get('name')?.invalid && signInForm.get('name')?.touched ? 'true' : null"
+                [attr.aria-invalid]="signInForm.get('username')?.invalid && signInForm.get('username')?.touched ? 'true' : null"
               />
-              @if (signInForm.get('name')?.invalid && signInForm.get('name')?.touched) {
-                <p class="field-error" role="alert">Name is required.</p>
+              @if (signInForm.get('username')?.invalid && signInForm.get('username')?.touched) {
+                <p class="field-error" role="alert">Username is required.</p>
               }
             </div>
             <div>
-              <label for="email" class="field-label">Email address</label>
+              <label for="password" class="field-label">Password</label>
               <input
-                id="email"
-                type="email"
-                formControlName="email"
-                autocomplete="email"
-                placeholder="you@example.com"
+                id="password"
+                type="password"
+                formControlName="password"
+                autocomplete="current-password"
+                placeholder="••••••••"
                 class="input"
-                [attr.aria-invalid]="signInForm.get('email')?.invalid && signInForm.get('email')?.touched ? 'true' : null"
+                [attr.aria-invalid]="signInForm.get('password')?.invalid && signInForm.get('password')?.touched ? 'true' : null"
               />
-              @if (signInForm.get('email')?.invalid && signInForm.get('email')?.touched) {
-                <p class="field-error" role="alert">Enter a valid email address.</p>
+              @if (signInForm.get('password')?.invalid && signInForm.get('password')?.touched) {
+                <p class="field-error" role="alert">Password is required.</p>
               }
             </div>
-            <button type="submit" [disabled]="signInForm.invalid" class="btn-primary w-full">
-              Open dashboard
+
+            @if (submitError) {
+              <div class="rounded-xl border border-danger/30 bg-danger/10 p-3 text-sm text-danger" role="alert">
+                {{ submitError }}
+              </div>
+            }
+
+            <button type="submit" [disabled]="signInForm.invalid || submitting" class="btn-primary w-full">
+              {{ submitting ? 'Signing in…' : 'Sign in' }}
             </button>
           </form>
 
           <p class="mt-8 rounded-xl border border-line/10 bg-surface p-3 text-xs leading-5 text-muted">
-            The Portfolio API does not expose authentication endpoints yet, so this sign-in is a
-            local unlock for this browser. Add JWT auth to the API to secure it for everyone.
+            Credentials are configured on the API server (Auth:Username / Auth:Password). Sign-in is rate
+            limited, and every admin write request requires this session's token.
           </p>
         </div>
       </div>
@@ -98,9 +105,12 @@ export class LoginComponent {
 
   readonly year = new Date().getFullYear();
 
+  submitting = false;
+  submitError: string | null = null;
+
   readonly signInForm = this.fb.nonNullable.group({
-    name: ['', [Validators.required, Validators.minLength(2)]],
-    email: ['', [Validators.required, Validators.email]]
+    username: ['', [Validators.required]],
+    password: ['', [Validators.required]]
   });
 
   onSubmit(): void {
@@ -108,7 +118,20 @@ export class LoginComponent {
       this.signInForm.markAllAsTouched();
       return;
     }
-    const { name, email } = this.signInForm.getRawValue();
-    this.authService.signIn(name, email);
+
+    const { username, password } = this.signInForm.getRawValue();
+    this.submitting = true;
+    this.submitError = null;
+
+    this.authService.signIn(username.trim(), password).subscribe({
+      next: () => {
+        this.submitting = false;
+      },
+      error: err => {
+        this.submitting = false;
+        this.submitError =
+          err?.error?.message ?? 'Sign-in failed. Check your credentials and try again.';
+      }
+    });
   }
 }

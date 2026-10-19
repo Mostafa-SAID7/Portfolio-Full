@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# All three jobs run in parallel; each app's checks must be green to merge.
+# Deployments are intentionally NOT part of CI: the API ships as a manual
+# publish-folder upload to MonsterASP.NET and the frontends deploy via
+# Vercel Git — see docs/DEPLOYMENT.md.
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: backend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Build solution
+        run: dotnet build Portfolio.sln --configuration Release
+
+      # Plain `dotnet test` (no --no-build) so the test project's output is
+      # guaranteed to exist regardless of solution-build output layout.
+      # Only the unit-test project runs here — the integration tests need
+      # Docker (SQL Server container) and stay a local/manual opt-in.
+      - name: Run unit tests
+        run: dotnet test PortfolioAPI/tests/PortfolioAPI.UnitTests/PortfolioAPI.UnitTests.csproj --configuration Release
+
+  dashboard:
+    name: dashboard
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dashboard
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+  portfolio:
+    name: portfolio
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: portfolio
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: portfolio/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build

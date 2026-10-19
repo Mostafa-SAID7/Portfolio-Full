@@ -16,6 +16,13 @@ namespace PortfolioAPI.Core.Common
         public T? Data { get; set; }
         public IEnumerable<string>? Errors { get; set; }
 
+        /// <summary>
+        /// True when the failure means "the entity does not exist" — mapped to
+        /// HTTP 404 by the shared controller helper (issue #16). Other failures
+        /// map to 400 with the shared { message, errors? } body.
+        /// </summary>
+        public bool IsNotFound { get; set; }
+
         public static Result<T> Ok(T data, string? message = null)
         {
             return new Result<T> { Success = true, Message = message, Data = data };
@@ -24,6 +31,12 @@ namespace PortfolioAPI.Core.Common
         public static Result<T> Fail(string message, IEnumerable<string>? errors = null)
         {
             return new Result<T> { Success = false, Message = message, Errors = errors };
+        }
+
+        /// <summary>Expected "not found" outcome — surfaced as HTTP 404 { message }.</summary>
+        public static Result<T> NotFound(string message)
+        {
+            return new Result<T> { Success = false, IsNotFound = true, Message = message };
         }
 
         public static Result<T> Fail(IEnumerable<string> errors)

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PortfolioAPI.Core.DTOs;
 using PortfolioAPI.Core.Interfaces.Services;
@@ -5,9 +6,9 @@ using PortfolioAPI.Infrastructure.Services;
 
 namespace PortfolioAPI.Controllers
 {
-    [ApiController]
+    [Route("api/v1/[controller]")]
     [Route("api/[controller]")]
-    public class ProjectsController : ControllerBase
+    public class ProjectsController : ApiControllerBase
     {
         private readonly IProjectService _projectService;
         private readonly IFileStorageService _fileStorage;
@@ -30,49 +31,45 @@ namespace PortfolioAPI.Controllers
         public async Task<ActionResult<IEnumerable<ProjectDto>>> GetAllProjects()
         {
             var result = await _projectService.GetAllAsync();
-            return Ok(result.Data);
+            return Mapped(result);
         }
 
         [HttpGet("featured")]
         public async Task<ActionResult<IEnumerable<ProjectDto>>> GetFeaturedProjects()
         {
             var result = await _projectService.GetFeaturedAsync();
-            return Ok(result.Data);
+            return Mapped(result);
         }
 
         [HttpGet("technology/{technology}")]
         public async Task<ActionResult<IEnumerable<ProjectDto>>> GetProjectsByTechnology(string technology)
         {
             var result = await _projectService.GetByTechnologyAsync(technology);
-            return Ok(result.Data);
+            return Mapped(result);
         }
 
         [HttpGet("search")]
         public async Task<ActionResult<IEnumerable<ProjectDto>>> SearchProjects([FromQuery] string term)
         {
             var result = await _projectService.SearchAsync(term);
-            return Ok(result.Data);
+            return Mapped(result);
         }
 
-        [HttpGet("{id}")]
+        [HttpGet("{id:int}")]
         public async Task<ActionResult<ProjectDto>> GetProject(int id)
         {
             var result = await _projectService.GetByIdAsync(id);
-            return result.Success && result.Data != null ? Ok(result.Data) : NotFound(result);
+            return Mapped(result);
         }
 
         [HttpPost]
+        [Authorize]
         public async Task<ActionResult<ProjectDto>> CreateProject([FromBody] CreateProjectDto dto)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
-
             var result = await _projectService.CreateAsync(dto);
             if (!result.Success || result.Data == null)
             {
-                return BadRequest(result);
+                return Failure(result);
             }
 
             return CreatedAtAction(
@@ -81,14 +78,10 @@ namespace PortfolioAPI.Controllers
                 result.Data);
         }
 
-        [HttpPut("{id}")]
+        [HttpPut("{id:int}")]
+        [Authorize]
         public async Task<IActionResult> UpdateProject(int id, [FromBody] UpdateProjectDto dto)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
-
             var existing = await _projectService.GetByIdAsync(id);
             var result = await _projectService.UpdateAsync(id, dto);
 
@@ -99,10 +92,11 @@ namespace PortfolioAPI.Controllers
                 await TryDeleteStoredCoverAsync(previous);
             }
 
-            return result.Success ? NoContent() : BadRequest(result);
+            return result.Success ? NoContent() : Failure(result);
         }
 
-        [HttpDelete("{id}")]
+        [HttpDelete("{id:int}")]
+        [Authorize]
         public async Task<IActionResult> DeleteProject(int id)
         {
             var existing = await _projectService.GetByIdAsync(id);
@@ -113,14 +107,15 @@ namespace PortfolioAPI.Controllers
                 await TryDeleteStoredCoverAsync(cover);
             }
 
-            return result.Success ? NoContent() : NotFound(result);
+            return result.Success ? NoContent() : Failure(result);
         }
 
-        [HttpPatch("{id}/toggle-featured")]
+        [HttpPatch("{id:int}/toggle-featured")]
+        [Authorize]
         public async Task<IActionResult> ToggleFeatured(int id)
         {
             var result = await _projectService.ToggleFeaturedAsync(id);
-            return result.Success ? Ok(new { isFeatured = result.Data }) : NotFound(result);
+            return result.Success ? Ok(new { isFeatured = result.Data }) : Failure(result);
         }
 
         /// <summary>

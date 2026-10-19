@@ -4,19 +4,26 @@ using PortfolioAPI.Core.Interfaces.Services;
 using PortfolioAPI.Infrastructure.Data;
 using PortfolioAPI.Infrastructure.Repositories;
 using PortfolioAPI.Infrastructure.Services;
+using PortfolioAPI.Auth;
 using FluentValidation;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
+using Microsoft.IdentityModel.Tokens;
 using PortfolioAPI.Application.Exceptions;
+using System.Text;
+using System.Threading.RateLimiting;
 using ValidationException = PortfolioAPI.Application.Exceptions.ValidationException;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Swagger UI is enabled in every environment by default (the API currently
-// exposes no authenticated surface, so published docs add no extra risk).
-// Disable it anywhere with `Swagger__Enabled=false` (appsettings or env var).
-var swaggerEnabled = builder.Configuration.GetValue("Swagger:Enabled", true);
+// Swagger UI (issue #3/#8): OFF by default outside Development; every
+// environment can still opt in explicitly with `Swagger__Enabled=true`
+// (the production config does so deliberately). Docs also advertise the
+// JWT bearer scheme while auth is enabled.
+var swaggerEnabled = builder.Configuration.GetValue("Swagger:Enabled", builder.Environment.IsDevelopment());
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -31,8 +38,41 @@ if (swaggerEnabled)
             Title = "Portfolio API",
             Version = "v1",
             Description = "Centralized backend for the Portfolio admin dashboard and the public portfolio site. "
-                          + "Admin endpoints live under /api/*; the public, read-only surface used by the portfolio "
-                          + "frontend lives under /api/public/*."
+                          + "All JSON endpoints are versioned under /api/v1/*; the public, read-only surface used "
+                          + "by the portfolio frontend lives under /api/v1/public/* (legacy unversioned paths stay "
+                          + "available as deprecated aliases — see docs/API_VERSIONING.md)."
+        });
+
+        // Issue #24: document only the canonical /api/v1/... routes. The legacy
+        // unversioned aliases keep working during the transition but stay out of
+        // the spec so consumers only ever copy the versioned paths.
+        options.DocInclusionPredicate((_, apiDescription) =>
+            apiDescription.RelativePath?.Contains("v1/", StringComparison.Ordinal) == true);
+
+        // Document the JWT security scheme (issues #1/#6): paste the token
+        // from POST /api/v1/auth/login to try admin endpoints from this UI.
+        options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+        {
+            Name = "Authorization",
+            Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
+            Scheme = "bearer",
+            BearerFormat = "JWT",
+            In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+            Description = "Admin JWT from POST /api/v1/auth/login (paste the token value, Swagger adds the scheme prefix)."
+        });
+        options.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+        {
+            {
+                new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+                {
+                    Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                    {
+                        Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                        Id = "Bearer"
+                    }
+                },
+                Array.Empty<string>()
+            }
         });
     });
 }
@@ -54,7 +94,10 @@ builder.Services.AddCors(options =>
     options.AddPolicy("Frontends", policy =>
     {
         policy.AllowAnyMethod()
-              .AllowAnyHeader();
+              .AllowAnyHeader()
+              // Expose the versioning signals (issue #24) so browser devtools
+              // on the frontends can read them cross-origin.
+              .WithExposedHeaders("X-API-Version", "Deprecation");
 
         if (builder.Environment.IsDevelopment())
         {
@@ -82,6 +125,89 @@ builder.Services.AddCors(options =>
 
 // Add logging
 builder.Services.AddLogging();
+
+// --- Admin authentication (issues #1 / #6 / #7 / #12) -----------------------
+// JWT bearer guards every admin MUTATING endpoint ([Authorize]); /api/public/*
+// and admin read endpoints stay anonymous. Sign in via POST /api/auth/login
+// with Auth:Username / Auth:Password (empty = login fails closed with 503).
+// The signing key resolves inside TokenService (Auth:SigningKey or an
+// ephemeral per-process key — no secret ships in any config).
+var tokenService = new TokenService(builder.Configuration);
+builder.Services.AddSingleton<ITokenService>(tokenService);
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = builder.Configuration["Auth:Issuer"] ?? "PortfolioAPI",
+            ValidateAudience = true,
+            ValidAudience = builder.Configuration["Auth:Audience"] ?? "PortfolioDashboard",
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = tokenService.SigningKey,
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.FromMinutes(2)
+        };
+
+        // Uniform { message } JSON for 401/403 so the dashboard interceptor
+        // can show a real reason (pairs with issue #20).
+        options.Events = new JwtBearerEvents
+        {
+            OnChallenge = async context =>
+            {
+                context.HandleResponse();
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                context.Response.ContentType = "application/json";
+                await context.Response.WriteAsJsonAsync(new { message = "Authentication required. Sign in to continue." });
+            },
+            OnForbidden = async context =>
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                context.Response.ContentType = "application/json";
+                await context.Response.WriteAsJsonAsync(new { message = "You do not have permission to perform this action." });
+            }
+        };
+    });
+builder.Services.AddAuthorization();
+
+// --- Rate limiting (issue #10) ----------------------------------------------
+// Per-client-IP fixed windows on the public contact form and on admin login.
+// ForwardedHeaders (configured below) restores the real client IP behind the
+// Vercel proxy / hosting load balancer so legitimate visitors don't share a bucket.
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        context.HttpContext.Response.ContentType = "application/json";
+        await context.HttpContext.Response.WriteAsJsonAsync(
+            new { message = "Too many requests — please wait a moment and try again." },
+            cancellationToken);
+    };
+
+    options.AddFixedWindowLimiter("public-submit", limiter =>
+    {
+        limiter.PermitLimit = 10;
+        limiter.Window = TimeSpan.FromMinutes(1);
+        limiter.QueueLimit = 0;
+    });
+
+    options.AddFixedWindowLimiter("login", limiter =>
+    {
+        limiter.PermitLimit = 5;
+        limiter.Window = TimeSpan.FromMinutes(1);
+        limiter.QueueLimit = 0;
+    });
+});
+
+// Real client IP + scheme behind proxies (X-Forwarded-For / X-Forwarded-Proto).
+builder.Services.Configure<Microsoft.AspNetCore.Builder.ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedFor
+                             | Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 
 // Connection string: provided by the environment in production
 // (`ConnectionStrings__DefaultConnection`) and by the untracked
@@ -111,7 +237,6 @@ builder.Services.AddScoped<ISkillService, SkillService>();
 builder.Services.AddScoped<IExperienceService, ExperienceService>();
 builder.Services.AddScoped<IContactService, ContactService>();
 builder.Services.AddScoped<ITestimonialService, TestimonialService>();
-builder.Services.AddScoped<IBlogService, BlogService>();
 
 builder.Services.AddScoped<ICredentialService, CredentialService>();
 
@@ -143,6 +268,10 @@ builder.Configuration["FileStorage:Path"] =
             : Path.Combine(builder.Environment.ContentRootPath, configuredStoragePath);
 
 var app = builder.Build();
+
+// Restore real client IP/scheme behind the Vercel proxy / hosting load
+// balancer — must run before anything that reads RemoteIpAddress (rate limiting).
+app.UseForwardedHeaders();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -204,7 +333,7 @@ app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
             message = validation.Message;
             errors = validation.Errors;
             break;
-        // Unique indexes (Skills.Name, BlogPost.Slug) reject duplicates at the
+        // Unique indexes (Skills.Name) reject duplicates at the
         // database level — surface them as a clear 409 instead of a generic 500.
         case DbUpdateException { InnerException: Microsoft.Data.SqlClient.SqlException { Number: 2601 or 2627 } }:
             status = StatusCodes.Status409Conflict;
@@ -230,7 +359,9 @@ app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
 
 // Health endpoint: verifies process + database connectivity (used for
 // deployment checks and uptime monitors; 503 when the DB is unreachable).
-app.MapGet("/api/health", async (PortfolioDbContext db, CancellationToken cancellationToken) =>
+// Served under the versioned path (canonical, issue #24) plus the legacy
+// unversioned alias for existing monitors.
+async Task<IResult> HealthAsync(PortfolioDbContext db, CancellationToken cancellationToken)
 {
     var now = DateTime.UtcNow;
     try
@@ -246,7 +377,10 @@ app.MapGet("/api/health", async (PortfolioDbContext db, CancellationToken cancel
         return Results.Json(new { status = "degraded", database = "unreachable", time = now },
             statusCode: StatusCodes.Status503ServiceUnavailable);
     }
-});
+}
+
+app.MapGet("/api/v1/health", HealthAsync);
+app.MapGet("/api/health", HealthAsync); // deprecated alias (issue #24)
 
 // Root landing: never a dead 404 — send browsers to the Swagger UI (human
 // landing page for the API) or, when Swagger is disabled, a JSON index.
@@ -256,9 +390,39 @@ app.MapGet("/", () => swaggerEnabled
     {
         name = "Portfolio API",
         version = "v1",
-        health = "/api/health",
-        publicApi = "/api/public/*"
+        health = "/api/v1/health",
+        publicApi = "/api/v1/public/*"
     }));
+
+// --- API versioning (issue #24) ---------------------------------------------
+// JSON endpoints answer under /api/v1/... (canonical) and on the legacy
+// unversioned paths as deprecated aliases: responses advertise the version,
+// and the aliases carry Deprecation/Link headers. Static file serving
+// (/api/files/...) is intentionally exempt — those URLs are immutable
+// content stored in the database, not a versioned contract.
+app.Use(async (context, next) =>
+{
+    var path = context.Request.Path.Value ?? "";
+    var isJsonApi = path.StartsWith("/api/", StringComparison.OrdinalIgnoreCase)
+                    && !path.StartsWith("/api/files/", StringComparison.OrdinalIgnoreCase);
+    if (isJsonApi)
+    {
+        context.Response.Headers["X-API-Version"] = "v1";
+        if (!path.StartsWith("/api/v1/", StringComparison.OrdinalIgnoreCase))
+        {
+            context.Response.Headers["Deprecation"] = "true";
+            context.Response.Headers["Link"] = "</api/v1>; rel=\"successor-version\"";
+        }
+    }
+    await next();
+});
+
+// Rate limiting (public contact + login policies) and JWT authentication
+// must run before the endpoints; /api/v1/public/* endpoints carry no
+// [Authorize] and stay anonymous.
+app.UseRateLimiter();
+app.UseAuthentication();
+app.UseAuthorization();
 
 // Map controllers
 app.MapControllers();

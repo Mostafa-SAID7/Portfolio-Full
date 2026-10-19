@@ -1,6 +1,7 @@
 /**
  * Centralized content layer: the portfolio renders projects, skills and career
- * credentials exclusively from the PortfolioAPI (`/api/public/*`) — the single
+ * credentials exclusively from the PortfolioAPI (`/api/v1/public/*`, issue #24)
+ * — the single
  * source of truth shared with the admin dashboard. Dashboard CRUD (create /
  * edit / delete / visibility) is therefore reflected here on the next fetch;
  * the bundled `src/data` dataset can never reintroduce content that was
@@ -8,11 +9,14 @@
  *
  * The local dataset is only presentation enrichment for API rows: stable
  * deep-link ids, case-study narratives, gradients and other metadata matched
- * by title (see `toPortfolioProject`), plus a last-resort sitemap fallback.
+ * by title (see `toPortfolioProject`). It is NEVER a data fallback: when the
+ * API errors or returns no rows, every fetcher here resolves to an empty
+ * list (and the sitemap drops project URLs) — bundled data can never stand
+ * in for missing API content.
  *
  * SSR resolves an absolute origin via `apiOrigin()` so server rendering reads
- * the same live data as the browser (which stays same-origin on `/api` behind
- * the Vercel rewrite; dev talks to the local API on :5039).
+ * the same live data as the browser (which stays same-origin behind the
+ * Vercel `/api` rewrite; dev talks to the local API on :5039).
  */
 import { useQuery } from "@tanstack/react-query";
 import { apiOrigin } from "@/lib/api-origin";
@@ -93,7 +97,7 @@ interface ApiCredential {
 /** GET a public endpoint; `null` on any failure (API down, timeout, non-2xx). */
 async function getJson<T>(path: string): Promise<T | null> {
   try {
-    const response = await fetch(`${apiOrigin()}/api/public/${path}`, {
+    const response = await fetch(`${apiOrigin()}/api/v1/public/${path}`, {
       headers: { accept: "application/json" },
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
@@ -107,7 +111,11 @@ async function getJson<T>(path: string): Promise<T | null> {
 const normalize = (value: string) =>
   value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
-/** API project → portfolio Project (API values first, local dataset as fallback). */
+/**
+ * API project → portfolio Project. API values always win; the local dataset
+ * only fills presentation metadata (category, badges, gradient, deep-link id)
+ * for rows the API actually returned — it never introduces projects on its own.
+ */
 function toPortfolioProject(dto: ApiProject): Project {
   const meta = localProjects.find((p) => normalize(p.title) === normalize(dto.title));
 
@@ -211,9 +219,9 @@ export async function fetchPortfolioCredentials(): Promise<CredentialItem[]> {
 }
 
 /**
- * Projects for rendering: local content paints instantly (SSR + first paint),
- * then the API copy refines it. `queryFn` never rejects, so `data` is always
- * either the API list or the local fallback.
+ * Projects for rendering: API list only. `queryFn` never rejects, so an
+ * unreachable API surfaces as an empty list (existing empty/error UI) —
+ * never as the bundled `src/data` catalog, which cannot know about deletes.
  */
 export function usePortfolioProjects(): Project[] {
   const { data } = useQuery({

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PortfolioAPI.Core.DTOs;
 using PortfolioAPI.Core.Entities;
@@ -6,6 +7,7 @@ using PortfolioAPI.Core.Interfaces.Services;
 namespace PortfolioAPI.Controllers
 {
     [ApiController]
+    [Route("api/v1/[controller]")]
     [Route("api/[controller]")]
     public class SkillsController : ControllerBase
     {
@@ -45,6 +47,7 @@ namespace PortfolioAPI.Controllers
         }
 
         [HttpPost]
+        [Authorize]
         public async Task<ActionResult<SkillDto>> CreateSkill([FromBody] CreateSkillDto dto)
         {
             var skill = new Skill
@@ -63,6 +66,7 @@ namespace PortfolioAPI.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize]
         public async Task<IActionResult> UpdateSkill(int id, [FromBody] UpdateSkillDto dto)
         {
             // DTO binding (not the raw EF entity): the route id wins and
@@ -84,6 +88,7 @@ namespace PortfolioAPI.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize]
         public async Task<IActionResult> DeleteSkill(int id)
         {
             await _skillService.DeleteSkillAsync(id);

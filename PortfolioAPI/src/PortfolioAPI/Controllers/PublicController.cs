@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using PortfolioAPI.Core.DTOs;
 using PortfolioAPI.Core.Interfaces.Services;
 
@@ -11,13 +12,13 @@ namespace PortfolioAPI.Controllers
     /// Responses are deterministic lists, ideal for the client's HTTP cache.
     /// </summary>
     [ApiController]
+    [Route("api/v1/public")]
     [Route("api/public")]
     public class PublicController : ControllerBase
     {
         private readonly IProjectService _projectService;
         private readonly ISkillService _skillService;
         private readonly IExperienceService _experienceService;
-        private readonly IBlogService _blogService;
         private readonly ITestimonialService _testimonialService;
         private readonly IContactService _contactService;
         private readonly ICredentialService _credentialService;
@@ -26,7 +27,6 @@ namespace PortfolioAPI.Controllers
             IProjectService projectService,
             ISkillService skillService,
             IExperienceService experienceService,
-            IBlogService blogService,
             ITestimonialService testimonialService,
             IContactService contactService,
             ICredentialService credentialService)
@@ -34,7 +34,6 @@ namespace PortfolioAPI.Controllers
             _projectService = projectService;
             _skillService = skillService;
             _experienceService = experienceService;
-            _blogService = blogService;
             _testimonialService = testimonialService;
             _contactService = contactService;
             _credentialService = credentialService;
@@ -73,31 +72,6 @@ namespace PortfolioAPI.Controllers
                 .Where(e => e.IsActive)
                 .OrderBy(e => e.Order)
                 .ThenByDescending(e => e.StartDate));
-        }
-
-        /// <summary>Published blog posts (summary fields only would be nicer; full DTO keeps the client simple).</summary>
-        [HttpGet("blog")]
-        public async Task<ActionResult<IEnumerable<BlogPostDto>>> GetBlog()
-        {
-            var posts = await _blogService.GetPublishedBlogPostsAsync();
-            return Ok(posts
-                .Where(b => b.Published)
-                .OrderByDescending(b => b.PublishedAt));
-        }
-
-        /// <summary>A single published post by its slug.</summary>
-        [HttpGet("blog/{slug}")]
-        public async Task<ActionResult<BlogPostDto>> GetBlogPost(string slug)
-        {
-            var post = await _blogService.GetBlogPostBySlugAsync(slug);
-            if (post == null || !post.Published)
-            {
-                return NotFound();
-            }
-
-            // Count the view asynchronously; the read response should not wait on the write.
-            _ = Task.Run(() => _blogService.IncrementViewCountAsync(post.Id));
-            return Ok(post);
         }
 
         /// <summary>Active testimonials, featured first.</summary>
@@ -151,13 +125,12 @@ namespace PortfolioAPI.Controllers
 
         /// <summary>Public contact-form submission (portfolio site's "get in touch").</summary>
         [HttpPost("contact")]
+        [EnableRateLimiting("public-submit")]
         public async Task<IActionResult> SubmitContact([FromBody] CreateContactDto dto)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
-
+            // Validation runs in ContactService — failures surface as
+            // 400 { message, errors } from the exception middleware (issue #16:
+            // this ModelState branch never fired and returned a different shape).
             var contact = new Core.Entities.Contact
             {
                 Name = dto.Name.Trim(),

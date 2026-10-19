@@ -17,7 +17,6 @@ namespace PortfolioAPI.Infrastructure.Data
         public DbSet<Experience> Experiences { get; set; } = null!;
         public DbSet<Contact> Contacts { get; set; } = null!;
         public DbSet<Testimonial> Testimonials { get; set; } = null!;
-        public DbSet<BlogPost> BlogPosts { get; set; } = null!;
         public DbSet<Credential> Credentials { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -31,7 +30,6 @@ namespace PortfolioAPI.Infrastructure.Data
             ConfigureExperience(modelBuilder);
             ConfigureContact(modelBuilder);
             ConfigureTestimonial(modelBuilder);
-            ConfigureBlogPost(modelBuilder);
             ConfigureCredential(modelBuilder);
             ConfigureJoinEntities(modelBuilder);
         }
@@ -78,20 +76,6 @@ namespace PortfolioAPI.Infrastructure.Data
         /// <summary>Join/lookup entities reached through navigation properties.</summary>
         private static void ConfigureJoinEntities(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<BlogPostTag>(entity =>
-            {
-                entity.HasKey(t => new { t.BlogPostId, t.Tag });
-
-                entity.Property(t => t.Tag)
-                    .IsRequired()
-                    .HasMaxLength(100);
-
-                entity.HasOne(t => t.BlogPost)
-                    .WithMany(p => p.BlogPostTags)
-                    .HasForeignKey(t => t.BlogPostId)
-                    .OnDelete(DeleteBehavior.Cascade);
-            });
-
             modelBuilder.Entity<SkillProject>(entity =>
             {
                 entity.HasKey(sp => new { sp.SkillId, sp.ProjectId });
@@ -247,64 +231,6 @@ namespace PortfolioAPI.Infrastructure.Data
 
                 entity.HasIndex(t => t.IsActive);
                 entity.HasIndex(t => t.Rating);
-            });
-        }
-
-        private static void ConfigureBlogPost(ModelBuilder modelBuilder)
-        {
-            modelBuilder.Entity<BlogPost>(entity =>
-            {
-                entity.HasKey(b => b.Id);
-
-                entity.Property(b => b.Title)
-                    .IsRequired()
-                    .HasMaxLength(200);
-
-                entity.Property(b => b.Slug)
-                    .IsRequired()
-                    .HasMaxLength(300);
-
-                entity.Property(b => b.Excerpt)
-                    .IsRequired()
-                    .HasMaxLength(500);
-
-                entity.Property(b => b.Content)
-                    .IsRequired();
-
-                entity.Property(b => b.Author)
-                    .IsRequired()
-                    .HasMaxLength(100);
-
-                entity.Property(b => b.PublishedAt)
-                    .IsRequired();
-
-                entity.Property(b => b.Tags)
-                    .HasMaxLength(500)
-                    .HasConversion(StringListConverter.CommaSeparated);
-
-                entity.Property(b => b.FeaturedImage)
-                    .HasMaxLength(500);
-
-                entity.Property(b => b.ReadingTime)
-                    .HasDefaultValue(0);
-
-                entity.Property(b => b.Published)
-                    .HasDefaultValue(false);
-
-                entity.Property(b => b.ViewCount)
-                    .HasDefaultValue(0);
-
-                entity.Property(b => b.MetaTitle)
-                    .HasMaxLength(200);
-
-                entity.Property(b => b.MetaDescription)
-                    .HasMaxLength(500);
-
-                entity.HasIndex(b => b.Slug)
-                    .IsUnique();
-
-                entity.HasIndex(b => b.Published);
-                entity.HasIndex(b => new { b.Published, b.PublishedAt });
             });
         }
     }

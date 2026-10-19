@@ -31,6 +31,9 @@ export const Route = createFileRoute("/projects/$id")({
   loader: async ({ context, params }) => {
     // The project list comes from the centralized PortfolioAPI; TanStack
     // Query dedupes the fetch across the SSR render and the client.
+    // API is the single source of truth: an id the API doesn't return (or an
+    // unreachable API, which yields an empty list) throws notFound() — the
+    // bundled src/data catalog is never consulted as a lookup fallback.
     const list = await context.queryClient.ensureQueryData(portfolioProjectsQuery);
     const project = list.find((p) => p.id === params.id);
     if (!project) throw notFound();
@@ -97,6 +100,9 @@ function ProjectDetail() {
   const { project } = Route.useLoaderData();
   // Same cached API list the loader primed (live backend data).
   const projects = usePortfolioProjects();
+  // Presentation enrichment only (case-study copy matched by id/category) —
+  // membership always comes from the API list, so deleted projects never
+  // reappear here.
   const detail = getProjectDetail(project);
   const related = getRelatedProjects(project, projects);
 

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PortfolioAPI.Core.DTOs;
 using PortfolioAPI.Core.Entities;
@@ -6,6 +7,7 @@ using PortfolioAPI.Core.Interfaces.Services;
 namespace PortfolioAPI.Controllers
 {
     [ApiController]
+    [Route("api/v1/[controller]")]
     [Route("api/[controller]")]
     public class CredentialsController : ControllerBase
     {
@@ -45,6 +47,7 @@ namespace PortfolioAPI.Controllers
         }
 
         [HttpPost]
+        [Authorize]
         public async Task<ActionResult<CredentialDto>> CreateCredential([FromBody] Credential credential)
         {
             var createdCredential = await _credentialService.CreateCredentialAsync(credential);
@@ -52,6 +55,7 @@ namespace PortfolioAPI.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize]
         public async Task<IActionResult> UpdateCredential(int id, [FromBody] Credential credential)
         {
             if (id != credential.Id)
@@ -64,6 +68,7 @@ namespace PortfolioAPI.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize]
         public async Task<IActionResult> DeleteCredential(int id)
         {
             await _credentialService.DeleteCredentialAsync(id);

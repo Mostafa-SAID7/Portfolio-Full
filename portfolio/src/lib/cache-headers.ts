@@ -40,7 +40,8 @@ const HASHED_PREFIXES = ["/assets/", "/_build/", "/_serverFn/assets/"];
 
 /**
  * `/api/` here is a *static image* folder in `public/`, not a server route
- * namespace; real endpoints live under `/api/public/*` and are excluded below.
+ * namespace; real endpoints live under the versioned `/api/v1/public/*`
+ * (with legacy `/api/public/*` aliases) and are excluded below.
  */
 const MEDIA_PREFIXES = [
   "/lottie/",
@@ -88,7 +89,9 @@ function isServerFnPath(pathname: string): boolean {
 }
 
 function isApiRoute(pathname: string): boolean {
-  return pathname.startsWith("/api/public/") || pathname === "/api" || pathname === "/api/public";
+  // Fold the versioned namespace (issue #24) onto the legacy paths first.
+  const p = pathname.replace(/^\/api\/v1(?=\/|$)/, "/api");
+  return p.startsWith("/api/public/") || p === "/api" || p === "/api/public";
 }
 
 function isMedia(pathname: string, contentType: string | null): boolean {

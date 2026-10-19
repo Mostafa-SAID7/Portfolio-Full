@@ -4,16 +4,25 @@ using PortfolioAPI.Core.Entities;
 namespace PortfolioAPI.Infrastructure.Data
 {
     /// <summary>
-    /// Creates the schema on first run (EnsureCreated), patches in columns and
-    /// tables introduced later (EnsureCreated never alters an existing
-    /// database), and seeds demo content when the database is empty. Safe to
-    /// run against the remote database: it never overwrites existing rows.
+    /// Schema management (issues #5/#15): EF Core migrations are the source of
+    /// truth — EnsureCreated is gone. Three safe paths:
+    ///   1. Database absent (fresh dev)     → Migrate() creates the full schema.
+    ///   2. Database exists, no Projects table → treated as fresh → Migrate().
+    ///   3. Database exists with the legacy EnsureCreated-era schema → BASELINE:
+    ///      only the __EFMigrationsHistory bookkeeping table is created and the
+    ///      current migrations are recorded as applied — NO DDL runs against
+    ///      existing tables, no data is touched; Migrate() then applies only
+    ///      migrations added after the baseline (future schema changes).
+    /// PatchSchemaAsync stays as an idempotent safety net for legacy drift
+    /// (Projects columns, Credentials table) and removals (blog tables), and
+    /// seeds demo content only when the database is empty — it never
+    /// overwrites existing rows.
     /// </summary>
     public static class DbInitializer
     {
         public static async Task InitializeAsync(PortfolioDbContext context)
         {
-            await context.Database.EnsureCreatedAsync();
+            await EnsureSchemaAsync(context);
             await PatchSchemaAsync(context);
 
             if (await context.Projects.AnyAsync() || await context.Skills.AnyAsync())
@@ -28,9 +37,59 @@ namespace PortfolioAPI.Infrastructure.Data
             await context.SaveChangesAsync();
         }
 
-        /// <summary>Idempotent DDL for schema added after the first EnsureCreated.</summary>
+        private static async Task EnsureSchemaAsync(PortfolioDbContext context)
+        {
+            // Cases 1 + 2: fresh or empty database — migrations create everything.
+            if (!await context.Database.CanConnectAsync() || !await TableExistsAsync(context, "Projects"))
+            {
+                await context.Database.MigrateAsync();
+                return;
+            }
+
+            // Case 3: existing legacy database without EF bookkeeping. Create ONLY
+            // the history table and record every migration in the assembly as
+            // applied (they are — the schema pre-existed, built by EnsureCreated +
+            // patches), so Migrate() below executes no DDL against existing tables.
+            if (!await TableExistsAsync(context, "__EFMigrationsHistory"))
+            {
+                await context.Database.ExecuteSqlRawAsync(@"
+                    IF OBJECT_ID(N'[dbo].[__EFMigrationsHistory]') IS NULL
+                    CREATE TABLE [dbo].[__EFMigrationsHistory] (
+                        [MigrationId] nvarchar(150) NOT NULL CONSTRAINT [PK___EFMigrationsHistory] PRIMARY KEY,
+                        [ProductVersion] nvarchar(32) NOT NULL);");
+
+                foreach (var migrationId in context.Database.GetMigrations())
+                {
+                    // ProductVersion is informational bookkeeping only.
+                    await context.Database.ExecuteSqlRawAsync(
+                        "INSERT INTO [dbo].[__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES ({0}, {1})",
+                        migrationId, "9.0.0");
+                }
+            }
+
+            // Applies only genuinely pending (future) migrations; no-op otherwise.
+            await context.Database.MigrateAsync();
+        }
+
+        /// <summary>
+        /// Idempotent DDL for schema added after the first EnsureCreated (legacy
+        /// drift safety net) and removals. No-ops on migrated schemas.
+        /// </summary>
         private static async Task PatchSchemaAsync(PortfolioDbContext context)
         {
+            // Blog was removed from the app entirely (no UI, no API, no entities):
+            // drop its leftover tables on legacy databases. Idempotent; BlogPostTag
+            // first because of its foreign key to BlogPosts.
+            if (await TableExistsAsync(context, "BlogPostTag"))
+            {
+                await context.Database.ExecuteSqlRawAsync("DROP TABLE [dbo].[BlogPostTag];");
+            }
+
+            if (await TableExistsAsync(context, "BlogPosts"))
+            {
+                await context.Database.ExecuteSqlRawAsync("DROP TABLE [dbo].[BlogPosts];");
+            }
+
             if (!await ColumnExistsAsync(context, "Projects", "Category"))
             {
                 await context.Database.ExecuteSqlRawAsync(@"

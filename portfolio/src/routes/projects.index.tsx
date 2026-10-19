@@ -12,6 +12,8 @@ const PROJECTS_DESCRIPTION =
 export const Route = createFileRoute("/projects/")({
   // Prime the live API list server-side: SSR emits real project cards in the
   // HTML, and the client hydrates the same cache instead of starting empty.
+  // API down → the query resolves to [] → the explorer's existing EmptyState
+  // renders (never a bundled catalog fallback).
   loader: ({ context }) => context.queryClient.ensureQueryData(portfolioProjectsQuery),
   head: () =>
     pageSeo({

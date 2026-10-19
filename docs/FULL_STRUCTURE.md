@@ -1,3 +1,8 @@
+> ⚠️ **Historical planning snapshot** — a pre-implementation design document kept for reference.
+> The actual repository layout has diverged (see the root `README.md`), and the **blog feature
+> mentioned here was removed** from the backend and dashboard. Do not treat this as current
+> documentation.
+
 portfolio-client/
 ├── src/
 │   ├── app/

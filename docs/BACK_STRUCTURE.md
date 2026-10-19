@@ -1,3 +1,6 @@
+> ⚠️ **Historical planning snapshot** — a pre-implementation design document kept for reference.
+> The actual backend layout has diverged (see `docs/FULL_STRUCTURE.md`'s banner and the root
+> `README.md`), and the **blog feature mentioned here was removed** from the backend entirely.
 
 PortfolioAPI/
 ├── src/

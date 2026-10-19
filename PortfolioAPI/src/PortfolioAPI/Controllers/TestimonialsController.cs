@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PortfolioAPI.Core.DTOs;
 using PortfolioAPI.Core.Entities;
@@ -6,6 +7,7 @@ using PortfolioAPI.Core.Interfaces.Services;
 namespace PortfolioAPI.Controllers
 {
     [ApiController]
+    [Route("api/v1/[controller]")]
     [Route("api/[controller]")]
     public class TestimonialsController : ControllerBase
     {
@@ -38,6 +40,7 @@ namespace PortfolioAPI.Controllers
         }
 
         [HttpPost]
+        [Authorize]
         public async Task<ActionResult<TestimonialDto>> CreateTestimonial([FromBody] Testimonial testimonial)
         {
             var createdTestimonial = await _testimonialService.CreateTestimonialAsync(testimonial);
@@ -45,6 +48,7 @@ namespace PortfolioAPI.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize]
         public async Task<IActionResult> UpdateTestimonial(int id, [FromBody] Testimonial testimonial)
         {
             if (id != testimonial.Id)
@@ -57,6 +61,7 @@ namespace PortfolioAPI.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize]
         public async Task<IActionResult> DeleteTestimonial(int id)
         {
             await _testimonialService.DeleteTestimonialAsync(id);

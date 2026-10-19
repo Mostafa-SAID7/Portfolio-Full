@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PortfolioAPI.Core.DTOs;
 using PortfolioAPI.Core.Entities;
@@ -6,6 +7,7 @@ using PortfolioAPI.Core.Interfaces.Services;
 namespace PortfolioAPI.Controllers
 {
     [ApiController]
+    [Route("api/v1/[controller]")]
     [Route("api/[controller]")]
     public class ExperienceController : ControllerBase
     {
@@ -38,6 +40,7 @@ namespace PortfolioAPI.Controllers
         }
 
         [HttpPost]
+        [Authorize]
         public async Task<ActionResult<ExperienceDto>> CreateExperience([FromBody] CreateExperienceDto dto)
         {
             var experience = MapToEntity(dto);
@@ -46,6 +49,7 @@ namespace PortfolioAPI.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize]
         public async Task<IActionResult> UpdateExperience(int id, [FromBody] UpdateExperienceDto dto)
         {
             // DTO binding (not the raw EF entity): the route id wins and
@@ -86,6 +90,7 @@ namespace PortfolioAPI.Controllers
         };
 
         [HttpDelete("{id}")]
+        [Authorize]
         public async Task<IActionResult> DeleteExperience(int id)
         {
             await _experienceService.DeleteExperienceAsync(id);

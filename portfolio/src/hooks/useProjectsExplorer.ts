@@ -52,7 +52,8 @@ export function useProjectsExplorer() {
   const [view, setView] = useState<ProjectView>("grid");
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Live content from the PortfolioAPI (local fallback while it loads/offline).
+  // Live content from the PortfolioAPI (empty while loading/offline — the
+  // bundled src/data catalog is never used as a runtime fallback).
   const projects = usePortfolioProjects();
 
   const deferredQuery = useDeferredValue(searchQuery);

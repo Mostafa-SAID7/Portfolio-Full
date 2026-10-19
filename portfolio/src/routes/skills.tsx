@@ -37,7 +37,8 @@ export const Route = createFileRoute("/skills")({
 function SkillsPage() {
   const { tr } = useI18n();
   const { skillGroupTitle } = useLocalizedContent();
-  // Live content from the PortfolioAPI (local fallback while it loads/offline).
+  // Live content from the PortfolioAPI (empty while loading/offline — the
+  // bundled src/data catalog is never used as a runtime fallback).
   const skillGroups = usePortfolioSkillGroups();
 
   return (

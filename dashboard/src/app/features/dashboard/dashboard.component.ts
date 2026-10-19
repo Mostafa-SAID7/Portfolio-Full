@@ -4,7 +4,6 @@ import { RouterLink } from '@angular/router';
 import { ProjectService } from '../../core/services/project.service';
 import { SkillService } from '../../core/services/skill.service';
 import { ExperienceService } from '../../core/services/experience.service';
-import { BlogService } from '../../core/services/blog.service';
 import { ContactService } from '../../core/services/contact.service';
 import { AuthService } from '../../core/services/auth.service';
 
@@ -103,10 +102,6 @@ import { AuthService } from '../../core/services/auth.service';
                 <dt class="text-sm text-soft">Current role</dt>
                 <dd class="max-w-[55%] truncate text-right text-sm font-bold text-ink">{{ currentRole() }}</dd>
               </div>
-              <div class="flex items-center justify-between border-b border-line/10 pb-3">
-                <dt class="text-sm text-soft">Published posts</dt>
-                <dd class="text-sm font-bold text-ink">{{ publishedPosts() }} / {{ postCount() }}</dd>
-              </div>
               <div class="flex items-center justify-between">
                 <dt class="text-sm text-soft">Featured projects</dt>
                 <dd class="text-sm font-bold text-ink">{{ featuredCount() }} / {{ projectCount() }}</dd>
@@ -194,14 +189,12 @@ export class DashboardComponent implements OnInit {
   private readonly projectService = inject(ProjectService);
   private readonly skillService = inject(SkillService);
   private readonly experienceService = inject(ExperienceService);
-  private readonly blogService = inject(BlogService);
   private readonly contactService = inject(ContactService);
   private readonly authService = inject(AuthService);
 
   readonly projects = this.projectService.projects;
   readonly skills = this.skillService.skills;
   readonly experience = this.experienceService.experience;
-  readonly posts = this.blogService.posts;
   readonly messages = this.contactService.messages;
 
   readonly todayLabel = new Intl.DateTimeFormat('en-US', {
@@ -219,7 +212,6 @@ export class DashboardComponent implements OnInit {
       this.projectService.loading() ||
       this.skillService.loading() ||
       this.experienceService.loading() ||
-      this.blogService.loading() ||
       this.contactService.loading()
   );
 
@@ -228,7 +220,6 @@ export class DashboardComponent implements OnInit {
       this.projectService.error() ??
       this.skillService.error() ??
       this.experienceService.error() ??
-      this.blogService.error() ??
       this.contactService.error()
   );
 
@@ -239,8 +230,6 @@ export class DashboardComponent implements OnInit {
   readonly skillCategories = computed(
     () => new Set(this.skills().map(s => s.category || 'Uncategorized')).size
   );
-  readonly postCount = computed(() => this.posts().length);
-  readonly publishedPosts = computed(() => this.posts().filter(p => p.published).length);
   readonly currentRole = computed(
     () => this.experience().find(item => item.current)?.company ?? '—'
   );
@@ -269,12 +258,6 @@ export class DashboardComponent implements OnInit {
       icon: '<svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="m12 4 2.1 4.3 4.7.7-3.4 3.3.8 4.7-4.2-2.2-4.2 2.2.8-4.7-3.4-3.3 4.7-.7L12 4Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>'
     },
     {
-      label: 'Blog posts',
-      value: this.postCount(),
-      hint: `${this.publishedPosts()} live`,
-      icon: '<svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M6 4.75h8.5L18 8.25v11H6v-14.5Z" stroke="currentColor" stroke-width="1.7"/><path d="M14 4.75v3.5h4M9 12h6M9 15.5h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>'
-    },
-    {
       label: 'Unread messages',
       value: this.unreadCount(),
       hint: `${this.messages().length} total`,
@@ -286,8 +269,7 @@ export class DashboardComponent implements OnInit {
     { label: 'At least one project', ok: this.projectCount() > 0 },
     { label: 'A featured project is highlighted', ok: this.featuredCount() > 0 },
     { label: 'Skills are listed and visible', ok: this.visibleSkills() > 0 },
-    { label: 'Work experience is filled in', ok: this.experience().length > 0 },
-    { label: 'A blog post is published', ok: this.publishedPosts() > 0 }
+    { label: 'Work experience is filled in', ok: this.experience().length > 0 }
   ]);
 
   readonly healthScore = computed(() => {
@@ -311,7 +293,6 @@ export class DashboardComponent implements OnInit {
     this.projectService.loadProjects().subscribe({ error: () => undefined });
     this.skillService.loadSkills().subscribe({ error: () => undefined });
     this.experienceService.loadExperience().subscribe({ error: () => undefined });
-    this.blogService.loadPosts().subscribe({ error: () => undefined });
     this.contactService.loadMessages().subscribe({ error: () => undefined });
   }
 }

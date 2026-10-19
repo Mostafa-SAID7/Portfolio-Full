@@ -1,9 +1,11 @@
 using FluentValidation;
+using PortfolioAPI.Application.Exceptions;
 using PortfolioAPI.Core.Common;
 using PortfolioAPI.Core.DTOs;
 using PortfolioAPI.Core.Entities;
 using PortfolioAPI.Core.Interfaces;
 using PortfolioAPI.Core.Interfaces.Services;
+using ValidationException = PortfolioAPI.Application.Exceptions.ValidationException;
 
 namespace PortfolioAPI.Application.Services
 {
@@ -27,7 +29,7 @@ namespace PortfolioAPI.Application.Services
         {
             var project = await _unitOfWork.Projects.GetByIdAsync(id);
             return project == null
-                ? Result<ProjectDto>.Fail($"Project with id {id} was not found.")
+                ? Result<ProjectDto>.NotFound($"Project with id {id} was not found.")
                 : Result<ProjectDto>.Ok(Map(project));
         }
 
@@ -46,19 +48,18 @@ namespace PortfolioAPI.Application.Services
 
         public async Task<Result<IEnumerable<ProjectDto>>> GetByTechnologyAsync(string technology)
         {
-            var needle = technology?.Trim() ?? string.Empty;
-            var projects = await _unitOfWork.Projects.FindAsync(p =>
-                p.IsActive && p.Technologies.Any(t => t.Contains(needle)));
+            // Runs entirely in SQL (LIKE on the comma-separated Technologies
+            // column) — EF cannot translate collection operators over the
+            // converted column (issue #17).
+            var projects = await _unitOfWork.Projects.GetByTechnologyAsync(technology);
             return Result<IEnumerable<ProjectDto>>.Ok(projects.OrderBy(p => p.Order).Select(Map).ToList());
         }
 
         public async Task<Result<IEnumerable<ProjectDto>>> SearchAsync(string searchTerm)
         {
-            var needle = searchTerm?.Trim() ?? string.Empty;
-            var projects = await _unitOfWork.Projects.FindAsync(p =>
-                p.Title.Contains(needle) ||
-                p.Description.Contains(needle) ||
-                p.Technologies.Any(t => t.Contains(needle)));
+            // Database-side LIKE search across title/description/technologies
+            // (issue #17) — previously an untranslatable expression that 500'd.
+            var projects = await _unitOfWork.Projects.SearchAsync(searchTerm);
             return Result<IEnumerable<ProjectDto>>.Ok(projects.OrderBy(p => p.Order).Select(Map).ToList());
         }
 
@@ -93,9 +94,10 @@ namespace PortfolioAPI.Application.Services
             var validation = await _validator.ValidateAsync(project);
             if (!validation.IsValid)
             {
-                return Result<ProjectDto>.Fail(
-                    "The project could not be saved.",
-                    validation.Errors.Select(e => e.ErrorMessage));
+                // Thrown (like every other service) so the exception middleware
+                // maps it to 400 { message, errors: { field: [...] } } — the same
+                // shape clients get from all other entities (issue #16).
+                throw new ValidationException(validation.Errors);
             }
 
             var created = await _unitOfWork.Projects.AddAsync(project);
@@ -108,7 +110,7 @@ namespace PortfolioAPI.Application.Services
             var project = await _unitOfWork.Projects.GetByIdAsync(id);
             if (project == null)
             {
-                return Result<ProjectDto>.Fail($"Project with id {id} was not found.");
+                return Result<ProjectDto>.NotFound($"Project with id {id} was not found.");
             }
 
             project.Title = dto.Title.Trim();
@@ -137,9 +139,8 @@ namespace PortfolioAPI.Application.Services
             var validation = await _validator.ValidateAsync(project);
             if (!validation.IsValid)
             {
-                return Result<ProjectDto>.Fail(
-                    "The project could not be saved.",
-                    validation.Errors.Select(e => e.ErrorMessage));
+                // Same 400 { message, errors } path as create (issue #16).
+                throw new ValidationException(validation.Errors);
             }
 
             await _unitOfWork.Projects.UpdateAsync(project);
@@ -152,7 +153,7 @@ namespace PortfolioAPI.Application.Services
             var project = await _unitOfWork.Projects.GetByIdAsync(id);
             if (project == null)
             {
-                return Result<bool>.Fail($"Project with id {id} was not found.");
+                return Result<bool>.NotFound($"Project with id {id} was not found.");
             }
 
             await _unitOfWork.Projects.DeleteAsync(project);
@@ -165,7 +166,7 @@ namespace PortfolioAPI.Application.Services
             var project = await _unitOfWork.Projects.GetByIdAsync(id);
             if (project == null)
             {
-                return Result<bool>.Fail($"Project with id {id} was not found.");
+                return Result<bool>.NotFound($"Project with id {id} was not found.");
             }
 
             project.Featured = !project.Featured;

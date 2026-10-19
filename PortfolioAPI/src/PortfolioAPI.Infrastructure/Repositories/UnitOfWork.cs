@@ -9,12 +9,11 @@ namespace PortfolioAPI.Infrastructure.Repositories
         private readonly PortfolioDbContext _context;
         private bool _disposed = false;
 
-        private IRepository<Project>? _projects;
+        private IProjectRepository? _projects;
         private IRepository<Skill>? _skills;
         private IRepository<Experience>? _experiences;
         private IRepository<Contact>? _contacts;
         private IRepository<Testimonial>? _testimonials;
-        private IRepository<BlogPost>? _blogPosts;
         private IRepository<ProjectImage>? _projectImages;
         private IRepository<Credential>? _credentials;
 
@@ -23,12 +22,11 @@ namespace PortfolioAPI.Infrastructure.Repositories
             _context = context ?? throw new ArgumentNullException(nameof(context));
         }
 
-        public IRepository<Project> Projects => _projects ??= new Repository<Project>(_context);
+        public IProjectRepository Projects => _projects ??= new ProjectRepository(_context);
         public IRepository<Skill> Skills => _skills ??= new Repository<Skill>(_context);
         public IRepository<Experience> Experiences => _experiences ??= new Repository<Experience>(_context);
         public IRepository<Contact> Contacts => _contacts ??= new Repository<Contact>(_context);
         public IRepository<Testimonial> Testimonials => _testimonials ??= new Repository<Testimonial>(_context);
-        public IRepository<BlogPost> BlogPosts => _blogPosts ??= new Repository<BlogPost>(_context);
         public IRepository<ProjectImage> ProjectImages => _projectImages ??= new Repository<ProjectImage>(_context);
         public IRepository<Credential> Credentials => _credentials ??= new Repository<Credential>(_context);
 

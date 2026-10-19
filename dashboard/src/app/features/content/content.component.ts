@@ -4,18 +4,15 @@ import { FormsModule } from '@angular/forms';
 import { Observable } from 'rxjs';
 import { SkillService } from '../../core/services/skill.service';
 import { ExperienceService } from '../../core/services/experience.service';
-import { BlogService } from '../../core/services/blog.service';
 import { Skill } from '../../core/models/skill.model';
 import { Experience, ExperiencePayload } from '../../core/models/experience.model';
-import { BlogPost } from '../../core/models/blog.model';
 import { ConfirmDialogService } from '../../shared/confirm-dialog.component';
 import { PaginatorComponent } from '../../shared/paginator.component';
 
-type ContentTab = 'skills' | 'experience' | 'blog';
+type ContentTab = 'skills' | 'experience';
 
 const SKILL_GROUPS_PER_PAGE = 4;
 const EXPERIENCE_PER_PAGE = 6;
-const POSTS_PER_PAGE = 8;
 
 @Component({
   selector: 'app-content',
@@ -27,7 +24,7 @@ const POSTS_PER_PAGE = 8;
         <div>
           <p class="eyebrow mb-2">Site content</p>
           <h2 class="font-display text-3xl font-semibold tracking-[-0.05em] text-ink">Content</h2>
-          <p class="mt-2 text-sm text-soft">Skills, experience and blog posts managed through the Portfolio API.</p>
+          <p class="mt-2 text-sm text-soft">Skills and experience managed through the Portfolio API.</p>
         </div>
         <div class="flex items-center gap-1 rounded-xl border border-line/10 bg-surface p-1" role="tablist" aria-label="Content type">
           @for (item of tabs; track item.value) {
@@ -296,53 +293,6 @@ const POSTS_PER_PAGE = 8;
             />
           }
         }
-      } @else {
-        <!-- ---------------- Blog ---------------- -->
-        @if (blogService.loading()) {
-          <div class="card flex min-h-[200px] items-center justify-center"><div class="spinner" role="status" aria-label="Loading posts"></div></div>
-        } @else if (blogService.error()) {
-          <div class="card empty-state">
-            <p class="text-sm font-semibold text-ink">Failed to load posts</p>
-            <p class="max-w-md text-sm text-soft">{{ blogService.error() }}</p>
-            <button type="button" class="btn-ghost mt-2" (click)="loadAll()">Retry</button>
-          </div>
-        } @else if (blogService.posts().length === 0) {
-          <div class="card empty-state"><p class="text-sm text-muted">No blog posts yet.</p></div>
-        } @else {
-          <div class="card overflow-hidden">
-            <ul class="divide-y divide-line/10">
-              @for (post of pagedPosts(); track post.id) {
-                <li class="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center">
-                  <div class="min-w-0 flex-1">
-                    <div class="flex flex-wrap items-center gap-2">
-                      <h3 class="truncate text-sm font-bold text-ink">{{ post.title }}</h3>
-                      <span [class]="post.published ? 'badge-success' : 'badge-muted'">
-                        {{ post.published ? 'Published' : 'Draft' }}
-                      </span>
-                    </div>
-                    <p class="mt-1 truncate text-xs text-muted">
-                      /{{ post.slug }} — {{ post.readingTime }} min read — {{ post.viewCount }} views
-                      @if (post.publishedAt) { — {{ post.publishedAt | date: 'MMM d, y' }} }
-                    </p>
-                  </div>
-                  <div class="flex shrink-0 gap-2">
-                    <button type="button" class="btn-ghost" (click)="togglePublished(post)">
-                      {{ post.published ? 'Unpublish' : 'Publish' }}
-                    </button>
-                    <button type="button" class="btn-danger" (click)="deletePost(post)">Delete</button>
-                  </div>
-                </li>
-              }
-            </ul>
-          </div>
-
-          <app-paginator
-            [totalItems]="blogService.posts().length"
-            [pageSize]="postsPageSize"
-            [page]="blogPage()"
-            (pageChange)="blogPage.set($event)"
-          />
-        }
       }
     </div>
   `
@@ -350,23 +300,19 @@ const POSTS_PER_PAGE = 8;
 export class ContentComponent implements OnInit {
   readonly skillService = inject(SkillService);
   readonly experienceService = inject(ExperienceService);
-  readonly blogService = inject(BlogService);
   private readonly dialog = inject(ConfirmDialogService);
 
   readonly tab = signal<ContentTab>('skills');
 
   readonly skillGroupsPageSize = SKILL_GROUPS_PER_PAGE;
   readonly experiencePageSize = EXPERIENCE_PER_PAGE;
-  readonly postsPageSize = POSTS_PER_PAGE;
 
   readonly skillsPage = signal(1);
   readonly experiencePage = signal(1);
-  readonly blogPage = signal(1);
 
   readonly tabs: { value: ContentTab; label: string }[] = [
     { value: 'skills', label: 'Skills' },
-    { value: 'experience', label: 'Experience' },
-    { value: 'blog', label: 'Blog' }
+    { value: 'experience', label: 'Experience' }
   ];
 
   newSkillName = '';
@@ -426,11 +372,6 @@ export class ContentComponent implements OnInit {
     return this.experienceService.experience().slice(start, start + this.experiencePageSize);
   });
 
-  readonly pagedPosts = computed(() => {
-    const start = (this.blogPage() - 1) * this.postsPageSize;
-    return this.blogService.posts().slice(start, start + this.postsPageSize);
-  });
-
   ngOnInit(): void {
     this.loadAll();
   }
@@ -439,13 +380,11 @@ export class ContentComponent implements OnInit {
     this.tab.set(value);
     this.skillsPage.set(1);
     this.experiencePage.set(1);
-    this.blogPage.set(1);
   }
 
   loadAll(): void {
     this.skillService.loadSkills().subscribe({ error: () => undefined });
     this.experienceService.loadExperience().subscribe({ error: () => undefined });
-    this.blogService.loadPosts().subscribe({ error: () => undefined });
   }
 
   addSkill(): void {
@@ -626,25 +565,6 @@ export class ContentComponent implements OnInit {
 
     this.experienceService.deleteExperience(id).subscribe({
       error: err => alert(err?.error?.message ?? 'Failed to delete the experience.')
-    });
-  }
-
-  togglePublished(post: BlogPost): void {
-    this.blogService.togglePublished(post).subscribe({
-      error: err => alert(err?.error?.message ?? 'Failed to update the post.')
-    });
-  }
-
-  async deletePost(post: BlogPost): Promise<void> {
-    const confirmed = await this.dialog.confirm({
-      title: 'Delete post?',
-      message: `“${post.title}” will be deleted permanently.`,
-      confirmLabel: 'Delete post'
-    });
-    if (!confirmed) return;
-
-    this.blogService.deletePost(post.id).subscribe({
-      error: err => alert(err?.error?.message ?? 'Failed to delete the post.')
     });
   }
 }

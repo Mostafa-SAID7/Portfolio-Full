@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
-import { projects as localProjects } from "@/data";
 import { fetchPortfolioProjects } from "@/lib/content";
 import { SITE } from "@/lib/site";
 
@@ -26,10 +25,12 @@ export const Route = createFileRoute("/sitemap.xml")({
       GET: async ({ request }) => {
         const baseUrl = SITE.url || new URL(request.url).origin;
         // Mirror the live portfolio: same API list the UI renders, so
-        // dashboard deletes drop out of the sitemap too. The bundled dataset
-        // is used only when the API is unreachable (keeps crawlers fed).
-        const fromApi = await fetchPortfolioProjects();
-        const projects = fromApi.length ? fromApi : localProjects;
+        // dashboard deletes drop out of the sitemap too. When the API is
+        // unreachable (or returns no rows) `fetchPortfolioProjects` resolves
+        // to an EMPTY list — we then emit only the static routes above and
+        // never fall back to the bundled `src/data` dataset, whose stale
+        // project URLs must not resurrect deleted content for crawlers.
+        const projects = await fetchPortfolioProjects();
         const entries: SitemapEntry[] = [
           { path: "/", changefreq: "weekly", priority: "1.0" },
           { path: "/about", changefreq: "monthly", priority: "0.8" },

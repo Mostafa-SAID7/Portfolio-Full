@@ -11,7 +11,6 @@ namespace PortfolioAPI.Application.Mappings
             CreateMap<Project, ProjectDto>().ReverseMap();
             CreateMap<Skill, SkillDto>().ReverseMap();
             CreateMap<Experience, ExperienceDto>().ReverseMap();
-            CreateMap<BlogPost, BlogPostDto>().ReverseMap();
             CreateMap<Testimonial, TestimonialDto>().ReverseMap();
             CreateMap<Contact, ContactDto>().ReverseMap();
         }
