@@ -6,6 +6,7 @@ using PortfolioAPI.Core.Interfaces;
 using PortfolioAPI.Application.Services;
 using Xunit;
 using FluentValidation;
+using ValidationException = PortfolioAPI.Application.Exceptions.ValidationException;
 
 namespace PortfolioAPI.UnitTests
 {
@@ -98,18 +99,18 @@ namespace PortfolioAPI.UnitTests
             // Arrange
             var skills = new List<Skill>
             {
-                new Skill { Id = 1, Name = "C#", IsVisible = true },
-                new Skill { Id = 2, Name = "Hidden Skill", IsVisible = false }
+                new Skill { Id = 1, Name = "C#", IsActive = true },
+                new Skill { Id = 2, Name = "Hidden Skill", IsActive = false }
             };
-            _unitOfWorkMock.Setup(u => u.Skills.FindAsync(s => s.IsVisible))
-                .ReturnsAsync(skills.Where(s => s.IsVisible));
+            _unitOfWorkMock.Setup(u => u.Skills.FindAsync(s => s.IsActive))
+                .ReturnsAsync(skills.Where(s => s.IsActive));
 
             // Act
             var result = await _skillService.GetVisibleSkillsAsync();
 
             // Assert
-            result.Should().ContainSingle(s => s.IsVisible);
-            _unitOfWorkMock.Verify(u => u.Skills.FindAsync(s => s.IsVisible), Times.Once);
+            result.Should().ContainSingle(s => s.IsActive);
+            _unitOfWorkMock.Verify(u => u.Skills.FindAsync(s => s.IsActive), Times.Once);
         }
 
         [Fact]
@@ -160,21 +161,27 @@ namespace PortfolioAPI.UnitTests
         public async Task UpdateSkillAsync_ShouldUpdateSkill_WhenSkillExistsAndValidationPasses()
         {
             // Arrange
-            var skill = new Skill { Id = 1, Name = "Updated Skill", Category = "Updated Category" };
+            var skill = new Skill { Id = 1, Name = "Updated Skill", Category = "Updated Category", Proficiency = 90 };
             var existingSkill = new Skill { Id = 1, Name = "Old Skill", Category = "Old Category" };
             var validationResult = new FluentValidation.Results.ValidationResult();
 
             _unitOfWorkMock.Setup(u => u.Skills.GetByIdAsync(1)).ReturnsAsync(existingSkill);
-            _validatorMock.Setup(v => v.ValidateAsync(skill, default)).ReturnsAsync(validationResult);
+            _validatorMock.Setup(v => v.ValidateAsync(existingSkill, default)).ReturnsAsync(validationResult);
+            _unitOfWorkMock.Setup(u => u.Skills.UpdateAsync(existingSkill)).Returns(Task.CompletedTask);
             _unitOfWorkMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
 
             // Act
             await _skillService.UpdateSkillAsync(skill);
 
-            // Assert
+            // Assert — values are copied onto the fetched instance
+            existingSkill.Name.Should().Be("Updated Skill");
+            existingSkill.Category.Should().Be("Updated Category");
+            existingSkill.Proficiency.Should().Be(90);
+            existingSkill.UpdatedAt.Should().NotBeNull();
+
             _unitOfWorkMock.Verify(u => u.Skills.GetByIdAsync(1), Times.Once);
-            _validatorMock.Verify(v => v.ValidateAsync(skill, default), Times.Once);
-            _unitOfWorkMock.Verify(u => u.Skills.UpdateAsync(skill), Times.Once);
+            _validatorMock.Verify(v => v.ValidateAsync(existingSkill, default), Times.Once);
+            _unitOfWorkMock.Verify(u => u.Skills.UpdateAsync(existingSkill), Times.Once);
             _unitOfWorkMock.Verify(u => u.SaveChangesAsync(), Times.Once);
         }
 

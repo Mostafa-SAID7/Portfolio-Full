@@ -81,18 +81,18 @@ namespace PortfolioAPI.UnitTests
             // Arrange
             var projects = new List<Project>
             {
-                new Project { Id = 1, Title = "Featured Project", IsFeatured = true },
-                new Project { Id = 2, Title = "Regular Project", IsFeatured = false }
+                new Project { Id = 1, Title = "Featured Project", Featured = true },
+                new Project { Id = 2, Title = "Regular Project", Featured = false }
             };
             await _context.Projects.AddRangeAsync(projects);
             await _context.SaveChangesAsync();
 
             // Act
-            var result = await _repository.FindAsync(p => p.IsFeatured);
+            var result = await _repository.FindAsync(p => p.Featured);
 
             // Assert
             result.Should().ContainSingle();
-            result.First().IsFeatured.Should().BeTrue();
+            result.First().Featured.Should().BeTrue();
         }
 
         [Fact]
@@ -103,6 +103,8 @@ namespace PortfolioAPI.UnitTests
 
             // Act
             var result = await _repository.AddAsync(project);
+            // Repository only tracks the entity; persistence happens on save.
+            await _context.SaveChangesAsync();
 
             // Assert
             result.Should().NotBeNull();
@@ -161,6 +163,8 @@ namespace PortfolioAPI.UnitTests
 
             // Act
             await _repository.DeleteAsync(project);
+            // Remove() only marks the entity; persistence happens on save.
+            await _context.SaveChangesAsync();
 
             // Assert
             _context.Projects.Should().BeEmpty();
@@ -227,15 +231,15 @@ namespace PortfolioAPI.UnitTests
             // Arrange
             var projects = new List<Project>
             {
-                new Project { Id = 1, Title = "Featured 1", IsFeatured = true },
-                new Project { Id = 2, Title = "Regular 1", IsFeatured = false },
-                new Project { Id = 3, Title = "Featured 2", IsFeatured = true }
+                new Project { Id = 1, Title = "Featured 1", Featured = true },
+                new Project { Id = 2, Title = "Regular 1", Featured = false },
+                new Project { Id = 3, Title = "Featured 2", Featured = true }
             };
             await _context.Projects.AddRangeAsync(projects);
             await _context.SaveChangesAsync();
 
             // Act
-            var result = await _repository.CountAsync(p => p.IsFeatured);
+            var result = await _repository.CountAsync(p => p.Featured);
 
             // Assert
             result.Should().Be(2);
@@ -269,17 +273,17 @@ namespace PortfolioAPI.UnitTests
             var projects = new List<Project>();
             for (int i = 1; i <= 10; i++)
             {
-                projects.Add(new Project { Id = i, Title = $"Project {i}", Description = $"Description {i}", IsFeatured = i % 2 == 0 });
+                projects.Add(new Project { Id = i, Title = $"Project {i}", Description = $"Description {i}", Featured = i % 2 == 0 });
             }
             await _context.Projects.AddRangeAsync(projects);
             await _context.SaveChangesAsync();
 
             // Act
-            var result = await _repository.GetPagedAsync(p => p.IsFeatured, 1, 2);
+            var result = await _repository.GetPagedAsync(p => p.Featured, 1, 2);
 
             // Assert
             result.Should().HaveCount(2);
-            result.Should().AllSatisfy(p => p.IsFeatured.Should().BeTrue());
+            result.Should().AllSatisfy(p => p.Featured.Should().BeTrue());
         }
 
         [Fact]
@@ -288,15 +292,15 @@ namespace PortfolioAPI.UnitTests
             // Arrange
             var projects = new List<Project>
             {
-                new Project { Id = 1, Title = "Project 1", IsFeatured = false },
-                new Project { Id = 2, Title = "Project 2", IsFeatured = true },
-                new Project { Id = 3, Title = "Project 3", IsFeatured = true }
+                new Project { Id = 1, Title = "Project 1", Featured = false },
+                new Project { Id = 2, Title = "Project 2", Featured = true },
+                new Project { Id = 3, Title = "Project 3", Featured = true }
             };
             await _context.Projects.AddRangeAsync(projects);
             await _context.SaveChangesAsync();
 
             // Act
-            var result = await _repository.GetFirstOrDefaultAsync(p => p.IsFeatured);
+            var result = await _repository.GetFirstOrDefaultAsync(p => p.Featured);
 
             // Assert
             result.Should().NotBeNull();
@@ -309,14 +313,14 @@ namespace PortfolioAPI.UnitTests
             // Arrange
             var projects = new List<Project>
             {
-                new Project { Id = 1, Title = "Project 1", IsFeatured = false },
-                new Project { Id = 2, Title = "Project 2", IsFeatured = true }
+                new Project { Id = 1, Title = "Project 1", Featured = false },
+                new Project { Id = 2, Title = "Project 2", Featured = true }
             };
             await _context.Projects.AddRangeAsync(projects);
             await _context.SaveChangesAsync();
 
             // Act
-            var result = await _repository.AnyAsync(p => p.IsFeatured);
+            var result = await _repository.AnyAsync(p => p.Featured);
 
             // Assert
             result.Should().BeTrue();
@@ -328,14 +332,14 @@ namespace PortfolioAPI.UnitTests
             // Arrange
             var projects = new List<Project>
             {
-                new Project { Id = 1, Title = "Project 1", IsFeatured = false },
-                new Project { Id = 2, Title = "Project 2", IsFeatured = false }
+                new Project { Id = 1, Title = "Project 1", Featured = false },
+                new Project { Id = 2, Title = "Project 2", Featured = false }
             };
             await _context.Projects.AddRangeAsync(projects);
             await _context.SaveChangesAsync();
 
             // Act
-            var result = await _repository.AnyAsync(p => p.IsFeatured);
+            var result = await _repository.AnyAsync(p => p.Featured);
 
             // Assert
             result.Should().BeFalse();

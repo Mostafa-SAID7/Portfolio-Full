@@ -6,6 +6,7 @@ using PortfolioAPI.Core.Interfaces;
 using PortfolioAPI.Application.Services;
 using Xunit;
 using FluentValidation;
+using ValidationException = PortfolioAPI.Application.Exceptions.ValidationException;
 
 namespace PortfolioAPI.UnitTests
 {

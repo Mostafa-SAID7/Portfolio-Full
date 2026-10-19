@@ -1,8 +1,7 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using Moq;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using PortfolioAPI.Core.Entities;
-using PortfolioAPI.Core.Interfaces;
 using PortfolioAPI.Infrastructure.Data;
 using PortfolioAPI.Infrastructure.Repositories;
 using Xunit;
@@ -11,13 +10,16 @@ namespace PortfolioAPI.UnitTests
 {
     public class UnitOfWorkTests : IDisposable
     {
+        private readonly string _databaseName = Guid.NewGuid().ToString();
         private readonly PortfolioDbContext _context;
         private readonly UnitOfWork _unitOfWork;
 
         public UnitOfWorkTests()
         {
             var options = new DbContextOptionsBuilder<PortfolioDbContext>()
-                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+                .UseInMemoryDatabase(databaseName: _databaseName)
+                // InMemory has no real transactions; without this, Begin/Commit/Rollback throw.
+                .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
                 .Options;
 
             _context = new PortfolioDbContext(options);
@@ -28,6 +30,16 @@ namespace PortfolioAPI.UnitTests
         {
             _unitOfWork.Dispose();
             _context.Dispose();
+        }
+
+        private static PortfolioDbContext CreateContext(string databaseName)
+        {
+            var options = new DbContextOptionsBuilder<PortfolioDbContext>()
+                .UseInMemoryDatabase(databaseName)
+                .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
+                .Options;
+
+            return new PortfolioDbContext(options);
         }
 
         [Fact]
@@ -48,7 +60,7 @@ namespace PortfolioAPI.UnitTests
 
             // Assert
             repository.Should().NotBeNull();
-            repository.Should().BeOfType<Repository<Project>>();
+            repository.Should().BeOfType<ProjectRepository>();
         }
 
         [Fact]
@@ -127,8 +139,8 @@ namespace PortfolioAPI.UnitTests
             await _unitOfWork.BeginTransactionAsync();
 
             // Assert
-            // Transaction should be started, but we can't directly verify it with in-memory database
-            // This test ensures no exceptions are thrown
+            // InMemory ignores transactions (warning configured off); this test
+            // asserts the call completes without throwing.
         }
 
         [Fact]
@@ -138,17 +150,20 @@ namespace PortfolioAPI.UnitTests
             await _unitOfWork.BeginTransactionAsync();
             var project = new Project { Title = "Test Project", Description = "Test Description" };
             await _unitOfWork.Projects.AddAsync(project);
+            await _unitOfWork.SaveChangesAsync();
 
             // Act
             await _unitOfWork.CommitTransactionAsync();
 
-            // Assert
-            var savedProject = await _unitOfWork.Projects.GetByIdAsync(project.Id);
+            // Assert — verify via a separate context on the same store
+            using var assertContext = CreateContext(_databaseName);
+            var savedProject = await assertContext.Projects.FindAsync(project.Id);
             savedProject.Should().NotBeNull();
+            savedProject!.Title.Should().Be("Test Project");
         }
 
         [Fact]
-        public async Task RollbackTransactionAsync_ShouldRollbackTransaction()
+        public async Task RollbackTransactionAsync_ShouldNotPersistChanges()
         {
             // Arrange
             await _unitOfWork.BeginTransactionAsync();
@@ -158,7 +173,10 @@ namespace PortfolioAPI.UnitTests
             // Act
             await _unitOfWork.RollbackTransactionAsync();
 
-            // Assert
+            // Assert — nothing was saved, so the store must stay empty. The
+            // change tracker is cleared first because FindAsync consults it
+            // before the store and InMemory has no real transaction to roll back.
+            _context.ChangeTracker.Clear();
             var savedProject = await _unitOfWork.Projects.GetByIdAsync(project.Id);
             savedProject.Should().BeNull();
         }
@@ -167,29 +185,39 @@ namespace PortfolioAPI.UnitTests
         public void Dispose_ShouldDisposeContext()
         {
             // Arrange
-            var mockContext = new Mock<PortfolioDbContext>();
-            var unitOfWork = new UnitOfWork(mockContext.Object);
+            var options = new DbContextOptionsBuilder<PortfolioDbContext>()
+                .UseInMemoryDatabase(Guid.NewGuid().ToString())
+                .Options;
+            var context = new PortfolioDbContext(options);
+            var unitOfWork = new UnitOfWork(context);
 
             // Act
             unitOfWork.Dispose();
 
-            // Assert
-            mockContext.Verify(c => c.Dispose(), Times.Once);
+            // Assert — a disposed context rejects further use
+            Action act = () => context.Projects.ToList();
+            act.Should().Throw<ObjectDisposedException>();
         }
 
         [Fact]
         public void Dispose_ShouldHandleMultipleCalls()
         {
             // Arrange
-            var mockContext = new Mock<PortfolioDbContext>();
-            var unitOfWork = new UnitOfWork(mockContext.Object);
+            var options = new DbContextOptionsBuilder<PortfolioDbContext>()
+                .UseInMemoryDatabase(Guid.NewGuid().ToString())
+                .Options;
+            var context = new PortfolioDbContext(options);
+            var unitOfWork = new UnitOfWork(context);
 
             // Act
-            unitOfWork.Dispose();
-            unitOfWork.Dispose();
+            Action act = () =>
+            {
+                unitOfWork.Dispose();
+                unitOfWork.Dispose();
+            };
 
-            // Assert
-            mockContext.Verify(c => c.Dispose(), Times.Once);
+            // Assert — must not throw
+            act.Should().NotThrow();
         }
 
         [Fact]
@@ -203,6 +231,7 @@ namespace PortfolioAPI.UnitTests
             await _unitOfWork.BeginTransactionAsync();
             await _unitOfWork.Projects.AddAsync(project1);
             await _unitOfWork.Projects.AddAsync(project2);
+            await _unitOfWork.SaveChangesAsync();
             await _unitOfWork.CommitTransactionAsync();
 
             // Assert
@@ -223,7 +252,7 @@ namespace PortfolioAPI.UnitTests
             await _unitOfWork.Projects.AddAsync(project2);
             await _unitOfWork.RollbackTransactionAsync();
 
-            // Assert
+            // Assert — nothing was saved, so the store stays empty
             var projects = await _unitOfWork.Projects.GetAllAsync();
             projects.Should().BeEmpty();
         }

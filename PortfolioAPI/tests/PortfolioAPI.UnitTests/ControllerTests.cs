@@ -1,10 +1,15 @@
 using FluentAssertions;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using PortfolioAPI.Controllers;
+using PortfolioAPI.Core.Common;
 using PortfolioAPI.Core.DTOs;
 using PortfolioAPI.Core.Entities;
 using PortfolioAPI.Core.Interfaces.Services;
+using PortfolioAPI.Infrastructure.Services;
 using Xunit;
 
 namespace PortfolioAPI.UnitTests
@@ -13,47 +18,82 @@ namespace PortfolioAPI.UnitTests
     {
         #region ProjectsController Tests
 
+        private static ProjectsController CreateProjectsController(
+            Mock<IProjectService> mockService,
+            Mock<IFileStorageService>? mockFileStorage = null,
+            Mock<IConfiguration>? mockConfiguration = null)
+        {
+            return new ProjectsController(
+                mockService.Object,
+                (mockFileStorage ?? new Mock<IFileStorageService>()).Object,
+                (mockConfiguration ?? new Mock<IConfiguration>()).Object,
+                NullLogger<ProjectsController>.Instance);
+        }
+
         [Fact]
         public async Task ProjectsController_GetAllProjects_ShouldReturnOkResult()
         {
             // Arrange
             var mockService = new Mock<IProjectService>();
-            var projects = new List<Project>
+            var projects = new List<ProjectDto>
             {
-                new Project { Id = 1, Title = "Project 1", Description = "Description 1" },
-                new Project { Id = 2, Title = "Project 2", Description = "Description 2" }
+                new ProjectDto { Id = 1, Title = "Project 1", Description = "Description 1" },
+                new ProjectDto { Id = 2, Title = "Project 2", Description = "Description 2" }
             };
-            mockService.Setup(s => s.GetAllProjectsAsync()).ReturnsAsync(projects);
-            var controller = new ProjectsController(mockService.Object);
+            mockService.Setup(s => s.GetAllAsync())
+                .ReturnsAsync(Result<IEnumerable<ProjectDto>>.Ok(projects));
+            var controller = CreateProjectsController(mockService);
 
             // Act
             var result = await controller.GetAllProjects();
 
             // Assert
-            var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
-            var returnValue = okResult.Value.Should().BeAssignableTo<IEnumerable<ProjectDto>>().Subject;
+            var objectResult = result.Result.Should().BeOfType<ObjectResult>().Subject;
+            objectResult.StatusCode.Should().Be(StatusCodes.Status200OK);
+            var returnValue = objectResult.Value.Should().BeAssignableTo<IEnumerable<ProjectDto>>().Subject;
             returnValue.Should().HaveCount(2);
-            mockService.Verify(s => s.GetAllProjectsAsync(), Times.Once);
+            mockService.Verify(s => s.GetAllAsync(), Times.Once);
         }
 
         [Fact]
-        public async Task ProjectsController_GetProjectById_ShouldReturnOkResult_WhenProjectExists()
+        public async Task ProjectsController_GetProject_ShouldReturnOkResult_WhenProjectExists()
         {
             // Arrange
             var mockService = new Mock<IProjectService>();
-            var project = new Project { Id = 1, Title = "Test Project", Description = "Test Description" };
-            mockService.Setup(s => s.GetProjectByIdAsync(1)).ReturnsAsync(project);
-            var controller = new ProjectsController(mockService.Object);
+            var project = new ProjectDto { Id = 1, Title = "Test Project", Description = "Test Description" };
+            mockService.Setup(s => s.GetByIdAsync(1))
+                .ReturnsAsync(Result<ProjectDto>.Ok(project));
+            var controller = CreateProjectsController(mockService);
 
             // Act
-            var result = await controller.GetProjectById(1);
+            var result = await controller.GetProject(1);
 
             // Assert
-            var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
-            var returnValue = okResult.Value.Should().BeOfType<ProjectDto>().Subject;
+            var objectResult = result.Result.Should().BeOfType<ObjectResult>().Subject;
+            objectResult.StatusCode.Should().Be(StatusCodes.Status200OK);
+            var returnValue = objectResult.Value.Should().BeOfType<ProjectDto>().Subject;
             returnValue.Id.Should().Be(1);
             returnValue.Title.Should().Be("Test Project");
-            mockService.Verify(s => s.GetProjectByIdAsync(1), Times.Once);
+            mockService.Verify(s => s.GetByIdAsync(1), Times.Once);
+        }
+
+        [Fact]
+        public async Task ProjectsController_GetProject_ShouldReturn404_WhenProjectDoesNotExist()
+        {
+            // Arrange
+            var mockService = new Mock<IProjectService>();
+            mockService.Setup(s => s.GetByIdAsync(99))
+                .ReturnsAsync(Result<ProjectDto>.NotFound("Project with id 99 was not found."));
+            var controller = CreateProjectsController(mockService);
+
+            // Act
+            var result = await controller.GetProject(99);
+
+            // Assert
+            var objectResult = result.Result.Should().BeOfType<ObjectResult>().Subject;
+            objectResult.StatusCode.Should().Be(StatusCodes.Status404NotFound);
+            objectResult.Value.Should().NotBeNull();
+            mockService.Verify(s => s.GetByIdAsync(99), Times.Once);
         }
 
         [Fact]
@@ -61,21 +101,46 @@ namespace PortfolioAPI.UnitTests
         {
             // Arrange
             var mockService = new Mock<IProjectService>();
-            var projects = new List<Project>
+            var projects = new List<ProjectDto>
             {
-                new Project { Id = 1, Title = "Featured Project", IsFeatured = true }
+                new ProjectDto { Id = 1, Title = "Featured Project", Featured = true }
             };
-            mockService.Setup(s => s.GetFeaturedProjectsAsync()).ReturnsAsync(projects);
-            var controller = new ProjectsController(mockService.Object);
+            mockService.Setup(s => s.GetFeaturedAsync())
+                .ReturnsAsync(Result<IEnumerable<ProjectDto>>.Ok(projects));
+            var controller = CreateProjectsController(mockService);
 
             // Act
             var result = await controller.GetFeaturedProjects();
 
             // Assert
-            var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
-            var returnValue = okResult.Value.Should().BeAssignableTo<IEnumerable<ProjectDto>>().Subject;
-            returnValue.Should().ContainSingle(p => p.IsFeatured);
-            mockService.Verify(s => s.GetFeaturedProjectsAsync(), Times.Once);
+            var objectResult = result.Result.Should().BeOfType<ObjectResult>().Subject;
+            objectResult.StatusCode.Should().Be(StatusCodes.Status200OK);
+            var returnValue = objectResult.Value.Should().BeAssignableTo<IEnumerable<ProjectDto>>().Subject;
+            returnValue.Should().ContainSingle(p => p.Featured);
+            mockService.Verify(s => s.GetFeaturedAsync(), Times.Once);
+        }
+
+        [Fact]
+        public async Task ProjectsController_SearchProjects_ShouldReturnOkResult()
+        {
+            // Arrange
+            var mockService = new Mock<IProjectService>();
+            var projects = new List<ProjectDto>
+            {
+                new ProjectDto { Id = 1, Title = "Portfolio API" }
+            };
+            mockService.Setup(s => s.SearchAsync("portfolio"))
+                .ReturnsAsync(Result<IEnumerable<ProjectDto>>.Ok(projects));
+            var controller = CreateProjectsController(mockService);
+
+            // Act
+            var result = await controller.SearchProjects("portfolio");
+
+            // Assert
+            var objectResult = result.Result.Should().BeOfType<ObjectResult>().Subject;
+            objectResult.StatusCode.Should().Be(StatusCodes.Status200OK);
+            objectResult.Value.Should().BeAssignableTo<IEnumerable<ProjectDto>>();
+            mockService.Verify(s => s.SearchAsync("portfolio"), Times.Once);
         }
 
         [Fact]
@@ -83,54 +148,83 @@ namespace PortfolioAPI.UnitTests
         {
             // Arrange
             var mockService = new Mock<IProjectService>();
-            var project = new Project { Title = "New Project", Description = "New Description" };
-            var createdProject = new Project { Id = 1, Title = "New Project", Description = "New Description" };
-            mockService.Setup(s => s.CreateProjectAsync(project)).ReturnsAsync(createdProject);
-            var controller = new ProjectsController(mockService.Object);
+            var dto = new CreateProjectDto { Title = "New Project", Description = "New Description" };
+            var createdProject = new ProjectDto { Id = 1, Title = "New Project", Description = "New Description" };
+            mockService.Setup(s => s.CreateAsync(dto))
+                .ReturnsAsync(Result<ProjectDto>.Ok(createdProject, "Project created."));
+            var controller = CreateProjectsController(mockService);
 
             // Act
-            var result = await controller.CreateProject(project);
+            var result = await controller.CreateProject(dto);
 
             // Assert
             var createdResult = result.Result.Should().BeOfType<CreatedAtActionResult>().Subject;
-            createdResult.ActionName.Should().Be(nameof(ProjectsController.GetProjectById));
+            createdResult.ActionName.Should().Be(nameof(ProjectsController.GetProject));
             createdResult.RouteValues!["id"].Should().Be(1);
             var returnValue = createdResult.Value.Should().BeOfType<ProjectDto>().Subject;
             returnValue.Id.Should().Be(1);
-            mockService.Verify(s => s.CreateProjectAsync(project), Times.Once);
+            mockService.Verify(s => s.CreateAsync(dto), Times.Once);
         }
 
         [Fact]
-        public async Task ProjectsController_UpdateProject_ShouldReturnNoContent_WhenIdsMatch()
+        public async Task ProjectsController_CreateProject_ShouldReturn400_WhenValidationFails()
         {
             // Arrange
             var mockService = new Mock<IProjectService>();
-            var project = new Project { Id = 1, Title = "Updated Project" };
-            mockService.Setup(s => s.UpdateProjectAsync(project)).Returns(Task.CompletedTask);
-            var controller = new ProjectsController(mockService.Object);
+            var dto = new CreateProjectDto { Title = "", Description = "" };
+            mockService.Setup(s => s.CreateAsync(dto))
+                .ReturnsAsync(Result<ProjectDto>.Fail(
+                    "Validation failed.", new[] { "Title is required." }));
+            var controller = CreateProjectsController(mockService);
 
             // Act
-            var result = await controller.UpdateProject(1, project);
+            var result = await controller.CreateProject(dto);
+
+            // Assert
+            var objectResult = result.Result.Should().BeOfType<ObjectResult>().Subject;
+            objectResult.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+            objectResult.Value.Should().NotBeNull();
+        }
+
+        [Fact]
+        public async Task ProjectsController_UpdateProject_ShouldReturnNoContent_WhenUpdateSucceeds()
+        {
+            // Arrange
+            var mockService = new Mock<IProjectService>();
+            var dto = new UpdateProjectDto { Title = "Updated Project", Description = "Updated" };
+            var existing = new ProjectDto { Id = 1, Title = "Old Project" };
+            mockService.Setup(s => s.GetByIdAsync(1))
+                .ReturnsAsync(Result<ProjectDto>.Ok(existing));
+            mockService.Setup(s => s.UpdateAsync(1, dto))
+                .ReturnsAsync(Result<ProjectDto>.Ok(existing, "Project updated."));
+            var controller = CreateProjectsController(mockService);
+
+            // Act
+            var result = await controller.UpdateProject(1, dto);
 
             // Assert
             result.Should().BeOfType<NoContentResult>();
-            mockService.Verify(s => s.UpdateProjectAsync(project), Times.Once);
+            mockService.Verify(s => s.UpdateAsync(1, dto), Times.Once);
         }
 
         [Fact]
-        public async Task ProjectsController_UpdateProject_ShouldReturnBadRequest_WhenIdsDoNotMatch()
+        public async Task ProjectsController_UpdateProject_ShouldReturn404_WhenProjectDoesNotExist()
         {
             // Arrange
             var mockService = new Mock<IProjectService>();
-            var project = new Project { Id = 2, Title = "Updated Project" };
-            var controller = new ProjectsController(mockService.Object);
+            var dto = new UpdateProjectDto { Title = "Updated Project", Description = "Updated" };
+            mockService.Setup(s => s.GetByIdAsync(99))
+                .ReturnsAsync(Result<ProjectDto>.NotFound("Project with id 99 was not found."));
+            mockService.Setup(s => s.UpdateAsync(99, dto))
+                .ReturnsAsync(Result<ProjectDto>.NotFound("Project with id 99 was not found."));
+            var controller = CreateProjectsController(mockService);
 
             // Act
-            var result = await controller.UpdateProject(1, project);
+            var result = await controller.UpdateProject(99, dto);
 
             // Assert
-            result.Should().BeOfType<BadRequestResult>();
-            mockService.Verify(s => s.UpdateProjectAsync(It.IsAny<Project>()), Times.Never);
+            var objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+            objectResult.StatusCode.Should().Be(StatusCodes.Status404NotFound);
         }
 
         [Fact]
@@ -138,15 +232,58 @@ namespace PortfolioAPI.UnitTests
         {
             // Arrange
             var mockService = new Mock<IProjectService>();
-            mockService.Setup(s => s.DeleteProjectAsync(1)).Returns(Task.CompletedTask);
-            var controller = new ProjectsController(mockService.Object);
+            var existing = new ProjectDto { Id = 1, Title = "Project to Delete" };
+            mockService.Setup(s => s.GetByIdAsync(1))
+                .ReturnsAsync(Result<ProjectDto>.Ok(existing));
+            mockService.Setup(s => s.DeleteAsync(1))
+                .ReturnsAsync(Result<bool>.Ok(true, "Project deleted."));
+            var controller = CreateProjectsController(mockService);
 
             // Act
             var result = await controller.DeleteProject(1);
 
             // Assert
             result.Should().BeOfType<NoContentResult>();
-            mockService.Verify(s => s.DeleteProjectAsync(1), Times.Once);
+            mockService.Verify(s => s.DeleteAsync(1), Times.Once);
+        }
+
+        [Fact]
+        public async Task ProjectsController_ToggleFeatured_ShouldReturnOkWithFlag()
+        {
+            // Arrange
+            var mockService = new Mock<IProjectService>();
+            mockService.Setup(s => s.ToggleFeaturedAsync(1))
+                .ReturnsAsync(Result<bool>.Ok(true));
+            var controller = CreateProjectsController(mockService);
+
+            // Act
+            var result = await controller.ToggleFeatured(1);
+
+            // Assert
+            result.Should().BeOfType<OkObjectResult>();
+            mockService.Verify(s => s.ToggleFeaturedAsync(1), Times.Once);
+        }
+
+        [Fact]
+        public async Task ProjectsController_DeleteProject_ShouldDeleteStoredCover_WhenCoverChanged()
+        {
+            // Arrange — the stored cover is under /api/files (default base URL)
+            var mockService = new Mock<IProjectService>();
+            var mockFileStorage = new Mock<IFileStorageService>();
+            var dto = new UpdateProjectDto { Title = "Updated", Description = "Updated", ImageUrl = null };
+            var existing = new ProjectDto { Id = 1, Title = "Old", ImageUrl = "/api/files/old-cover.png" };
+            mockService.Setup(s => s.GetByIdAsync(1))
+                .ReturnsAsync(Result<ProjectDto>.Ok(existing));
+            mockService.Setup(s => s.UpdateAsync(1, dto))
+                .ReturnsAsync(Result<ProjectDto>.Ok(existing, "Project updated."));
+            var controller = CreateProjectsController(mockService, mockFileStorage);
+
+            // Act
+            var result = await controller.UpdateProject(1, dto);
+
+            // Assert
+            result.Should().BeOfType<NoContentResult>();
+            mockFileStorage.Verify(f => f.DeleteFileAsync("/api/files/old-cover.png"), Times.Once);
         }
 
         #endregion
@@ -181,7 +318,7 @@ namespace PortfolioAPI.UnitTests
         {
             // Arrange
             var mockService = new Mock<ISkillService>();
-            var skill = new Skill { Id = 1, Name = "C#", Category = "Programming" };
+            var skill = new Skill { Id = 1, Name = "C#", Category = "Programming", Proficiency = 90 };
             mockService.Setup(s => s.GetSkillByIdAsync(1)).ReturnsAsync(skill);
             var controller = new SkillsController(mockService.Object);
 
@@ -193,30 +330,8 @@ namespace PortfolioAPI.UnitTests
             var returnValue = okResult.Value.Should().BeOfType<SkillDto>().Subject;
             returnValue.Id.Should().Be(1);
             returnValue.Name.Should().Be("C#");
+            returnValue.Proficiency.Should().Be(90);
             mockService.Verify(s => s.GetSkillByIdAsync(1), Times.Once);
-        }
-
-        [Fact]
-        public async Task SkillsController_GetSkillsByCategory_ShouldReturnOkResult()
-        {
-            // Arrange
-            var mockService = new Mock<ISkillService>();
-            var skills = new List<Skill>
-            {
-                new Skill { Id = 1, Name = "C#", Category = "Programming" },
-                new Skill { Id = 2, Name = "SQL", Category = "Database" }
-            };
-            mockService.Setup(s => s.GetSkillsByCategoryAsync("Programming")).ReturnsAsync(skills.Where(s => s.Category == "Programming"));
-            var controller = new SkillsController(mockService.Object);
-
-            // Act
-            var result = await controller.GetSkillsByCategory("Programming");
-
-            // Assert
-            var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
-            var returnValue = okResult.Value.Should().BeAssignableTo<IEnumerable<SkillDto>>().Subject;
-            returnValue.Should().ContainSingle(s => s.Category == "Programming");
-            mockService.Verify(s => s.GetSkillsByCategoryAsync("Programming"), Times.Once);
         }
 
         [Fact]
@@ -226,10 +341,10 @@ namespace PortfolioAPI.UnitTests
             var mockService = new Mock<ISkillService>();
             var skills = new List<Skill>
             {
-                new Skill { Id = 1, Name = "C#", IsVisible = true },
-                new Skill { Id = 2, Name = "Hidden Skill", IsVisible = false }
+                new Skill { Id = 1, Name = "C#", IsActive = true },
+                new Skill { Id = 2, Name = "Hidden Skill", IsActive = false }
             };
-            mockService.Setup(s => s.GetVisibleSkillsAsync()).ReturnsAsync(skills.Where(s => s.IsVisible));
+            mockService.Setup(s => s.GetVisibleSkillsAsync()).ReturnsAsync(skills.Where(s => s.IsActive));
             var controller = new SkillsController(mockService.Object);
 
             // Act
@@ -238,7 +353,7 @@ namespace PortfolioAPI.UnitTests
             // Assert
             var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
             var returnValue = okResult.Value.Should().BeAssignableTo<IEnumerable<SkillDto>>().Subject;
-            returnValue.Should().ContainSingle(s => s.IsVisible);
+            returnValue.Should().ContainSingle(s => s.IsActive);
             mockService.Verify(s => s.GetVisibleSkillsAsync(), Times.Once);
         }
 
@@ -247,13 +362,13 @@ namespace PortfolioAPI.UnitTests
         {
             // Arrange
             var mockService = new Mock<ISkillService>();
-            var skill = new Skill { Name = "New Skill", Category = "New Category" };
-            var createdSkill = new Skill { Id = 1, Name = "New Skill", Category = "New Category" };
-            mockService.Setup(s => s.CreateSkillAsync(skill)).ReturnsAsync(createdSkill);
+            var dto = new CreateSkillDto { Name = "New Skill", Category = "New Category", Proficiency = 75 };
+            var createdSkill = new Skill { Id = 1, Name = "New Skill", Category = "New Category", Proficiency = 75 };
+            mockService.Setup(s => s.CreateSkillAsync(It.IsAny<Skill>())).ReturnsAsync(createdSkill);
             var controller = new SkillsController(mockService.Object);
 
             // Act
-            var result = await controller.CreateSkill(skill);
+            var result = await controller.CreateSkill(dto);
 
             // Assert
             var createdResult = result.Result.Should().BeOfType<CreatedAtActionResult>().Subject;
@@ -261,40 +376,28 @@ namespace PortfolioAPI.UnitTests
             createdResult.RouteValues!["id"].Should().Be(1);
             var returnValue = createdResult.Value.Should().BeOfType<SkillDto>().Subject;
             returnValue.Id.Should().Be(1);
-            mockService.Verify(s => s.CreateSkillAsync(skill), Times.Once);
+            mockService.Verify(
+                s => s.CreateSkillAsync(It.Is<Skill>(sk => sk.Name == "New Skill" && sk.Category == "New Category")),
+                Times.Once);
         }
 
         [Fact]
-        public async Task SkillsController_UpdateSkill_ShouldReturnNoContent_WhenIdsMatch()
+        public async Task SkillsController_UpdateSkill_ShouldReturnNoContent_UsingRouteId()
         {
-            // Arrange
+            // Arrange — route id wins; the DTO carries no id
             var mockService = new Mock<ISkillService>();
-            var skill = new Skill { Id = 1, Name = "Updated Skill" };
-            mockService.Setup(s => s.UpdateSkillAsync(skill)).Returns(Task.CompletedTask);
+            var dto = new UpdateSkillDto { Name = "Updated Skill", Category = "Updated Category" };
+            mockService.Setup(s => s.UpdateSkillAsync(It.IsAny<Skill>())).Returns(Task.CompletedTask);
             var controller = new SkillsController(mockService.Object);
 
             // Act
-            var result = await controller.UpdateSkill(1, skill);
+            var result = await controller.UpdateSkill(5, dto);
 
             // Assert
             result.Should().BeOfType<NoContentResult>();
-            mockService.Verify(s => s.UpdateSkillAsync(skill), Times.Once);
-        }
-
-        [Fact]
-        public async Task SkillsController_UpdateSkill_ShouldReturnBadRequest_WhenIdsDoNotMatch()
-        {
-            // Arrange
-            var mockService = new Mock<ISkillService>();
-            var skill = new Skill { Id = 2, Name = "Updated Skill" };
-            var controller = new SkillsController(mockService.Object);
-
-            // Act
-            var result = await controller.UpdateSkill(1, skill);
-
-            // Assert
-            result.Should().BeOfType<BadRequestResult>();
-            mockService.Verify(s => s.UpdateSkillAsync(It.IsAny<Skill>()), Times.Never);
+            mockService.Verify(
+                s => s.UpdateSkillAsync(It.Is<Skill>(sk => sk.Id == 5 && sk.Name == "Updated Skill")),
+                Times.Once);
         }
 
         [Fact]
@@ -386,15 +489,28 @@ namespace PortfolioAPI.UnitTests
         [Fact]
         public async Task ContactController_CreateContact_ShouldReturnCreatedResult()
         {
-            // Arrange
+            // Arrange — the action reads HttpContext (IP/user-agent), so the
+            // controller needs a real (default) HttpContext.
             var mockService = new Mock<IContactService>();
-            var contact = new Contact { Name = "New Contact", Email = "new@example.com", Message = "Hello" };
-            var createdContact = new Contact { Id = 1, Name = "New Contact", Email = "new@example.com", Message = "Hello" };
-            mockService.Setup(s => s.CreateContactAsync(contact)).ReturnsAsync(createdContact);
-            var controller = new ContactController(mockService.Object);
+            var dto = new CreateContactDto
+            {
+                Name = "New Contact",
+                Email = "new@example.com",
+                Subject = "Hello",
+                Message = "Hello there"
+            };
+            var createdContact = new Contact
+            {
+                Id = 1, Name = "New Contact", Email = "new@example.com", Subject = "Hello", Message = "Hello there"
+            };
+            mockService.Setup(s => s.CreateContactAsync(It.IsAny<Contact>())).ReturnsAsync(createdContact);
+            var controller = new ContactController(mockService.Object)
+            {
+                ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
+            };
 
             // Act
-            var result = await controller.CreateContact(contact);
+            var result = await controller.CreateContact(dto);
 
             // Assert
             var createdResult = result.Result.Should().BeOfType<CreatedAtActionResult>().Subject;
@@ -402,7 +518,13 @@ namespace PortfolioAPI.UnitTests
             createdResult.RouteValues!["id"].Should().Be(1);
             var returnValue = createdResult.Value.Should().BeOfType<ContactDto>().Subject;
             returnValue.Id.Should().Be(1);
-            mockService.Verify(s => s.CreateContactAsync(contact), Times.Once);
+            mockService.Verify(
+                s => s.CreateContactAsync(It.Is<Contact>(c =>
+                    c.Name == "New Contact" &&
+                    c.Email == "new@example.com" &&
+                    c.Subject == "Hello" &&
+                    c.Message == "Hello there")),
+                Times.Once);
         }
 
         [Fact]

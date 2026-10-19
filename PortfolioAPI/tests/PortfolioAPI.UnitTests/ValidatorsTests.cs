@@ -10,11 +10,13 @@ namespace PortfolioAPI.UnitTests
     {
         private readonly ProjectValidator _projectValidator;
         private readonly ContactValidator _contactValidator;
+        private readonly SkillValidator _skillValidator;
 
         public ValidatorsTests()
         {
             _projectValidator = new ProjectValidator();
             _contactValidator = new ContactValidator();
+            _skillValidator = new SkillValidator();
         }
 
         #region ProjectValidator Tests
@@ -26,11 +28,19 @@ namespace PortfolioAPI.UnitTests
             var project = new Project
             {
                 Title = "Valid Project Title",
-                Description = "This is a valid project description that meets the minimum length requirements.",
-                ProjectUrl = "https://github.com/user/project",
-                RepositoryUrl = "https://github.com/user/repo",
-                StartDate = new DateTime(2023, 1, 1),
-                EndDate = new DateTime(2023, 12, 31)
+                Description = "This is a valid project description that meets the length requirements.",
+                ImageUrl = "/images/project.png",
+                GithubUrl = "https://github.com/user/project",
+                LiveUrl = "https://example.com/project",
+                Technologies = new List<string> { "C#", ".NET", "React" },
+                Category = "Web",
+                Client = "Acme",
+                Type = "Freelance",
+                Database = "SQL Server",
+                Status = "Completed",
+                Badges = new List<string> { "Featured" },
+                Metrics = new List<ProjectMetric> { new() { Label = "Users", Value = "10k" } },
+                Gradient = "from-blue-500 to-purple-500"
             };
 
             // Act
@@ -43,17 +53,10 @@ namespace PortfolioAPI.UnitTests
         [Fact]
         public void ProjectValidator_ShouldFail_WhenTitleIsEmpty()
         {
-            // Arrange
-            var project = new Project
-            {
-                Title = "",
-                Description = "Valid description"
-            };
+            var project = new Project { Title = "", Description = "Valid description" };
 
-            // Act
             var result = _projectValidator.TestValidate(project);
 
-            // Assert
             result.ShouldHaveValidationErrorFor(p => p.Title)
                 .WithErrorMessage("Title is required.");
         }
@@ -61,17 +64,14 @@ namespace PortfolioAPI.UnitTests
         [Fact]
         public void ProjectValidator_ShouldFail_WhenTitleExceedsMaxLength()
         {
-            // Arrange
             var project = new Project
             {
-                Title = new string('A', 101), // 101 characters
+                Title = new string('A', 101),
                 Description = "Valid description"
             };
 
-            // Act
             var result = _projectValidator.TestValidate(project);
 
-            // Assert
             result.ShouldHaveValidationErrorFor(p => p.Title)
                 .WithErrorMessage("Title must not exceed 100 characters.");
         }
@@ -79,17 +79,10 @@ namespace PortfolioAPI.UnitTests
         [Fact]
         public void ProjectValidator_ShouldFail_WhenDescriptionIsEmpty()
         {
-            // Arrange
-            var project = new Project
-            {
-                Title = "Valid Title",
-                Description = ""
-            };
+            var project = new Project { Title = "Valid Title", Description = "" };
 
-            // Act
             var result = _projectValidator.TestValidate(project);
 
-            // Assert
             result.ShouldHaveValidationErrorFor(p => p.Description)
                 .WithErrorMessage("Description is required.");
         }
@@ -97,114 +90,144 @@ namespace PortfolioAPI.UnitTests
         [Fact]
         public void ProjectValidator_ShouldFail_WhenDescriptionExceedsMaxLength()
         {
-            // Arrange
             var project = new Project
             {
                 Title = "Valid Title",
-                Description = new string('A', 501) // 501 characters
+                Description = new string('A', 501)
             };
 
-            // Act
             var result = _projectValidator.TestValidate(project);
 
-            // Assert
             result.ShouldHaveValidationErrorFor(p => p.Description)
                 .WithErrorMessage("Description must not exceed 500 characters.");
         }
 
         [Fact]
-        public void ProjectValidator_ShouldFail_WhenProjectUrlIsInvalid()
+        public void ProjectValidator_ShouldFail_WhenLiveUrlIsInvalid()
         {
-            // Arrange
             var project = new Project
             {
                 Title = "Valid Title",
                 Description = "Valid description",
-                ProjectUrl = "invalid-url"
+                LiveUrl = "invalid-url"
             };
 
-            // Act
             var result = _projectValidator.TestValidate(project);
 
-            // Assert
-            result.ShouldHaveValidationErrorFor(p => p.ProjectUrl)
-                .WithErrorMessage("Project URL must be a valid URL.");
+            result.ShouldHaveValidationErrorFor(p => p.LiveUrl)
+                .WithErrorMessage("Live URL must be a valid URL.");
         }
 
         [Fact]
-        public void ProjectValidator_ShouldPass_WhenProjectUrlIsNull()
+        public void ProjectValidator_ShouldPass_WhenLiveUrlIsNull()
         {
-            // Arrange
             var project = new Project
             {
                 Title = "Valid Title",
                 Description = "Valid description",
-                ProjectUrl = null
+                LiveUrl = null
             };
 
-            // Act
             var result = _projectValidator.TestValidate(project);
 
-            // Assert
-            result.ShouldNotHaveValidationErrorFor(p => p.ProjectUrl);
+            result.ShouldNotHaveValidationErrorFor(p => p.LiveUrl);
         }
 
         [Fact]
-        public void ProjectValidator_ShouldFail_WhenRepositoryUrlIsInvalid()
+        public void ProjectValidator_ShouldFail_WhenGithubUrlIsInvalid()
         {
-            // Arrange
             var project = new Project
             {
                 Title = "Valid Title",
                 Description = "Valid description",
-                RepositoryUrl = "invalid-url"
+                GithubUrl = "not a url"
             };
 
-            // Act
             var result = _projectValidator.TestValidate(project);
 
-            // Assert
-            result.ShouldHaveValidationErrorFor(p => p.RepositoryUrl)
-                .WithErrorMessage("Repository URL must be a valid URL.");
+            result.ShouldHaveValidationErrorFor(p => p.GithubUrl)
+                .WithErrorMessage("GitHub URL must be a valid URL.");
         }
 
         [Fact]
-        public void ProjectValidator_ShouldFail_WhenStartDateIsAfterEndDate()
+        public void ProjectValidator_ShouldPass_WhenGithubUrlIsNull()
         {
-            // Arrange
             var project = new Project
             {
                 Title = "Valid Title",
                 Description = "Valid description",
-                StartDate = new DateTime(2023, 12, 31),
-                EndDate = new DateTime(2023, 1, 1)
+                GithubUrl = null
             };
 
-            // Act
             var result = _projectValidator.TestValidate(project);
 
-            // Assert
-            result.ShouldHaveValidationErrorFor(p => p.StartDate)
-                .WithErrorMessage("Start date must be before or equal to end date.");
+            result.ShouldNotHaveValidationErrorFor(p => p.GithubUrl);
         }
 
         [Fact]
-        public void ProjectValidator_ShouldPass_WhenStartDateEqualsEndDate()
+        public void ProjectValidator_ShouldFail_WhenMoreThanTwentyTechnologies()
         {
-            // Arrange
             var project = new Project
             {
                 Title = "Valid Title",
                 Description = "Valid description",
-                StartDate = new DateTime(2023, 1, 1),
-                EndDate = new DateTime(2023, 1, 1)
+                Technologies = Enumerable.Repeat("Tech", 21).ToList()
             };
 
-            // Act
             var result = _projectValidator.TestValidate(project);
 
-            // Assert
-            result.ShouldNotHaveValidationErrorFor(p => p.StartDate);
+            result.ShouldHaveValidationErrorFor(p => p.Technologies)
+                .WithErrorMessage("A project can list at most 20 technologies.");
+        }
+
+        [Fact]
+        public void ProjectValidator_ShouldFail_WhenMoreThanFiveBadges()
+        {
+            var project = new Project
+            {
+                Title = "Valid Title",
+                Description = "Valid description",
+                Badges = Enumerable.Repeat("Badge", 6).ToList()
+            };
+
+            var result = _projectValidator.TestValidate(project);
+
+            result.ShouldHaveValidationErrorFor(p => p.Badges)
+                .WithErrorMessage("A project can have at most 5 badges.");
+        }
+
+        [Fact]
+        public void ProjectValidator_ShouldFail_WhenMoreThanSixMetrics()
+        {
+            var project = new Project
+            {
+                Title = "Valid Title",
+                Description = "Valid description",
+                Metrics = Enumerable.Range(1, 7)
+                    .Select(i => new ProjectMetric { Label = $"L{i}", Value = $"V{i}" })
+                    .ToList()
+            };
+
+            var result = _projectValidator.TestValidate(project);
+
+            result.ShouldHaveValidationErrorFor(p => p.Metrics)
+                .WithErrorMessage("A project can show at most 6 metrics.");
+        }
+
+        [Fact]
+        public void ProjectValidator_ShouldFail_WhenImageUrlExceedsMaxLength()
+        {
+            var project = new Project
+            {
+                Title = "Valid Title",
+                Description = "Valid description",
+                ImageUrl = new string('a', 501)
+            };
+
+            var result = _projectValidator.TestValidate(project);
+
+            result.ShouldHaveValidationErrorFor(p => p.ImageUrl)
+                .WithErrorMessage("Image URL must not exceed 500 characters.");
         }
 
         #endregion
@@ -214,38 +237,32 @@ namespace PortfolioAPI.UnitTests
         [Fact]
         public void ContactValidator_ShouldPass_WhenAllFieldsAreValid()
         {
-            // Arrange
             var contact = new Contact
             {
                 Name = "John Doe",
                 Email = "john.doe@example.com",
-                Phone = "+1234567890",
-                Subject = "Valid Subject",
+                Subject = "Project Inquiry",
                 Message = "This is a valid message that meets the minimum requirements."
             };
 
-            // Act
             var result = _contactValidator.TestValidate(contact);
 
-            // Assert
             result.ShouldNotHaveAnyValidationErrors();
         }
 
         [Fact]
         public void ContactValidator_ShouldFail_WhenNameIsEmpty()
         {
-            // Arrange
             var contact = new Contact
             {
                 Name = "",
                 Email = "john@example.com",
+                Subject = "Valid Subject",
                 Message = "Valid message"
             };
 
-            // Act
             var result = _contactValidator.TestValidate(contact);
 
-            // Assert
             result.ShouldHaveValidationErrorFor(c => c.Name)
                 .WithErrorMessage("Name is required.");
         }
@@ -253,18 +270,16 @@ namespace PortfolioAPI.UnitTests
         [Fact]
         public void ContactValidator_ShouldFail_WhenNameExceedsMaxLength()
         {
-            // Arrange
             var contact = new Contact
             {
-                Name = new string('A', 101), // 101 characters
+                Name = new string('A', 101),
                 Email = "john@example.com",
+                Subject = "Valid Subject",
                 Message = "Valid message"
             };
 
-            // Act
             var result = _contactValidator.TestValidate(contact);
 
-            // Assert
             result.ShouldHaveValidationErrorFor(c => c.Name)
                 .WithErrorMessage("Name must not exceed 100 characters.");
         }
@@ -272,18 +287,16 @@ namespace PortfolioAPI.UnitTests
         [Fact]
         public void ContactValidator_ShouldFail_WhenEmailIsEmpty()
         {
-            // Arrange
             var contact = new Contact
             {
                 Name = "John Doe",
                 Email = "",
+                Subject = "Valid Subject",
                 Message = "Valid message"
             };
 
-            // Act
             var result = _contactValidator.TestValidate(contact);
 
-            // Assert
             result.ShouldHaveValidationErrorFor(c => c.Email)
                 .WithErrorMessage("Email is required.");
         }
@@ -291,97 +304,50 @@ namespace PortfolioAPI.UnitTests
         [Fact]
         public void ContactValidator_ShouldFail_WhenEmailIsInvalid()
         {
-            // Arrange
             var contact = new Contact
             {
                 Name = "John Doe",
                 Email = "invalid-email",
+                Subject = "Valid Subject",
                 Message = "Valid message"
             };
 
-            // Act
             var result = _contactValidator.TestValidate(contact);
 
-            // Assert
             result.ShouldHaveValidationErrorFor(c => c.Email)
                 .WithErrorMessage("Email must be a valid email address.");
         }
 
         [Fact]
-        public void ContactValidator_ShouldFail_WhenPhoneExceedsMaxLength()
+        public void ContactValidator_ShouldFail_WhenSubjectIsEmpty()
         {
-            // Arrange
             var contact = new Contact
             {
                 Name = "John Doe",
                 Email = "john@example.com",
-                Phone = new string('1', 16), // 16 characters
+                Subject = "",
                 Message = "Valid message"
             };
 
-            // Act
             var result = _contactValidator.TestValidate(contact);
 
-            // Assert
-            result.ShouldHaveValidationErrorFor(c => c.Phone)
-                .WithErrorMessage("Phone number must not exceed 15 characters.");
-        }
-
-        [Fact]
-        public void ContactValidator_ShouldFail_WhenPhoneFormatIsInvalid()
-        {
-            // Arrange
-            var contact = new Contact
-            {
-                Name = "John Doe",
-                Email = "john@example.com",
-                Phone = "123456789", // Invalid format (no country code)
-                Message = "Valid message"
-            };
-
-            // Act
-            var result = _contactValidator.TestValidate(contact);
-
-            // Assert
-            result.ShouldHaveValidationErrorFor(c => c.Phone)
-                .WithErrorMessage("Phone number must be a valid format.");
-        }
-
-        [Fact]
-        public void ContactValidator_ShouldPass_WhenPhoneIsNull()
-        {
-            // Arrange
-            var contact = new Contact
-            {
-                Name = "John Doe",
-                Email = "john@example.com",
-                Phone = null,
-                Message = "Valid message"
-            };
-
-            // Act
-            var result = _contactValidator.TestValidate(contact);
-
-            // Assert
-            result.ShouldNotHaveValidationErrorFor(c => c.Phone);
+            result.ShouldHaveValidationErrorFor(c => c.Subject)
+                .WithErrorMessage("Subject is required.");
         }
 
         [Fact]
         public void ContactValidator_ShouldFail_WhenSubjectExceedsMaxLength()
         {
-            // Arrange
             var contact = new Contact
             {
                 Name = "John Doe",
                 Email = "john@example.com",
-                Subject = new string('A', 201), // 201 characters
+                Subject = new string('A', 201),
                 Message = "Valid message"
             };
 
-            // Act
             var result = _contactValidator.TestValidate(contact);
 
-            // Assert
             result.ShouldHaveValidationErrorFor(c => c.Subject)
                 .WithErrorMessage("Subject must not exceed 200 characters.");
         }
@@ -389,18 +355,16 @@ namespace PortfolioAPI.UnitTests
         [Fact]
         public void ContactValidator_ShouldFail_WhenMessageIsEmpty()
         {
-            // Arrange
             var contact = new Contact
             {
                 Name = "John Doe",
                 Email = "john@example.com",
+                Subject = "Valid Subject",
                 Message = ""
             };
 
-            // Act
             var result = _contactValidator.TestValidate(contact);
 
-            // Assert
             result.ShouldHaveValidationErrorFor(c => c.Message)
                 .WithErrorMessage("Message is required.");
         }
@@ -408,20 +372,90 @@ namespace PortfolioAPI.UnitTests
         [Fact]
         public void ContactValidator_ShouldFail_WhenMessageExceedsMaxLength()
         {
-            // Arrange
             var contact = new Contact
             {
                 Name = "John Doe",
                 Email = "john@example.com",
-                Message = new string('A', 1001) // 1001 characters
+                Subject = "Valid Subject",
+                Message = new string('A', 1001)
             };
 
-            // Act
             var result = _contactValidator.TestValidate(contact);
 
-            // Assert
             result.ShouldHaveValidationErrorFor(c => c.Message)
                 .WithErrorMessage("Message must not exceed 1000 characters.");
+        }
+
+        #endregion
+
+        #region SkillValidator Tests
+
+        [Fact]
+        public void SkillValidator_ShouldPass_WhenAllFieldsAreValid()
+        {
+            var skill = new Skill
+            {
+                Name = "C#",
+                Category = "Programming",
+                Proficiency = 85,
+                IconUrl = "https://example.com/csharp.png",
+                Description = "Advanced C# development"
+            };
+
+            var result = _skillValidator.TestValidate(skill);
+
+            result.ShouldNotHaveAnyValidationErrors();
+        }
+
+        [Fact]
+        public void SkillValidator_ShouldFail_WhenNameIsEmpty()
+        {
+            var skill = new Skill { Name = "", Category = "Programming", Proficiency = 50 };
+
+            var result = _skillValidator.TestValidate(skill);
+
+            result.ShouldHaveValidationErrorFor(s => s.Name)
+                .WithErrorMessage("Skill name is required.");
+        }
+
+        [Fact]
+        public void SkillValidator_ShouldFail_WhenNameExceedsMaxLength()
+        {
+            var skill = new Skill
+            {
+                Name = new string('A', 51),
+                Category = "Programming",
+                Proficiency = 50
+            };
+
+            var result = _skillValidator.TestValidate(skill);
+
+            result.ShouldHaveValidationErrorFor(s => s.Name)
+                .WithErrorMessage("Skill name must not exceed 50 characters.");
+        }
+
+        [Fact]
+        public void SkillValidator_ShouldFail_WhenCategoryIsEmpty()
+        {
+            var skill = new Skill { Name = "C#", Category = "", Proficiency = 50 };
+
+            var result = _skillValidator.TestValidate(skill);
+
+            result.ShouldHaveValidationErrorFor(s => s.Category)
+                .WithErrorMessage("Category is required.");
+        }
+
+        [Theory]
+        [InlineData(-1)]
+        [InlineData(101)]
+        public void SkillValidator_ShouldFail_WhenProficiencyIsOutOfRange(int proficiency)
+        {
+            var skill = new Skill { Name = "C#", Category = "Programming", Proficiency = proficiency };
+
+            var result = _skillValidator.TestValidate(skill);
+
+            result.ShouldHaveValidationErrorFor(s => s.Proficiency)
+                .WithErrorMessage("Proficiency must be between 0 and 100.");
         }
 
         #endregion
