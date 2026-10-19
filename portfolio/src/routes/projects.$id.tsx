@@ -95,7 +95,7 @@ function ProjectNotFound() {
 
 function ProjectDetail() {
   const { project } = Route.useLoaderData();
-  // Same cached API list the loader primed (local fallback if offline).
+  // Same cached API list the loader primed (live backend data).
   const projects = usePortfolioProjects();
   const detail = getProjectDetail(project);
   const related = getRelatedProjects(project, projects);
