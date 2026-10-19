@@ -6,6 +6,7 @@ using PortfolioAPI.Infrastructure.Repositories;
 using PortfolioAPI.Infrastructure.Services;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -126,6 +127,18 @@ builder.Services.AddAutoMapper(typeof(PortfolioAPI.Application.Mappings.AutoMapp
 // Add FluentValidation
 builder.Services.AddValidatorsFromAssembly(typeof(PortfolioAPI.Application.Services.ProjectService).Assembly);
 
+// Backend-owned upload storage (project covers etc.): keep it OUTSIDE
+// wwwroot (App_Data) so redeploying the publish output can never clobber
+// uploaded files, and anchor it to the content root so it works the same
+// under `dotnet run` and IIS/ANCM hosting.
+var configuredStoragePath = builder.Configuration["FileStorage:Path"];
+builder.Configuration["FileStorage:Path"] =
+    string.IsNullOrWhiteSpace(configuredStoragePath)
+        ? Path.Combine(builder.Environment.ContentRootPath, UploadStorage.DefaultRelativePath)
+        : Path.IsPathRooted(configuredStoragePath)
+            ? configuredStoragePath
+            : Path.Combine(builder.Environment.ContentRootPath, configuredStoragePath);
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -136,6 +149,19 @@ if (app.Environment.IsDevelopment())
 
 // Use CORS (policy name set up above)
 app.UseCors("Frontends");
+
+// Serve uploaded files (UploadController) at {FileStorage:BaseUrl} — /api/files
+// by default. Both frontends reach this path through their own /api proxy, so
+// stored cover URLs stay relative in the database and load over HTTPS on every
+// frontend without any hardcoded API host.
+var uploadsRoot = UploadStorage.ResolveRoot(app.Configuration);
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(uploadsRoot),
+    RequestPath = UploadStorage.PublicBase(app.Configuration),
+    // Uploads use random (guid) filenames, so they are immutable — cache hard.
+    OnPrepareResponse = ctx => ctx.Context.Response.Headers.CacheControl = "public, max-age=31536000, immutable"
+});
 
 // Swagger UI: /swagger  (JSON spec: /swagger/v1/swagger.json)
 if (swaggerEnabled)

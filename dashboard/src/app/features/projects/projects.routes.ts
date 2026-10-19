@@ -1,5 +1,9 @@
 import { Routes } from '@angular/router';
 
+/**
+ * Pure CRUD surface: card grid (list) + create/edit forms. There is no
+ * project detail page — the public portfolio is the detail view.
+ */
 export const PROJECT_ROUTES: Routes = [
   {
     path: '',
@@ -12,13 +16,12 @@ export const PROJECT_ROUTES: Routes = [
       import('./project-form/project-form.component').then(m => m.ProjectFormComponent)
   },
   {
-    path: ':id',
-    loadComponent: () =>
-      import('./project-detail/project-detail.component').then(m => m.ProjectDetailComponent)
-  },
-  {
     path: ':id/edit',
     loadComponent: () =>
       import('./project-form/project-form.component').then(m => m.ProjectFormComponent)
+  },
+  {
+    path: '**',
+    redirectTo: ''
   }
 ];

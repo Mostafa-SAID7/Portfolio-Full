@@ -6,13 +6,19 @@ import { ExperienceService } from '../../core/services/experience.service';
 import { BlogService } from '../../core/services/blog.service';
 import { Skill } from '../../core/models/skill.model';
 import { BlogPost } from '../../core/models/blog.model';
+import { ConfirmDialogService } from '../../shared/confirm-dialog.component';
+import { PaginatorComponent } from '../../shared/paginator.component';
 
 type ContentTab = 'skills' | 'experience' | 'blog';
+
+const SKILL_GROUPS_PER_PAGE = 4;
+const EXPERIENCE_PER_PAGE = 6;
+const POSTS_PER_PAGE = 8;
 
 @Component({
   selector: 'app-content',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, PaginatorComponent],
   template: `
     <div class="space-y-6">
       <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
@@ -29,7 +35,7 @@ type ContentTab = 'skills' | 'experience' | 'blog';
               class="segmented"
               [class.active]="tab() === item.value"
               [attr.aria-selected]="tab() === item.value"
-              (click)="tab.set(item.value)"
+              (click)="selectTab(item.value)"
             >
               {{ item.label }}
             </button>
@@ -63,7 +69,7 @@ type ContentTab = 'skills' | 'experience' | 'blog';
           @if (skillsByCategory().length === 0) {
             <div class="card empty-state"><p class="text-sm text-muted">No skills yet — add your first one above.</p></div>
           } @else {
-            @for (group of skillsByCategory(); track group.category) {
+            @for (group of pagedSkillGroups(); track group.category) {
               <section class="card overflow-hidden">
                 <div class="border-b border-line/10 px-6 py-4">
                   <h3 class="font-display text-lg font-semibold text-ink">{{ group.category }}</h3>
@@ -89,6 +95,13 @@ type ContentTab = 'skills' | 'experience' | 'blog';
                 </ul>
               </section>
             }
+
+            <app-paginator
+              [totalItems]="skillsByCategory().length"
+              [pageSize]="skillGroupsPageSize"
+              [page]="skillsPage()"
+              (pageChange)="skillsPage.set($event)"
+            />
           }
         }
       } @else if (tab() === 'experience') {
@@ -105,16 +118,16 @@ type ContentTab = 'skills' | 'experience' | 'blog';
           <div class="card empty-state"><p class="text-sm text-muted">No experience entries yet.</p></div>
         } @else {
           <div class="space-y-3">
-            @for (item of experienceService.experience(); track item.id) {
+            @for (item of pagedExperience(); track item.id) {
               <article class="card-raised flex flex-col gap-3 p-5 sm:flex-row sm:items-start">
                 <div class="min-w-0 flex-1">
                   <div class="flex flex-wrap items-center gap-2">
                     <h3 class="text-sm font-bold text-ink">{{ item.position }}</h3>
                     @if (item.current) { <span class="badge-success">Current</span> }
                   </div>
-                  <p class="mt-0.5 text-sm text-accent-text">{{ item.company }}@if (item.location) { · {{ item.location }} }</p>
+                  <p class="mt-0.5 text-sm text-accent-text">{{ item.company }}@if (item.location) { — {{ item.location }} }</p>
                   <p class="mt-1 text-xs text-muted">
-                    {{ item.startDate | date: 'MMM y' }} – {{ item.current ? 'Present' : ((item.endDate | date: 'MMM y') || '—') }}
+                    {{ item.startDate | date: 'MMM y' }} — {{ item.current ? 'Present' : ((item.endDate | date: 'MMM y') || '—') }}
                   </p>
                   @if (item.description) {
                     <p class="mt-2 line-clamp-2 text-sm leading-6 text-soft">{{ item.description }}</p>
@@ -129,6 +142,13 @@ type ContentTab = 'skills' | 'experience' | 'blog';
               </article>
             }
           </div>
+
+          <app-paginator
+            [totalItems]="experienceService.experience().length"
+            [pageSize]="experiencePageSize"
+            [page]="experiencePage()"
+            (pageChange)="experiencePage.set($event)"
+          />
         }
       } @else {
         <!-- ---------------- Blog ---------------- -->
@@ -145,7 +165,7 @@ type ContentTab = 'skills' | 'experience' | 'blog';
         } @else {
           <div class="card overflow-hidden">
             <ul class="divide-y divide-line/10">
-              @for (post of blogService.posts(); track post.id) {
+              @for (post of pagedPosts(); track post.id) {
                 <li class="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center">
                   <div class="min-w-0 flex-1">
                     <div class="flex flex-wrap items-center gap-2">
@@ -155,8 +175,8 @@ type ContentTab = 'skills' | 'experience' | 'blog';
                       </span>
                     </div>
                     <p class="mt-1 truncate text-xs text-muted">
-                      /{{ post.slug }} · {{ post.readingTime }} min read · {{ post.viewCount }} views
-                      @if (post.publishedAt) { · {{ post.publishedAt | date: 'MMM d, y' }} }
+                      /{{ post.slug }} — {{ post.readingTime }} min read — {{ post.viewCount }} views
+                      @if (post.publishedAt) { — {{ post.publishedAt | date: 'MMM d, y' }} }
                     </p>
                   </div>
                   <div class="flex shrink-0 gap-2">
@@ -169,6 +189,13 @@ type ContentTab = 'skills' | 'experience' | 'blog';
               }
             </ul>
           </div>
+
+          <app-paginator
+            [totalItems]="blogService.posts().length"
+            [pageSize]="postsPageSize"
+            [page]="blogPage()"
+            (pageChange)="blogPage.set($event)"
+          />
         }
       }
     </div>
@@ -178,8 +205,17 @@ export class ContentComponent implements OnInit {
   readonly skillService = inject(SkillService);
   readonly experienceService = inject(ExperienceService);
   readonly blogService = inject(BlogService);
+  private readonly dialog = inject(ConfirmDialogService);
 
   readonly tab = signal<ContentTab>('skills');
+
+  readonly skillGroupsPageSize = SKILL_GROUPS_PER_PAGE;
+  readonly experiencePageSize = EXPERIENCE_PER_PAGE;
+  readonly postsPageSize = POSTS_PER_PAGE;
+
+  readonly skillsPage = signal(1);
+  readonly experiencePage = signal(1);
+  readonly blogPage = signal(1);
 
   readonly tabs: { value: ContentTab; label: string }[] = [
     { value: 'skills', label: 'Skills' },
@@ -202,8 +238,30 @@ export class ContentComponent implements OnInit {
       .sort((a, b) => a.category.localeCompare(b.category));
   });
 
+  readonly pagedSkillGroups = computed(() => {
+    const start = (this.skillsPage() - 1) * this.skillGroupsPageSize;
+    return this.skillsByCategory().slice(start, start + this.skillGroupsPageSize);
+  });
+
+  readonly pagedExperience = computed(() => {
+    const start = (this.experiencePage() - 1) * this.experiencePageSize;
+    return this.experienceService.experience().slice(start, start + this.experiencePageSize);
+  });
+
+  readonly pagedPosts = computed(() => {
+    const start = (this.blogPage() - 1) * this.postsPageSize;
+    return this.blogService.posts().slice(start, start + this.postsPageSize);
+  });
+
   ngOnInit(): void {
     this.loadAll();
+  }
+
+  selectTab(value: ContentTab): void {
+    this.tab.set(value);
+    this.skillsPage.set(1);
+    this.experiencePage.set(1);
+    this.blogPage.set(1);
   }
 
   loadAll(): void {
@@ -238,15 +296,27 @@ export class ContentComponent implements OnInit {
     });
   }
 
-  deleteSkill(skill: Skill): void {
-    if (!confirm(`Delete the skill "${skill.name}"?`)) return;
+  async deleteSkill(skill: Skill): Promise<void> {
+    const confirmed = await this.dialog.confirm({
+      title: 'Delete skill?',
+      message: `“${skill.name}” will be removed from the skill stack.`,
+      confirmLabel: 'Delete skill'
+    });
+    if (!confirmed) return;
+
     this.skillService.deleteSkill(skill.id).subscribe({
       error: err => alert(err?.error?.message ?? 'Failed to delete the skill.')
     });
   }
 
-  deleteExperience(id: number, title: string): void {
-    if (!confirm(`Delete the experience "${title}"?`)) return;
+  async deleteExperience(id: number, title: string): Promise<void> {
+    const confirmed = await this.dialog.confirm({
+      title: 'Delete experience?',
+      message: `The “${title}” entry will be removed from the Experience page.`,
+      confirmLabel: 'Delete entry'
+    });
+    if (!confirmed) return;
+
     this.experienceService.deleteExperience(id).subscribe({
       error: err => alert(err?.error?.message ?? 'Failed to delete the experience.')
     });
@@ -258,8 +328,14 @@ export class ContentComponent implements OnInit {
     });
   }
 
-  deletePost(post: BlogPost): void {
-    if (!confirm(`Delete the post "${post.title}"?`)) return;
+  async deletePost(post: BlogPost): Promise<void> {
+    const confirmed = await this.dialog.confirm({
+      title: 'Delete post?',
+      message: `“${post.title}” will be deleted permanently.`,
+      confirmLabel: 'Delete post'
+    });
+    if (!confirmed) return;
+
     this.blogService.deletePost(post.id).subscribe({
       error: err => alert(err?.error?.message ?? 'Failed to delete the post.')
     });

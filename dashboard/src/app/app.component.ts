@@ -5,6 +5,7 @@ import { filter } from 'rxjs';
 import { AuthService } from './core/services/auth.service';
 import { ContactService } from './core/services/contact.service';
 import { ThemeService } from './core/services/theme.service';
+import { ConfirmDialogComponent } from './shared/confirm-dialog.component';
 
 interface NavItem {
   link: string;
@@ -16,7 +17,7 @@ interface NavItem {
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive, ConfirmDialogComponent],
   template: `
     <div class="app-shell">
       @if (isAuthenticated()) {
@@ -133,6 +134,9 @@ interface NavItem {
             <router-outlet />
           </main>
         </div>
+
+        <!-- Global confirm dialog (delete confirmations etc.). -->
+        <app-confirm-dialog />
       } @else {
         <router-outlet />
       }

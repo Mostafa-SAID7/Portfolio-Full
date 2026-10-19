@@ -7,6 +7,8 @@ publish/
 .vs/
 # Publish profiles embed deploy credentials (e.g. site99981-WebDeploy.pubxml).
 **/PublishProfiles/*.pubxml
+# Runtime upload store (cover images etc.) — server data, never in git.
+**/App_Data/
 
 # Local/secrets configuration — never commit these.
 # appsettings.Development.json carries the local connection string;

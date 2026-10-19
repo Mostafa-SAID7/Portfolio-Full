@@ -2,6 +2,7 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, catchError, of, tap, throwError } from 'rxjs';
 import { Project, ProjectPayload } from '../models/project.model';
+import { UploadedImage } from '../portfolio-origin';
 import { API_URL } from '../api.config';
 
 const ENDPOINT = `${API_URL}/Projects`;
@@ -61,6 +62,19 @@ export class ProjectService {
   deleteProject(id: number): Observable<void> {
     return this.http.delete<void>(`${ENDPOINT}/${id}`).pipe(
       tap(() => this.projectsSignal.update(list => list.filter(project => project.id !== id))),
+      catchError(err => throwError(() => err))
+    );
+  }
+
+  /**
+   * Upload a cover image to the backend store (App_Data/uploads, served at
+   * /api/files/*). The returned `url` is a relative path — store it on the
+   * project as-is; every frontend resolves it through its own /api proxy.
+   */
+  uploadCover(file: File): Observable<UploadedImage> {
+    const form = new FormData();
+    form.append('file', file, file.name);
+    return this.http.post<UploadedImage>(`${API_URL}/upload/image`, form).pipe(
       catchError(err => throwError(() => err))
     );
   }

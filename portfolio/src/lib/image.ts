@@ -8,7 +8,13 @@
  * Data files reference the logical path (e.g. "/projects/react/HAVEN.png").
  * `resolveImage` maps that to the real variants so the browser can download the
  * smallest file that fits the layout slot instead of one oversized asset.
+ *
+ * Backend-owned uploads (cover images uploaded through the dashboard's
+ * "Upload cover" control) are stored as `/api/files/...` paths and resolved
+ * against the API origin — same-origin `/api` proxy in production, the local
+ * API in development.
  */
+import { apiOrigin } from "@/lib/api-origin";
 
 /** Bases that have -640/-1280 WebP variants on disk. */
 const RESPONSIVE_BASES = new Set([
@@ -43,6 +49,16 @@ const stripExtension = (path: string) => path.replace(/\.(png|jpe?g|webp|avif)$/
 
 export function resolveImage(path: string | undefined): ResolvedImage | null {
   if (!path) return null;
+
+  // Absolute URLs and inline data render as-is.
+  if (/^(https?:)?\/\//.test(path) || path.startsWith("data:")) {
+    return { src: path };
+  }
+
+  // Backend-owned upload (`/api/files/...`): resolve against the API origin.
+  if (path.startsWith("/api/")) {
+    return { src: `${apiOrigin()}${path}` };
+  }
 
   const base = stripExtension(path);
   if (RESPONSIVE_BASES.has(base)) {

@@ -1,13 +1,17 @@
-import { Component, OnInit, computed, inject } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ContactService } from '../../core/services/contact.service';
 import { ContactMessage } from '../../core/models/contact.model';
+import { ConfirmDialogService } from '../../shared/confirm-dialog.component';
+import { PaginatorComponent } from '../../shared/paginator.component';
+
+const PAGE_SIZE = 8;
 
 @Component({
   selector: 'app-messages',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, PaginatorComponent],
   template: `
     <div class="space-y-6">
       <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
@@ -15,7 +19,7 @@ import { ContactMessage } from '../../core/models/contact.model';
           <p class="eyebrow mb-2">Contact form</p>
           <h2 class="font-display text-3xl font-semibold tracking-[-0.05em] text-ink">Messages</h2>
           <p class="mt-2 text-sm text-soft">
-            {{ service.messages().length }} messages · {{ service.unreadCount() }} unread
+            {{ service.messages().length }} messages — {{ service.unreadCount() }} unread
           </p>
         </div>
         <div class="flex items-center gap-2">
@@ -24,7 +28,7 @@ import { ContactMessage } from '../../core/models/contact.model';
               type="button"
               class="segmented"
               [class.active]="filter === option.value"
-              (click)="filter = option.value"
+              (click)="selectFilter(option.value)"
             >
               {{ option.label }}
             </button>
@@ -51,7 +55,7 @@ import { ContactMessage } from '../../core/models/contact.model';
         </div>
       } @else {
         <div class="space-y-3">
-          @for (message of visibleMessages(); track message.id) {
+          @for (message of paginatedMessages(); track message.id) {
             <article class="card-raised p-5">
               <div class="flex flex-col gap-4 sm:flex-row sm:items-start">
                 <div class="flex min-w-0 flex-1 items-start gap-3">
@@ -68,7 +72,7 @@ import { ContactMessage } from '../../core/models/contact.model';
                     <p class="mt-2 whitespace-pre-line text-sm leading-6 text-soft">{{ message.message }}</p>
                     <p class="mt-3 text-xs text-muted">
                       {{ message.createdAt | date: 'MMM d, y, h:mm a' }}
-                      @if (message.readAt) { · Read {{ message.readAt | date: 'MMM d' }} }
+                      @if (message.readAt) { — Read {{ message.readAt | date: 'MMM d' }} }
                     </p>
                   </div>
                 </div>
@@ -82,12 +86,23 @@ import { ContactMessage } from '../../core/models/contact.model';
             </article>
           }
         </div>
+
+        <app-paginator
+          [totalItems]="visibleMessages().length"
+          [pageSize]="pageSize"
+          [page]="page()"
+          (pageChange)="page.set($event)"
+        />
       }
     </div>
   `
 })
 export class MessagesComponent implements OnInit {
   readonly service = inject(ContactService);
+  private readonly dialog = inject(ConfirmDialogService);
+
+  readonly pageSize = PAGE_SIZE;
+  readonly page = signal(1);
 
   filter: 'all' | 'unread' = 'all';
 
@@ -101,6 +116,11 @@ export class MessagesComponent implements OnInit {
     return this.filter === 'unread' ? messages.filter(message => !message.isRead) : messages;
   });
 
+  readonly paginatedMessages = computed(() => {
+    const start = (this.page() - 1) * this.pageSize;
+    return this.visibleMessages().slice(start, start + this.pageSize);
+  });
+
   ngOnInit(): void {
     this.load();
   }
@@ -109,14 +129,25 @@ export class MessagesComponent implements OnInit {
     this.service.loadMessages().subscribe({ error: () => undefined });
   }
 
+  selectFilter(value: 'all' | 'unread'): void {
+    this.filter = value;
+    this.page.set(1);
+  }
+
   markRead(message: ContactMessage): void {
     this.service.markAsRead(message.id).subscribe({
       error: err => alert(err?.error?.message ?? 'Failed to update the message.')
     });
   }
 
-  remove(message: ContactMessage): void {
-    if (!confirm(`Delete the message from ${message.name}?`)) return;
+  async remove(message: ContactMessage): Promise<void> {
+    const confirmed = await this.dialog.confirm({
+      title: 'Delete message?',
+      message: `The message from ${message.name} will be deleted permanently.`,
+      confirmLabel: 'Delete message'
+    });
+    if (!confirmed) return;
+
     this.service.deleteMessage(message.id).subscribe({
       error: err => alert(err?.error?.message ?? 'Failed to delete the message.')
     });

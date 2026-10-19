@@ -1,10 +1,13 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, ElementRef, OnInit, ViewChild, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { Observable } from 'rxjs';
+import { Observable, firstValueFrom } from 'rxjs';
 import { ProjectService } from '../../../core/services/project.service';
 import { ProjectMetric, ProjectPayload } from '../../../core/models/project.model';
+import { resolvePortfolioImage } from '../../../core/portfolio-origin';
+
+const MAX_COVER_BYTES = 10 * 1024 * 1024; // API-side cap is 10MB.
 
 @Component({
   selector: 'app-project-form',
@@ -114,9 +117,72 @@ import { ProjectMetric, ProjectPayload } from '../../../core/models/project.mode
           </div>
         </div>
 
+        <!-- ---------------- Cover image ---------------- -->
         <div>
-          <label for="imageUrl" class="field-label">Cover image URL</label>
-          <input id="imageUrl" type="url" formControlName="imageUrl" class="input" placeholder="/api/my-project-1280.webp" />
+          <label class="field-label">Cover image</label>
+
+          @if (coverPreview(); as preview) {
+            <div class="relative overflow-hidden rounded-xl border border-line/10 bg-line/[0.06]">
+              <img
+                [src]="preview"
+                [alt]="(projectForm.getRawValue().title || 'Project') + ' cover preview'"
+                class="h-48 w-full object-cover"
+                (error)="onPreviewError($event)"
+              />
+              <button
+                type="button"
+                class="icon-btn absolute right-2 top-2 bg-surface/90"
+                (click)="clearCover()"
+                aria-label="Remove cover image"
+                title="Remove cover"
+              >
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 6l12 12M18 6 6 18"/></svg>
+              </button>
+            </div>
+          } @else {
+            <div
+              class="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-line/20 bg-line/[0.03] px-6 py-8 text-center transition"
+              [class.border-accent/50]="dragActive()"
+              role="button"
+              tabindex="0"
+              aria-label="Upload cover image"
+              (click)="coverInput.click()"
+              (keydown.enter)="coverInput.click()"
+              (keydown.space)="$event.preventDefault(); coverInput.click()"
+              (dragover)="$event.preventDefault(); dragActive.set(true)"
+              (dragleave)="dragActive.set(false)"
+              (drop)="onDrop($event)"
+            >
+              <svg class="h-8 w-8 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16v1a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-1m-5-4-4-4m0 0-4 4m4-4v12"/></svg>
+              <span class="text-sm font-semibold text-ink">Drop an image here, or click to browse</span>
+              <span class="text-xs text-muted">JPG, PNG, WebP, GIF or AVIF · up to 10MB</span>
+            </div>
+          }
+          <input
+            #coverInput
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+            class="hidden"
+            (change)="onFileSelected($event)"
+          />
+
+          @if (uploading()) {
+            <p class="mt-2 flex items-center gap-2 text-xs text-muted">
+              <span class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-accent/30 border-t-accent"></span>
+              Uploading to the Portfolio API…
+            </p>
+          }
+          @if (uploadError()) {
+            <p class="mt-2 text-xs text-danger" role="alert">{{ uploadError() }}</p>
+          }
+          @if (projectForm.getRawValue().imageUrl; as stored) {
+            <p class="mt-2 truncate text-xs text-muted">Stored as: {{ stored }}</p>
+          }
+
+          <details class="mt-3">
+            <summary class="cursor-pointer text-xs font-semibold text-accent-text">Or use an external image URL instead</summary>
+            <input id="imageUrl" type="url" formControlName="imageUrl" class="input mt-2" placeholder="https://..." />
+          </details>
         </div>
 
         <div class="grid gap-5 sm:grid-cols-2">
@@ -168,6 +234,13 @@ export class ProjectFormComponent implements OnInit {
   readonly errorMessage = signal<string | null>(null);
   readonly isEditMode = this.route.snapshot.url.some(segment => segment.path === 'edit');
 
+  /** Cover upload state. */
+  readonly uploading = signal(false);
+  readonly uploadError = signal<string | null>(null);
+  readonly dragActive = signal(false);
+
+  @ViewChild('coverInput') coverInput?: ElementRef<HTMLInputElement>;
+
   private projectId: number | null = null;
 
   /** Presentation data kept out of the form UI but round-tripped on save. */
@@ -218,6 +291,67 @@ export class ProjectFormComponent implements OnInit {
   invalid(control: string): boolean {
     const field = this.projectForm.get(control);
     return !!field && field.invalid && field.touched;
+  }
+
+  /** Resolved preview of the current cover (uploaded or external URL). */
+  coverPreview(): string | null {
+    return resolvePortfolioImage(this.projectForm.getRawValue().imageUrl);
+  }
+
+  /** Hide a broken external image so the fallback surface shows through. */
+  onPreviewError(event: Event): void {
+    (event.currentTarget as HTMLImageElement).style.display = 'none';
+  }
+
+  onFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = ''; // allow re-selecting the same file after a removal
+    if (file) {
+      void this.uploadCover(file);
+    }
+  }
+
+  onDrop(event: DragEvent): void {
+    event.preventDefault();
+    this.dragActive.set(false);
+    const file = event.dataTransfer?.files?.[0];
+    if (file) {
+      void this.uploadCover(file);
+    }
+  }
+
+  clearCover(): void {
+    this.projectForm.patchValue({ imageUrl: '' });
+  }
+
+  /**
+   * Upload the picked file to the backend store; the API answers with a
+   * relative /api/files/... path which becomes the project's imageUrl.
+   */
+  private async uploadCover(file: File): Promise<void> {
+    this.uploadError.set(null);
+
+    if (!file.type.startsWith('image/')) {
+      this.uploadError.set('Choose an image file (JPG, PNG, WebP, GIF or AVIF).');
+      return;
+    }
+    if (file.size > MAX_COVER_BYTES) {
+      this.uploadError.set('That image is larger than 10MB — pick a smaller one.');
+      return;
+    }
+
+    this.uploading.set(true);
+    try {
+      const uploaded = await firstValueFrom(this.projectService.uploadCover(file));
+      this.projectForm.patchValue({ imageUrl: uploaded.url });
+    } catch (err: any) {
+      this.uploadError.set(
+        err?.error?.message ?? 'Upload failed — make sure the Portfolio API is running and try again.'
+      );
+    } finally {
+      this.uploading.set(false);
+    }
   }
 
   onSubmit(): void {

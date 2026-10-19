@@ -3,12 +3,17 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ProjectService } from '../../../core/services/project.service';
+import { Project } from '../../../core/models/project.model';
 import { resolvePortfolioImage } from '../../../core/portfolio-origin';
+import { ConfirmDialogService } from '../../../shared/confirm-dialog.component';
+import { PaginatorComponent } from '../../../shared/paginator.component';
+
+const PAGE_SIZE = 9;
 
 @Component({
   selector: 'app-project-list',
   standalone: true,
-  imports: [CommonModule, RouterLink, FormsModule],
+  imports: [CommonModule, FormsModule, RouterLink, PaginatorComponent],
   template: `
     <div class="space-y-6">
       <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
@@ -21,6 +26,7 @@ import { resolvePortfolioImage } from '../../../core/portfolio-origin';
           <input
             type="search"
             [(ngModel)]="query"
+            (ngModelChange)="page.set(1)"
             placeholder="Search projects..."
             aria-label="Search projects"
             class="input max-w-[220px] py-2.5"
@@ -51,12 +57,11 @@ import { resolvePortfolioImage } from '../../../core/portfolio-origin';
         </div>
       } @else {
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          @for (project of filteredProjects(); track project.id) {
+          @for (project of paginatedProjects(); track project.id) {
             <article class="card-raised flex flex-col overflow-hidden p-0">
-              <!-- Cover: API-owned image over the project gradient; the letter
-                   tile shows through while loading or when the image fails. -->
-              <a
-                [routerLink]="['/projects', project.id]"
+              <!-- Cover: API-owned upload (or legacy image) over the project
+                   gradient; the letter tile shows through when missing. -->
+              <div
                 class="relative block h-40 shrink-0 overflow-hidden bg-line/[0.06]"
                 [style.background]="project.gradient || undefined"
               >
@@ -72,11 +77,12 @@ import { resolvePortfolioImage } from '../../../core/portfolio-origin';
                     (error)="onCoverError($event)"
                   />
                 }
-              </a>
+              </div>
 
               <div class="flex flex-1 flex-col p-5">
                 <div class="mb-3 flex flex-wrap items-center gap-1.5">
                   @if (project.featured) { <span class="badge-warning">Featured</span> }
+                  @if (!project.isActive) { <span class="badge-muted">Hidden</span> }
                   @if (project.category) { <span class="badge-accent">{{ project.category }}</span> }
                   @if (project.type) { <span class="badge-muted">{{ project.type }}</span> }
                   @if (project.status) { <span class="badge-muted">{{ project.status }}</span> }
@@ -84,17 +90,17 @@ import { resolvePortfolioImage } from '../../../core/portfolio-origin';
                 </div>
 
                 <div class="mb-2 flex items-start justify-between gap-3">
-                  <a [routerLink]="['/projects', project.id]" class="block min-w-0">
-                    <h3 class="truncate font-display text-lg font-semibold tracking-[-0.02em] text-ink transition hover:text-accent-text">{{ project.title }}</h3>
+                  <div class="block min-w-0">
+                    <h3 class="truncate font-display text-lg font-semibold tracking-[-0.02em] text-ink">{{ project.title }}</h3>
                     @if (project.client) {
-                      <p class="mt-0.5 truncate text-xs text-muted">Client · {{ project.client }}</p>
+                      <p class="mt-0.5 truncate text-xs text-muted">Client — {{ project.client }}</p>
                     }
-                  </a>
+                  </div>
                   <div class="flex shrink-0 gap-1">
                     <a [routerLink]="['/projects', project.id, 'edit']" class="icon-btn" [attr.aria-label]="'Edit ' + project.title" title="Edit">
                       <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5m-1.414-9.414a2 2 0 1 1 2.828 2.828L11.828 15H9v-2.828l8.586-8.586Z"/></svg>
                     </a>
-                    <button type="button" class="icon-btn hover:border-danger/40 hover:text-danger" (click)="remove(project.id, project.title)" [attr.aria-label]="'Delete ' + project.title" title="Delete">
+                    <button type="button" class="icon-btn hover:border-danger/40 hover:text-danger" (click)="remove(project)" [attr.aria-label]="'Delete ' + project.title" title="Delete">
                       <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0 1 16.138 21H7.862a2 2 0 0 1-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v3M4 7h16"/></svg>
                     </button>
                   </div>
@@ -114,11 +120,11 @@ import { resolvePortfolioImage } from '../../../core/portfolio-origin';
                   <span>{{ project.createdAt | date: 'MMM d, y' }}</span>
                   @if (project.liveUrl) {
                     <a [href]="project.liveUrl" target="_blank" rel="noopener" class="font-semibold text-accent-text hover:underline">
-                      Live ↗
+                      Live →
                     </a>
                   } @else if (project.githubUrl) {
                     <a [href]="project.githubUrl" target="_blank" rel="noopener" class="font-semibold text-accent-text hover:underline">
-                      Repository ↗
+                      Repository →
                     </a>
                   }
                 </div>
@@ -126,16 +132,28 @@ import { resolvePortfolioImage } from '../../../core/portfolio-origin';
             </article>
           }
         </div>
+
+        <app-paginator
+          [totalItems]="filteredProjects().length"
+          [pageSize]="pageSize"
+          [page]="page()"
+          (pageChange)="page.set($event)"
+        />
       }
     </div>
   `
 })
 export class ProjectListComponent implements OnInit {
   readonly service = inject(ProjectService);
+  private readonly dialog = inject(ConfirmDialogService);
+
+  readonly pageSize = PAGE_SIZE;
+  readonly page = signal(1);
 
   query = '';
 
   readonly projectCount = computed(() => this.service.projects().length);
+
   readonly filteredProjects = computed(() => {
     const needle = this.query.trim().toLowerCase();
     const projects = [...this.service.projects()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -150,7 +168,12 @@ export class ProjectListComponent implements OnInit {
     );
   });
 
-  /** Stored image → loadable URL (covers live in the portfolio's public folder). */
+  readonly paginatedProjects = computed(() => {
+    const start = (this.page() - 1) * this.pageSize;
+    return this.filteredProjects().slice(start, start + this.pageSize);
+  });
+
+  /** Stored image → loadable URL (backend uploads, legacy paths, absolute URLs). */
   coverUrl(imageUrl: string | null): string | null {
     return resolvePortfolioImage(imageUrl);
   }
@@ -168,9 +191,15 @@ export class ProjectListComponent implements OnInit {
     this.service.loadProjects().subscribe({ error: () => undefined });
   }
 
-  remove(id: number, title: string): void {
-    if (!confirm(`Delete "${title}"? This removes it from the public portfolio.`)) return;
-    this.service.deleteProject(id).subscribe({
+  async remove(project: Project): Promise<void> {
+    const confirmed = await this.dialog.confirm({
+      title: 'Delete project?',
+      message: `“${project.title}” will be removed from the public portfolio permanently.`,
+      confirmLabel: 'Delete project'
+    });
+    if (!confirmed) return;
+
+    this.service.deleteProject(project.id).subscribe({
       error: err => alert(err?.error?.message ?? 'Failed to delete the project.')
     });
   }

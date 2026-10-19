@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using PortfolioAPI.Core.DTOs;
 using PortfolioAPI.Core.Interfaces.Services;
+using PortfolioAPI.Infrastructure.Services;
 
 namespace PortfolioAPI.Controllers
 {
@@ -9,10 +10,20 @@ namespace PortfolioAPI.Controllers
     public class ProjectsController : ControllerBase
     {
         private readonly IProjectService _projectService;
+        private readonly IFileStorageService _fileStorage;
+        private readonly IConfiguration _configuration;
+        private readonly ILogger<ProjectsController> _logger;
 
-        public ProjectsController(IProjectService projectService)
+        public ProjectsController(
+            IProjectService projectService,
+            IFileStorageService fileStorage,
+            IConfiguration configuration,
+            ILogger<ProjectsController> logger)
         {
             _projectService = projectService;
+            _fileStorage = fileStorage;
+            _configuration = configuration;
+            _logger = logger;
         }
 
         [HttpGet]
@@ -78,14 +89,30 @@ namespace PortfolioAPI.Controllers
                 return BadRequest(ModelState);
             }
 
+            var existing = await _projectService.GetByIdAsync(id);
             var result = await _projectService.UpdateAsync(id, dto);
+
+            // Cover replaced: drop the old backend-owned file (external URLs
+            // and portfolio-bundled paths are never touched).
+            if (result.Success && existing.Data?.ImageUrl is { } previous && previous != dto.ImageUrl)
+            {
+                await TryDeleteStoredCoverAsync(previous);
+            }
+
             return result.Success ? NoContent() : BadRequest(result);
         }
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteProject(int id)
         {
+            var existing = await _projectService.GetByIdAsync(id);
             var result = await _projectService.DeleteAsync(id);
+
+            if (result.Success && existing.Data?.ImageUrl is { } cover)
+            {
+                await TryDeleteStoredCoverAsync(cover);
+            }
+
             return result.Success ? NoContent() : NotFound(result);
         }
 
@@ -94,6 +121,27 @@ namespace PortfolioAPI.Controllers
         {
             var result = await _projectService.ToggleFeaturedAsync(id);
             return result.Success ? Ok(new { isFeatured = result.Data }) : NotFound(result);
+        }
+
+        /// <summary>
+        /// Best-effort cleanup of a cover this API owns (/api/files/*).
+        /// Never fails the CRUD operation on cleanup problems.
+        /// </summary>
+        private async Task TryDeleteStoredCoverAsync(string imageUrl)
+        {
+            if (!UploadStorage.IsManagedFile(imageUrl, _configuration))
+            {
+                return;
+            }
+
+            try
+            {
+                await _fileStorage.DeleteFileAsync(imageUrl);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not delete stored cover {ImageUrl}", imageUrl);
+            }
         }
     }
 }

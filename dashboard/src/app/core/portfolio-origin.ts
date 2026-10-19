@@ -1,5 +1,12 @@
 import { isDevMode } from '@angular/core';
 
+/** Response of POST api/upload/image (backend-owned file storage). */
+export interface UploadedImage {
+  url: string;
+  fileName: string;
+  size: number;
+}
+
 /**
  * Origin that serves the public portfolio. Project cover images are stored as
  * portfolio-relative logical paths (e.g. `/projects/react/TownTeam.png` — they
@@ -49,6 +56,11 @@ export function resolvePortfolioImage(
 ): string | null {
   if (!imageUrl) return null;
   if (/^(https?:)?\/\//.test(imageUrl) || imageUrl.startsWith('data:')) return imageUrl;
+
+  // Backend-owned uploads (`/api/files/...`) are served by the Portfolio API.
+  // Reach them through the dashboard's own /api proxy (dev proxy.conf.json,
+  // prod Vercel rewrite) — same-origin, HTTPS, no hardcoded API host.
+  if (imageUrl.startsWith('/api/')) return imageUrl;
 
   const path = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`;
   const base = stripExtension(path);
