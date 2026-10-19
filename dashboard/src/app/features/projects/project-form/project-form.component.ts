@@ -1,9 +1,10 @@
-import { Component, ElementRef, OnInit, ViewChild, inject, signal } from '@angular/core';
+import { Component, ElementRef, OnInit, ViewChild, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Observable, firstValueFrom } from 'rxjs';
 import { ProjectService } from '../../../core/services/project.service';
+import { CategoryService } from '../../../core/services/category.service';
 import { ProjectMetric, ProjectPayload } from '../../../core/models/project.model';
 import { resolvePortfolioImage } from '../../../core/portfolio-origin';
 import { SelectFieldComponent } from '../../../shared/select-field.component';
@@ -74,7 +75,7 @@ const MAX_COVER_BYTES = 10 * 1024 * 1024; // API-side cap is 10MB.
               <app-select-field
                 formControlName="category"
                 label="Category"
-                [options]="categoryOptions"
+                [options]="categoryOptions()"
                 [allowCustom]="true"
                 placeholder="Clothing"
               />
@@ -229,6 +230,7 @@ const MAX_COVER_BYTES = 10 * 1024 * 1024; // API-side cap is 10MB.
 export class ProjectFormComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly projectService = inject(ProjectService);
+  private readonly categoryService = inject(CategoryService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
 
@@ -251,7 +253,8 @@ export class ProjectFormComponent implements OnInit {
   private loadedGradient: string | null = null;
   private loadedMetrics: ProjectMetric[] = [];
 
-  readonly categoryOptions = [
+  /** Fallback list when the API has no categories yet (first run). */
+  private static readonly FALLBACK_CATEGORIES = [
     'Clothing',
     'Beauty',
     'Jewelry',
@@ -263,6 +266,12 @@ export class ProjectFormComponent implements OnInit {
     'Backend',
     'Other'
   ];
+
+  /** Category names offered in the dropdown - managed on the Content page. */
+  readonly categoryOptions = computed<string[]>(() => {
+    const fromApi = this.categoryService.names();
+    return fromApi.length ? fromApi : [...ProjectFormComponent.FALLBACK_CATEGORIES];
+  });
   readonly typeOptions = ['Team', 'Freelance', 'Self'];
   readonly statusOptions = ['In Progress', 'Completed', 'Deployed'];
 
@@ -289,6 +298,12 @@ export class ProjectFormComponent implements OnInit {
     if (this.isEditMode && idParam) {
       this.projectId = Number(idParam);
       this.loadProject(this.projectId);
+    }
+
+    // The category list comes from the API (managed on the Content page), so a
+    // category added there shows up here without touching the frontend.
+    if (this.categoryService.categories().length === 0) {
+      this.categoryService.loadCategories().subscribe({ error: () => undefined });
     }
   }
 

@@ -7,6 +7,7 @@ using PortfolioAPI.Core.Common;
 using PortfolioAPI.Core.DTOs;
 using PortfolioAPI.Core.Entities;
 using PortfolioAPI.Core.Interfaces;
+using PortfolioAPI.Core.Interfaces.Services;
 using Xunit;
 using ValidationException = PortfolioAPI.Application.Exceptions.ValidationException;
 
@@ -16,13 +17,18 @@ namespace PortfolioAPI.UnitTests
     {
         private readonly Mock<IUnitOfWork> _unitOfWorkMock;
         private readonly Mock<IValidator<Project>> _validatorMock;
+        private readonly Mock<ICategoryService> _categoryServiceMock;
         private readonly ProjectService _projectService;
 
         public ProjectServiceTests()
         {
             _unitOfWorkMock = new Mock<IUnitOfWork>();
             _validatorMock = new Mock<IValidator<Project>>();
-            _projectService = new ProjectService(_unitOfWorkMock.Object, _validatorMock.Object);
+            _categoryServiceMock = new Mock<ICategoryService>();
+            _projectService = new ProjectService(
+                _unitOfWorkMock.Object,
+                _validatorMock.Object,
+                _categoryServiceMock.Object);
         }
 
         private void ValidatorSucceeds()

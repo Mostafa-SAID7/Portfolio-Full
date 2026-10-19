@@ -23,6 +23,7 @@ namespace PortfolioAPI.Controllers
         private readonly ITestimonialService _testimonialService;
         private readonly IContactService _contactService;
         private readonly ICredentialService _credentialService;
+        private readonly ICategoryService _categoryService;
 
         public PublicController(
             IProjectService projectService,
@@ -30,7 +31,8 @@ namespace PortfolioAPI.Controllers
             IExperienceService experienceService,
             ITestimonialService testimonialService,
             IContactService contactService,
-            ICredentialService credentialService)
+            ICredentialService credentialService,
+            ICategoryService categoryService)
         {
             _projectService = projectService;
             _skillService = skillService;
@@ -38,6 +40,7 @@ namespace PortfolioAPI.Controllers
             _testimonialService = testimonialService;
             _contactService = contactService;
             _credentialService = credentialService;
+            _categoryService = categoryService;
         }
 
         /// <summary>Active projects (optionally only featured), ordered for display.</summary>
@@ -98,6 +101,14 @@ namespace PortfolioAPI.Controllers
                 .OrderBy(c => c.Order)
                 .ThenByDescending(c => c.Year)
                 .Select(EntityMappings.ToDto));
+        }
+
+        /// <summary>Active project categories (the filter chips on the public site).</summary>
+        [HttpGet("categories")]
+        public async Task<ActionResult<IEnumerable<CategoryDto>>> GetCategories()
+        {
+            var categories = await _categoryService.GetPublicCategoriesAsync();
+            return Ok(categories.Select(EntityMappings.ToDto));
         }
 
         /// <summary>Public contact-form submission (portfolio site's "get in touch").</summary>

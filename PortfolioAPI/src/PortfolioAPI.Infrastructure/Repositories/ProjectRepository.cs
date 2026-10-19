@@ -51,9 +51,54 @@ namespace PortfolioAPI.Infrastructure.Repositories
                 .ToListAsync();
         }
 
-        /// <summary>T-SQL LIKE escaping: [, % and _ are wildcard characters.</summary>
-        private static string EscapeLike(string? value)
+        /// <summary>The distinct category names used by the projects (SQL DISTINCT).</summary>
+        public async Task<List<string>> GetCategoryNamesAsync()
         {
+            return await _dbSet
+                .Where(p => p.Category != null && p.Category != string.Empty)
+                .Select(p => p.Category!)
+                .Distinct()
+                .ToListAsync();
+        }
+
+        /// <summary>How many projects use the given category.</summary>
+        public async Task<int> CountByCategoryAsync(string category)
+        {
+            var normalized = category.Trim();
+            return await _dbSet.CountAsync(p =>
+                p.Category != null && p.Category.ToLower() == normalized.ToLower());
+        }
+
+        /// <summary>
+        /// Rewrites the category of every project that uses it with a single
+        /// UPDATE statement - no entity is loaded, so no other column is
+        /// written back and a concurrent edit cannot be clobbered.
+        /// </summary>
+        public async Task<int> RenameCategoryAsync(string previousName, string newName)
+        {
+            var previous = previousName.Trim();
+            var next = newName.Trim();
+
+            return await _dbSet
+                .Where(p => p.Category != null && p.Category.ToLower() == previous.ToLower())
+                .ExecuteUpdateAsync(setters => setters.SetProperty(p => p.Category, next));
+        }
+
+        /// <summary>How many projects use each category (one grouped query).</summary>
+        public async Task<Dictionary<string, int>> GetCategoryUsageAsync()
+        {
+            var rows = await _dbSet
+                .Where(p => p.Category != null && p.Category != string.Empty)
+                .GroupBy(p => p.Category!)
+                .Select(g => new { Category = g.Key, Count = g.Count() })
+                .ToListAsync();
+
+            // Case-insensitive: the admin compares the names as typed.
+            return rows.ToDictionary(r => r.Category, r => r.Count, StringComparer.OrdinalIgnoreCase);
+        }
+
+        /// <summary>T-SQL LIKE escaping: [, % and _ are wildcard characters.</summary>
+        private static string EscapeLike(string? value)        {
             var needle = (value ?? string.Empty).Trim();
             return needle
                 .Replace("[", "[[]")

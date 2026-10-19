@@ -19,11 +19,16 @@ namespace PortfolioAPI.Application.Services
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IValidator<Project> _validator;
+        private readonly ICategoryService _categoryService;
 
-        public ProjectService(IUnitOfWork unitOfWork, IValidator<Project> validator)
+        public ProjectService(
+            IUnitOfWork unitOfWork,
+            IValidator<Project> validator,
+            ICategoryService categoryService)
         {
             _unitOfWork = unitOfWork;
             _validator = validator;
+            _categoryService = categoryService;
         }
 
         public async Task<Result<ProjectDto>> GetByIdAsync(int id)
@@ -104,6 +109,10 @@ namespace PortfolioAPI.Application.Services
             }
 
             var created = await _unitOfWork.Projects.AddAsync(project);
+            // A category typed in the dashboard becomes a managed category, so
+            // it can be renamed/reordered/hidden later and shows up as a filter
+            // chip on the public site.
+            await _categoryService.EnsureCategoryAsync(project.Category);
             await _unitOfWork.SaveChangesAsync();
             return Result<ProjectDto>.Ok(EntityMappings.ToDto(created), "Project created.");
         }
@@ -147,6 +156,7 @@ namespace PortfolioAPI.Application.Services
             }
 
             await _unitOfWork.Projects.UpdateAsync(project);
+            await _categoryService.EnsureCategoryAsync(project.Category);
             await _unitOfWork.SaveChangesAsync();
             return Result<ProjectDto>.Ok(EntityMappings.ToDto(project), "Project updated.");
         }

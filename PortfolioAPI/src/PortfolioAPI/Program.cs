@@ -263,6 +263,7 @@ builder.Services.AddScoped<IContactService, ContactService>();
 builder.Services.AddScoped<ITestimonialService, TestimonialService>();
 
 builder.Services.AddScoped<ICredentialService, CredentialService>();
+builder.Services.AddScoped<ICategoryService, CategoryService>();
 
 // Add infrastructure services
 builder.Services.AddScoped<IEmailService, EmailService>();

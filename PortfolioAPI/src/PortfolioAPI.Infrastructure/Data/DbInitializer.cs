@@ -25,6 +25,7 @@ namespace PortfolioAPI.Infrastructure.Data
         {
             await EnsureSchemaAsync(context);
             await PatchSchemaAsync(context);
+            await SyncCategoriesAsync(context);
 
             // Seed only a genuinely virgin database: ANY existing content (or
             // user-managed inbox rows) counts as "initialized". The old check
@@ -163,6 +164,25 @@ namespace PortfolioAPI.Infrastructure.Data
                     "ALTER TABLE dbo.Testimonials ADD ProjectUrl nvarchar(500) NULL;");
             }
 
+            // Project categories (managed from the dashboard). A legacy
+            // database that was baselined never ran the migration's DDL, so the
+            // table is created here as well.
+            if (!await TableExistsAsync(context, "Categories"))
+            {
+                await context.Database.ExecuteSqlRawAsync(@"
+                    CREATE TABLE dbo.Categories (
+                        Id int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+                        Name nvarchar(100) NOT NULL,
+                        [Order] int NOT NULL DEFAULT 0,
+                        IsActive bit NOT NULL DEFAULT 1,
+                        CreatedAt datetime2 NOT NULL,
+                        UpdatedAt datetime2 NULL,
+                        IsDeleted bit NOT NULL DEFAULT 0,
+                        DeletedAt datetime2 NULL
+                    );
+                    CREATE UNIQUE INDEX IX_Categories_Name ON dbo.Categories(Name);");
+            }
+
             if (!await TableExistsAsync(context, "ProjectImages"))
             {
                 await context.Database.ExecuteSqlRawAsync(@"
@@ -195,6 +215,44 @@ namespace PortfolioAPI.Infrastructure.Data
                             REFERENCES dbo.Skills (Id) ON DELETE CASCADE
                     );");
             }
+        }
+
+        /// <summary>
+        /// Registers every category the projects already use as a managed
+        /// category, so the dashboard can rename/reorder/hide them right away
+        /// (the projects keep their category as plain text). Idempotent.
+        /// </summary>
+        private static async Task SyncCategoriesAsync(PortfolioDbContext context)
+        {
+            var existing = await context.Categories.ToListAsync();
+            var known = existing.Select(c => c.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var used = (await context.Projects.ToListAsync())
+                .Select(p => p.Category)
+                .Where(c => !string.IsNullOrWhiteSpace(c))
+                .Select(c => c!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Where(c => !known.Contains(c))
+                .ToList();
+
+            if (used.Count == 0)
+            {
+                return;
+            }
+
+            var order = existing.Count == 0 ? 0 : existing.Max(c => c.Order) + 1;
+
+            foreach (var name in used)
+            {
+                context.Categories.Add(new Category
+                {
+                    Name = name,
+                    IsActive = true,
+                    Order = order++
+                });
+            }
+
+            await context.SaveChangesAsync();
         }
 
         private static async Task<bool> ColumnExistsAsync(PortfolioDbContext context, string table, string column)

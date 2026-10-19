@@ -136,6 +136,22 @@ namespace PortfolioAPI.Core.DTOs
 
         // --- Payload → request-shaped entity (the route id wins) ---------------
 
+        public static CategoryDto ToDto(Category c) => new()
+        {
+            Id = c.Id,
+            Name = c.Name,
+            Order = c.Order,
+            IsActive = c.IsActive
+        };
+
+        public static Category ToEntity(CreateCategoryDto dto, int id = 0) => new()
+        {
+            Id = id,
+            Name = dto.Name?.Trim() ?? string.Empty,
+            Order = dto.Order,
+            IsActive = dto.IsActive
+        };
+
         public static Skill ToEntity(CreateSkillDto dto, int id = 0) => new()
         {
             Id = id,

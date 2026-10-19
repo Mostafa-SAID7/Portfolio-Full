@@ -18,6 +18,7 @@ namespace PortfolioAPI.Infrastructure.Data
         public DbSet<Contact> Contacts { get; set; } = null!;
         public DbSet<Testimonial> Testimonials { get; set; } = null!;
         public DbSet<Credential> Credentials { get; set; } = null!;
+        public DbSet<Category> Categories { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -31,7 +32,21 @@ namespace PortfolioAPI.Infrastructure.Data
             ConfigureContact(modelBuilder);
             ConfigureTestimonial(modelBuilder);
             ConfigureCredential(modelBuilder);
+            ConfigureCategory(modelBuilder);
             ConfigureJoinEntities(modelBuilder);
+        }
+
+        /// <summary>Project categories (managed from the dashboard).</summary>
+        private static void ConfigureCategory(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<Category>(entity =>
+            {
+                entity.HasKey(c => c.Id);
+                entity.Property(c => c.Name).IsRequired().HasMaxLength(100);
+                entity.Property(c => c.Order).IsRequired();
+                entity.Property(c => c.IsActive).IsRequired();
+                entity.HasIndex(c => c.Name).IsUnique();
+            });
         }
 
         private static void ConfigureCredential(ModelBuilder modelBuilder)

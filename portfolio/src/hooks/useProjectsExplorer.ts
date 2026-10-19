@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
-import { projectFilters, type Project } from "@/data";
+import { type Project } from "@/data";
 import { usePortfolioProjects } from "@/lib/content";
 import type { ProjectView } from "@/components/projects/types";
 
@@ -12,7 +12,11 @@ export const PROJECT_SORTS = [
 ] as const;
 
 export type SortValue = (typeof PROJECT_SORTS)[number]["value"];
-export type ProjectFilter = (typeof projectFilters)[number];
+/**
+ * The active category filter. The list itself is served by the API (managed
+ * in the dashboard), so it is a plain string rather than a fixed union.
+ */
+export type ProjectFilter = string;
 
 const PER_PAGE: Record<ProjectView, number> = { grid: 9, list: 6 };
 

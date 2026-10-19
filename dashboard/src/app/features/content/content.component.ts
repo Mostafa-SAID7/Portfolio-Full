@@ -4,12 +4,15 @@ import { FormsModule } from '@angular/forms';
 import { Observable } from 'rxjs';
 import { SkillService } from '../../core/services/skill.service';
 import { ExperienceService } from '../../core/services/experience.service';
+import { CategoryService } from '../../core/services/category.service';
 import { Skill } from '../../core/models/skill.model';
 import { Experience, ExperiencePayload } from '../../core/models/experience.model';
+import { Category } from '../../core/models/category.model';
 import { ConfirmDialogService } from '../../shared/confirm-dialog.component';
+import { ToastService } from '../../shared/toast.component';
 import { PaginatorComponent } from '../../shared/paginator.component';
 
-type ContentTab = 'skills' | 'experience';
+type ContentTab = 'skills' | 'experience' | 'categories';
 
 const SKILL_GROUPS_PER_PAGE = 4;
 const EXPERIENCE_PER_PAGE = 6;
@@ -41,6 +44,114 @@ const EXPERIENCE_PER_PAGE = 6;
           }
         </div>
       </div>
+        @if (tab() === 'categories') {
+          <p class="mb-5 max-w-2xl text-sm leading-6 text-soft">
+            The categories behind the project filter chips on the public portfolio. Renaming one also
+            updates the projects that use it, and a category that is still in use cannot be deleted.
+          </p>
+
+          @if (categoryService.error()) {
+            <div role="alert" class="mb-4 rounded-xl border border-danger/30 bg-danger/10 p-3 text-sm text-danger">
+              {{ categoryService.error() }}
+            </div>
+          }
+
+          @if (categoryFormError) {
+            <div role="alert" class="mb-4 rounded-xl border border-danger/30 bg-danger/10 p-3 text-sm text-danger">
+              {{ categoryFormError }}
+            </div>
+          }
+
+          <div class="card mb-6 p-5">
+            <h3 class="mb-4 font-display text-lg font-semibold text-ink">Add a category</h3>
+            <div class="flex flex-col gap-3 sm:flex-row">
+              <input
+                type="text"
+                class="input sm:flex-1"
+                placeholder="Robotics"
+                [(ngModel)]="newCategoryName"
+                (keyup.enter)="addCategory()"
+              />
+              <button type="button" class="btn-primary" [disabled]="!newCategoryName.trim()" (click)="addCategory()">
+                Add category
+              </button>
+            </div>
+          </div>
+
+          @if (categoryService.loading()) {
+            <div class="card flex min-h-[160px] items-center justify-center">
+              <div class="spinner" role="status" aria-label="Loading categories"></div>
+            </div>
+          } @else if (categoryService.categories().length === 0) {
+            <div class="card empty-state">
+              <p class="text-sm font-semibold text-ink">No categories yet</p>
+              <p class="mt-1 text-sm text-soft">Add one above, or type a category while editing a project.</p>
+            </div>
+          } @else {
+            <div class="grid gap-3">
+              @for (category of categoryService.categories(); track category.id; let first = $first; let last = $last) {
+                <article class="card flex flex-wrap items-center gap-3 p-4">
+                  @if (editingCategoryId === category.id) {
+                    <input
+                      type="text"
+                      class="input flex-1"
+                      [(ngModel)]="categoryDraftName"
+                      (keyup.enter)="saveCategory(category)"
+                      (keyup.escape)="editingCategoryId = null"
+                    />
+                    <button type="button" class="btn-primary" (click)="saveCategory(category)">Save</button>
+                    <button type="button" class="btn-ghost" (click)="editingCategoryId = null">Cancel</button>
+                  } @else {
+                    <div class="min-w-0 flex-1">
+                      <p class="truncate font-semibold text-ink">{{ category.name }}</p>
+                      <p class="text-xs text-muted">
+                        Order {{ category.order }} ·
+                        {{ category.projectCount }} project{{ category.projectCount === 1 ? '' : 's' }}
+                      </p>
+                    </div>
+                    @if (!category.isActive) {
+                      <span class="badge-muted">Hidden</span>
+                    }
+                    <button
+                      type="button"
+                      class="icon-btn"
+                      (click)="moveCategory(category, -1)"
+                      [disabled]="$first"
+                      aria-label="Move category up"
+                      title="Move up"
+                    >
+                      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="m18 15-6-6-6 6"/></svg>
+                    </button>
+                    <button
+                      type="button"
+                      class="icon-btn"
+                      (click)="moveCategory(category, 1)"
+                      [disabled]="$last"
+                      aria-label="Move category down"
+                      title="Move down"
+                    >
+                      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="m6 9 6 6 6-6"/></svg>
+                    </button>
+                    <button
+                      type="button"
+                      class="btn-ghost"
+                      (click)="toggleCategory(category)"
+                      [attr.aria-label]="(category.isActive ? 'Hide ' : 'Show ') + category.name"
+                    >
+                      {{ category.isActive ? 'Hide' : 'Show' }}
+                    </button>
+                    <button type="button" class="icon-btn" (click)="startEditingCategory(category)" aria-label="Rename category" title="Rename">
+                      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5m-1.414-9.414a1 1 0 1 1 2.828 2.828L11.828 15H9v-2.828l8.586-8.586Z"/></svg>
+                    </button>
+                    <button type="button" class="icon-btn hover:border-danger/40 hover:text-danger" (click)="deleteCategory(category)" [attr.aria-label]="'Delete ' + category.name" title="Delete">
+                      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 7m0 0a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V7Zm3-4h6a1 1 0 0 1 1 1v1H8V4a1 1 0 0 1 1-1Zm-1 7 4 4m0-4-4 4"/></svg>
+                    </button>
+                  }
+                </article>
+              }
+            </div>
+          }
+        }
 
       @if (tab() === 'skills') {
         <!-- ---------------- Skills ---------------- -->
@@ -293,6 +404,7 @@ const EXPERIENCE_PER_PAGE = 6;
             />
           }
         }
+
       }
     </div>
   `
@@ -300,7 +412,9 @@ const EXPERIENCE_PER_PAGE = 6;
 export class ContentComponent implements OnInit {
   readonly skillService = inject(SkillService);
   readonly experienceService = inject(ExperienceService);
+  readonly categoryService = inject(CategoryService);
   private readonly dialog = inject(ConfirmDialogService);
+  private readonly toast = inject(ToastService);
 
   readonly tab = signal<ContentTab>('skills');
 
@@ -312,7 +426,8 @@ export class ContentComponent implements OnInit {
 
   readonly tabs: { value: ContentTab; label: string }[] = [
     { value: 'skills', label: 'Skills' },
-    { value: 'experience', label: 'Experience' }
+    { value: 'experience', label: 'Experience' },
+    { value: 'categories', label: 'Categories' }
   ];
 
   newSkillName = '';
@@ -385,6 +500,109 @@ export class ContentComponent implements OnInit {
   loadAll(): void {
     this.skillService.loadSkills().subscribe({ error: () => undefined });
     this.experienceService.loadExperience().subscribe({ error: () => undefined });
+    this.categoryService.loadCategories().subscribe({ error: () => undefined });
+  }
+
+  // ---------------- Categories ----------------
+
+  newCategoryName = '';
+  editingCategoryId: number | null = null;
+  categoryDraftName = '';
+  categoryFormError: string | null = null;
+
+  addCategory(): void {
+    const name = this.newCategoryName.trim();
+    if (!name) return;
+
+    this.categoryFormError = null;
+    const order = this.categoryService.categories().length;
+    this.categoryService
+      .createCategory({ name, order, isActive: true })
+      .subscribe({
+        next: () => {
+          this.newCategoryName = '';
+        },
+        error: err => {
+          this.categoryFormError = err?.error?.message ?? err?.message ?? 'Could not add the category.';
+        }
+      });
+  }
+
+  startEditingCategory(category: Category): void {
+    this.editingCategoryId = category.id;
+    this.categoryDraftName = category.name;
+    this.categoryFormError = null;
+  }
+
+  saveCategory(category: Category): void {
+    const name = this.categoryDraftName.trim();
+    if (!name) {
+      this.categoryFormError = 'The category name cannot be empty.';
+      return;
+    }
+
+    this.categoryFormError = null;
+    this.categoryService
+      .updateCategory(category.id, { name, order: category.order, isActive: category.isActive })
+      .subscribe({
+        next: () => {
+          this.editingCategoryId = null;
+        },
+        error: err => {
+          this.categoryFormError = err?.error?.message ?? err?.message ?? 'Could not rename the category.';
+        }
+      });
+  }
+
+  toggleCategory(category: Category): void {
+    this.categoryFormError = null;
+    this.categoryService
+      .updateCategory(category.id, { name: category.name, order: category.order, isActive: !category.isActive })
+      .subscribe({
+        error: err => this.reportCategoryError(err, 'Could not update the category.')
+      });
+  }
+
+  /**
+   * Moves a category one position up or down by swapping its order with the
+   * neighbour - the order drives the filter chips on the public portfolio.
+   */
+  moveCategory(category: Category, direction: -1 | 1): void {
+    const list = [...this.categoryService.categories()];
+    const index = list.findIndex(c => c.id === category.id);
+    const target = index + direction;
+    if (index < 0 || target < 0 || target >= list.length) {
+      return;
+    }
+
+    const neighbour = list[target];
+    this.categoryFormError = null;
+
+    this.categoryService
+      .updateCategory(category.id, { name: category.name, order: neighbour.order, isActive: category.isActive })
+      .subscribe({
+        next: () =>
+          this.categoryService
+            .updateCategory(neighbour.id, { name: neighbour.name, order: category.order, isActive: neighbour.isActive })
+            .subscribe({
+              error: err => this.reportCategoryError(err, 'Could not reorder the category.')
+            }),
+        error: err => this.reportCategoryError(err, 'Could not reorder the category.')
+      });
+  }
+
+  deleteCategory(category: Category): void {
+    this.categoryFormError = null;
+    this.categoryService.deleteCategory(category.id).subscribe({
+      error: err => this.reportCategoryError(err, 'Could not delete the category.')
+    });
+  }
+
+  /** Action errors belong next to the action - a toast, plus the inline banner. */
+  private reportCategoryError(err: any, fallback: string): void {
+    const message = err?.error?.message ?? err?.message ?? fallback;
+    this.categoryFormError = message;
+    this.toast.show(message, 'error');
   }
 
   addSkill(): void {

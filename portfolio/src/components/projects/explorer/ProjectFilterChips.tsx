@@ -1,4 +1,4 @@
-import { projectFilters } from "@/data";
+import { usePortfolioCategories } from "@/lib/content";
 import { useI18n } from "@/lib/i18n";
 import { useLocalizedContent } from "@/lib/localize";
 import type { ProjectFilter } from "@/hooks/useProjectsExplorer";
@@ -9,14 +9,20 @@ interface ProjectFilterChipsProps {
   counts: Record<string, number>;
 }
 
-/** Category chips with per-category result counts. */
+/**
+ * Category chips with per-category result counts. The list comes from the
+ * Portfolio API (managed in the dashboard), so a category added, renamed,
+ * reordered or hidden there shows up here without a code change.
+ */
 export function ProjectFilterChips({ filter, onChange, counts }: ProjectFilterChipsProps) {
   const { tr } = useI18n();
   const { category } = useLocalizedContent();
+  const categories = usePortfolioCategories();
+  const filters: ProjectFilter[] = ["All", ...categories];
 
   return (
     <div className="mb-6 flex flex-wrap items-center gap-2 sm:gap-2.5 py-1">
-      {projectFilters.map((value) => (
+      {filters.map((value) => (
         <button
           key={value}
           onClick={() => onChange(value)}

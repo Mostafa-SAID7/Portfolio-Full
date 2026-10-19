@@ -59,6 +59,13 @@ interface ApiProject {
 }
 
 /** Shape of PortfolioAPI.Core.DTOs.SkillDto (camelCase JSON). */
+interface ApiCategory {
+  id: number;
+  name: string;
+  order: number;
+  isActive: boolean;
+}
+
 interface ApiSkill {
   id: number;
   name: string;
@@ -242,11 +249,36 @@ export function usePortfolioSkillGroups(): typeof localSkillGroups {
   return data ?? [];
 }
 
+/**
+ * The project categories that become the filter chips. They are managed in
+ * the dashboard and served by the API (GET /api/v1/public/categories), so a
+ * category added, renamed, reordered or hidden there shows up on the site
+ * without a code change. API truth only - no bundled fallback.
+ */
+export async function fetchPortfolioCategories(): Promise<string[]> {
+  const data = await getJson<ApiCategory[]>("categories");
+  if (!data) return [];
+  return data
+    .filter(c => c.isActive)
+    .map(c => c.name)
+    .filter(name => name.length > 0);
+}
+
 /** Career credentials (work / projects / education / certifications); see {@link usePortfolioProjects}. */
 export function usePortfolioCredentials(): CredentialItem[] {
   const { data } = useQuery({
     queryKey: ["content", "credentials"],
     queryFn: fetchPortfolioCredentials,
+    staleTime: STALE_TIME_MS,
+  });
+  return data ?? [];
+}
+
+/** The filter chips, straight from the API; see {@link usePortfolioProjects}. */
+export function usePortfolioCategories(): string[] {
+  const { data } = useQuery({
+    queryKey: ["content", "categories"],
+    queryFn: fetchPortfolioCategories,
     staleTime: STALE_TIME_MS,
   });
   return data ?? [];
