@@ -48,10 +48,32 @@ namespace PortfolioAPI.Controllers
                 // (review finding: auth outcomes were never logged at all).
                 _logger.LogWarning(
                     "Login rejected ({RemoteIp}): Auth:Username/Auth:Password are not configured (503).", remoteIp);
+
+                // Say WHAT is missing and where it was looked for. Two traps
+                // account for most of these: the file was not uploaded, or an
+                // environment variable with the same name exists but is EMPTY
+                // (environment variables win over the JSON file).
+                var envUser = Environment.GetEnvironmentVariable("Auth__Username");
+                var envPassword = Environment.GetEnvironmentVariable("Auth__Password");
+                var emptyEnvOverride = (envUser is not null || envPassword is not null)
+                    && string.IsNullOrWhiteSpace(configuredUser)
+                    && string.IsNullOrWhiteSpace(configuredPassword);
+
                 return StatusCode(StatusCodes.Status503ServiceUnavailable, new
                 {
                     message = "Authentication is not configured on this server. Set Auth:Username and Auth:Password "
-                            + "in appsettings.Production.json (or via Auth__Username / Auth__Password environment variables)."
+                            + "in appsettings.Production.json (or via Auth__Username / Auth__Password environment variables).",
+                    sources = new
+                    {
+                        appsettingsProduction = "Auth:Username / Auth:Password",
+                        fileHasUsername = !string.IsNullOrWhiteSpace(configuredUser),
+                        fileHasPassword = !string.IsNullOrWhiteSpace(configuredPassword),
+                        envVarAuthUsernamePresent = envUser is not null,
+                        envVarAuthPasswordPresent = envPassword is not null
+                    },
+                    hint = emptyEnvOverride
+                        ? "An Auth__Username / Auth__Password environment variable exists but is EMPTY and overrides appsettings.Production.json - clear it or give it a value."
+                        : "Make sure the file was uploaded AND the app was restarted (touching web.config recycles the app pool; IIS keeps the old process and the old configuration until then)."
                 });
             }
 
