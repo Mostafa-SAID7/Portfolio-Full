@@ -255,27 +255,6 @@ namespace PortfolioAPI.IntegrationTests
             throw new FileNotFoundException();
         }
 
-        /// <summary>Test double: the in-memory files stand in for the database-backed store.</summary>
-        public Task<StoredFile?> GetStoredFileAsync(string fileUrl)
-        {
-            var fileId = Path.GetFileName(fileUrl);
-            if (_storedFiles.TryGetValue(fileId, out var fileData))
-            {
-                var bytes = new MemoryStream();
-                fileData.Stream.CopyTo(bytes);
-                bytes.Position = 0;
-                return Task.FromResult<StoredFile?>(new StoredFile
-                {
-                    FileName = fileId,
-                    ContentType = fileData.ContentType,
-                    Content = bytes.ToArray(),
-                    Size = bytes.Length,
-                    CreatedAt = DateTime.UtcNow
-                });
-            }
-            return Task.FromResult<StoredFile?>(null);
-        }
-
         public Task DeleteFileAsync(string fileUrl)
         {
             var fileId = Path.GetFileName(fileUrl);
