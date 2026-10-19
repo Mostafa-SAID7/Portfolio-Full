@@ -52,7 +52,10 @@ namespace PortfolioAPI.Infrastructure.Services
             };
             if (!string.IsNullOrWhiteSpace(username) && !string.IsNullOrWhiteSpace(password))
             {
-                smtpClient.Credentials = new NetworkCredential(username, password);
+                // Google shows app passwords in groups of four ("abcd efgh ijkl mnop");
+                // SMTP auth needs them unspaced. Stripping whitespace is safe
+                // for the providers we target and saves a confusing 535 error.
+                smtpClient.Credentials = new NetworkCredential(username.Trim(), password.Replace(" ", string.Empty).Trim());
             }
 
             using var mailMessage = new MailMessage
