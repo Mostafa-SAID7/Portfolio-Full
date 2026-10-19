@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PortfolioAPI.Core.DTOs;
-using PortfolioAPI.Core.Entities;
 using PortfolioAPI.Core.Interfaces.Services;
 
 namespace PortfolioAPI.Controllers
@@ -22,48 +21,46 @@ namespace PortfolioAPI.Controllers
         public async Task<ActionResult<IEnumerable<CredentialDto>>> GetAllCredentials()
         {
             var credentials = await _credentialService.GetAllCredentialsAsync();
-            return Ok(credentials.OrderBy(c => c.Order).ThenByDescending(c => c.Year).Select(Map));
+            return Ok(credentials.OrderBy(c => c.Order).ThenByDescending(c => c.Year).Select(EntityMappings.ToDto));
         }
 
         [HttpGet("{id}")]
         public async Task<ActionResult<CredentialDto>> GetCredentialById(int id)
         {
             var credential = await _credentialService.GetCredentialByIdAsync(id);
-            return Ok(Map(credential));
+            return Ok(EntityMappings.ToDto(credential));
         }
 
         [HttpGet("tab/{tab}")]
         public async Task<ActionResult<IEnumerable<CredentialDto>>> GetCredentialsByTab(string tab)
         {
             var credentials = await _credentialService.GetCredentialsByTabAsync(tab);
-            return Ok(credentials.OrderBy(c => c.Order).ThenByDescending(c => c.Year).Select(Map));
+            return Ok(credentials.OrderBy(c => c.Order).ThenByDescending(c => c.Year).Select(EntityMappings.ToDto));
         }
 
         [HttpGet("active")]
         public async Task<ActionResult<IEnumerable<CredentialDto>>> GetActiveCredentials()
         {
             var credentials = await _credentialService.GetActiveCredentialsAsync();
-            return Ok(credentials.OrderBy(c => c.Order).Select(Map));
+            return Ok(credentials.OrderBy(c => c.Order).Select(EntityMappings.ToDto));
         }
 
         [HttpPost]
         [Authorize]
-        public async Task<ActionResult<CredentialDto>> CreateCredential([FromBody] Credential credential)
+        public async Task<ActionResult<CredentialDto>> CreateCredential([FromBody] CreateCredentialDto dto)
         {
-            var createdCredential = await _credentialService.CreateCredentialAsync(credential);
-            return CreatedAtAction(nameof(GetCredentialById), new { id = createdCredential.Id }, Map(createdCredential));
+            // Payload DTO (not the raw EF entity): server-managed fields
+            // (createdAt/updatedAt/isDeleted) can never be over-posted.
+            var createdCredential = await _credentialService.CreateCredentialAsync(EntityMappings.ToEntity(dto));
+            return CreatedAtAction(nameof(GetCredentialById), new { id = createdCredential.Id }, EntityMappings.ToDto(createdCredential));
         }
 
         [HttpPut("{id}")]
         [Authorize]
-        public async Task<IActionResult> UpdateCredential(int id, [FromBody] Credential credential)
+        public async Task<IActionResult> UpdateCredential(int id, [FromBody] UpdateCredentialDto dto)
         {
-            if (id != credential.Id)
-            {
-                return BadRequest();
-            }
-
-            await _credentialService.UpdateCredentialAsync(credential);
+            // Route id wins; there is no Id in the payload to disagree with it.
+            await _credentialService.UpdateCredentialAsync(EntityMappings.ToEntity(dto, id));
             return NoContent();
         }
 
@@ -74,33 +71,5 @@ namespace PortfolioAPI.Controllers
             await _credentialService.DeleteCredentialAsync(id);
             return NoContent();
         }
-
-        private static CredentialDto Map(Credential c) => new()
-        {
-            Id = c.Id,
-            Tab = c.Tab,
-            Year = c.Year,
-            PeriodEn = c.PeriodEn,
-            PeriodAr = c.PeriodAr,
-            TitleEn = c.TitleEn,
-            TitleAr = c.TitleAr,
-            OrgEn = c.OrgEn,
-            OrgAr = c.OrgAr,
-            LocationEn = c.LocationEn,
-            LocationAr = c.LocationAr,
-            SummaryEn = c.SummaryEn,
-            SummaryAr = c.SummaryAr,
-            HighlightsEn = c.HighlightsEn?.ToList() ?? new List<string>(),
-            HighlightsAr = c.HighlightsAr?.ToList() ?? new List<string>(),
-            Stack = c.Stack?.ToList() ?? new List<string>(),
-            CredentialId = c.CredentialId,
-            StatusEn = c.StatusEn,
-            StatusAr = c.StatusAr,
-            Featured = c.Featured,
-            Order = c.Order,
-            IsActive = c.IsActive,
-            CreatedAt = c.CreatedAt,
-            UpdatedAt = c.UpdatedAt
-        };
     }
 }

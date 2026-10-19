@@ -1,26 +1,28 @@
-using System.Collections.Generic;
-using System.Linq;
-
 namespace PortfolioAPI.Core.Common
 {
     /// <summary>
     /// Shared Result&lt;T&gt; → HTTP mapping (issue #16). One place defines the
-    /// status codes and the consistent JSON error shape every controller uses:
+    /// status codes and the JSON error shape every controller uses:
     ///
     ///   200 → the payload (Data)
+    ///   204 → success with no payload (Data == null)
     ///   404 → { "message": "..." }                (Result.NotFound)
-    ///   400 → { "message": "...", "errors": [...] } (validation/other failure)
+    ///   400 → { "message": "..." }                (other failure)
     ///
     /// This matches the API's exception middleware, which emits the same
-    /// { message, errors? } shape for NotFoundException / ValidationException.
+    /// { message } shape for NotFoundException / ValidationException
+    /// (validation additionally carries the field-keyed `errors` object).
     /// </summary>
     public static class ResultExtensions
     {
         public static (int StatusCode, object Body) ToHttp<T>(this Result<T> result)
         {
-            if (result.Success && result.Data is not null)
+            if (result.Success)
             {
-                return (200, result.Data);
+                // A successful result without a payload is a 204, never an error.
+                return result.Data is null
+                    ? (204, (object)Array.Empty<byte>())
+                    : (200, result.Data);
             }
 
             return result.ToHttpError();
@@ -34,9 +36,7 @@ namespace PortfolioAPI.Core.Common
             }
 
             var message = result.Message ?? "The request could not be processed.";
-            return result.Errors != null && result.Errors.Any()
-                ? (400, (object)new { message, errors = result.Errors.ToArray() })
-                : (400, (object)new { message });
+            return (400, (object)new { message });
         }
     }
 }

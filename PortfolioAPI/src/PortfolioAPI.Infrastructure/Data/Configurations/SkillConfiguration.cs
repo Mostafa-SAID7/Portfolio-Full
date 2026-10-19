@@ -19,7 +19,10 @@ namespace PortfolioAPI.Infrastructure.Data.Configurations
                 .HasMaxLength(100);
 
             builder.Property(s => s.Proficiency)
-                .HasDefaultValue(50)
+                // No DB default: with HasDefaultValue(50), a legitimate
+                // Proficiency of 0 matched EF's insert sentinel, got omitted
+                // from the INSERT, and the database rewrote it to 50 — the API
+                // echoed 0 while 50 was stored. Validators own the 0-100 range.
                 .IsRequired();
 
             builder.Property(s => s.IconUrl)

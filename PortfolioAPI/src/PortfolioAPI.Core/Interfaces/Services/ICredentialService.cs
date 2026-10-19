@@ -7,7 +7,7 @@ namespace PortfolioAPI.Core.Interfaces.Services
     public interface ICredentialService
     {
         Task<IEnumerable<Credential>> GetAllCredentialsAsync();
-        Task<Credential?> GetCredentialByIdAsync(int id);
+        Task<Credential> GetCredentialByIdAsync(int id);
         Task<IEnumerable<Credential>> GetCredentialsByTabAsync(string tab);
         Task<IEnumerable<Credential>> GetActiveCredentialsAsync();
         Task<Credential> CreateCredentialAsync(Credential credential);

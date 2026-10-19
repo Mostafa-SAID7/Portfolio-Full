@@ -6,6 +6,12 @@ using PortfolioAPI.Infrastructure.Data;
 
 namespace PortfolioAPI.Infrastructure.Repositories
 {
+    /// <summary>
+    /// Generic repository over the scoped DbContext. Implements the six-member
+    /// <see cref="IRepository{T}"/> contract (fetch / query / stage change) —
+    /// committing belongs to the UnitOfWork. The extra query helpers below are
+    /// kept for tests and the specialized <see cref="ProjectRepository"/>.
+    /// </summary>
     public class Repository<T> : IRepository<T> where T : BaseEntity
     {
         protected readonly PortfolioDbContext _context;
@@ -32,11 +38,6 @@ namespace PortfolioAPI.Infrastructure.Repositories
             return await _dbSet.Where(predicate).ToListAsync();
         }
 
-        public async Task<T?> FirstOrDefaultAsync(Expression<Func<T, bool>> predicate)
-        {
-            return await _dbSet.FirstOrDefaultAsync(predicate);
-        }
-
         public async Task<T> AddAsync(T entity)
         {
             if (entity == null)
@@ -47,76 +48,36 @@ namespace PortfolioAPI.Infrastructure.Repositories
             return entry.Entity;
         }
 
-        public async Task<IEnumerable<T>> AddRangeAsync(IEnumerable<T> entities)
-        {
-            if (entities == null)
-                throw new ArgumentNullException(nameof(entities));
-
-            var list = entities.ToList();
-            foreach (var entity in list)
-            {
-                entity.CreatedAt = DateTime.UtcNow;
-            }
-
-            await _dbSet.AddRangeAsync(list);
-            return list;
-        }
-
-        public async Task UpdateAsync(T entity)
+        public Task UpdateAsync(T entity)
         {
             if (entity == null)
                 throw new ArgumentNullException(nameof(entity));
 
             entity.UpdatedAt = DateTime.UtcNow;
-            _dbSet.Update(entity);
-            await Task.CompletedTask;
-        }
 
-        public async Task UpdateRangeAsync(IEnumerable<T> entities)
-        {
-            if (entities == null)
-                throw new ArgumentNullException(nameof(entities));
-
-            foreach (var entity in entities)
+            // Only ATTACH genuinely detached instances. Services hand us the
+            // entity they just loaded (already tracked); the old code called
+            // _dbSet.Update unconditionally, which marked EVERY column Modified
+            // and issued a full-row UPDATE — silently overwriting concurrent
+            // edits (lost update) and masking the EF value-comparer warning.
+            if (_context.Entry(entity).State == EntityState.Detached)
             {
-                entity.UpdatedAt = DateTime.UtcNow;
+                _dbSet.Update(entity);
             }
 
-            _dbSet.UpdateRange(entities);
-            await Task.CompletedTask;
+            return Task.CompletedTask;
         }
 
-        public async Task DeleteAsync(T entity)
+        public Task DeleteAsync(T entity)
         {
             if (entity == null)
                 throw new ArgumentNullException(nameof(entity));
 
             _dbSet.Remove(entity);
-            await Task.CompletedTask;
+            return Task.CompletedTask;
         }
 
-        public async Task DeleteRangeAsync(IEnumerable<T> entities)
-        {
-            if (entities == null)
-                throw new ArgumentNullException(nameof(entities));
-
-            _dbSet.RemoveRange(entities);
-            await Task.CompletedTask;
-        }
-
-        public async Task DeleteByIdAsync(int id)
-        {
-            var entity = await _dbSet.FindAsync(id);
-            if (entity != null)
-            {
-                _dbSet.Remove(entity);
-            }
-        }
-
-        public async Task<bool> SaveChangesAsync()
-        {
-            return await _context.SaveChangesAsync() > 0;
-        }
+        // --- Query helpers (used by unit tests; not on the service contract) ----
 
         public async Task<bool> ExistsAsync(int id)
         {
@@ -133,7 +94,6 @@ namespace PortfolioAPI.Infrastructure.Repositories
             return await _dbSet.CountAsync(predicate);
         }
 
-        // Additional useful methods
         public async Task<IEnumerable<T>> GetPagedAsync(int pageNumber, int pageSize)
         {
             return await _dbSet

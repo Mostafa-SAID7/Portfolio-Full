@@ -14,8 +14,9 @@ namespace PortfolioAPI.Infrastructure.Data
     ///      existing tables, no data is touched; Migrate() then applies only
     ///      migrations added after the baseline (future schema changes).
     /// PatchSchemaAsync stays as an idempotent safety net for legacy drift
-    /// (Projects columns, Credentials table) and removals (blog tables), and
-    /// seeds demo content only when the database is empty — it never
+    /// (Projects columns, Credentials table, contact/testimonial columns, the
+    /// gallery + join tables) and removals (blog tables), and seeds demo
+    /// content only when the database carries no content at all — it never
     /// overwrites existing rows.
     /// </summary>
     public static class DbInitializer
@@ -25,7 +26,16 @@ namespace PortfolioAPI.Infrastructure.Data
             await EnsureSchemaAsync(context);
             await PatchSchemaAsync(context);
 
-            if (await context.Projects.AnyAsync() || await context.Skills.AnyAsync())
+            // Seed only a genuinely virgin database: ANY existing content (or
+            // user-managed inbox rows) counts as "initialized". The old check
+            // looked at Projects/Skills only, so an admin who emptied exactly
+            // those two tables would get demo content re-injected on restart.
+            if (await context.Projects.AnyAsync()
+                || await context.Skills.AnyAsync()
+                || await context.Experiences.AnyAsync()
+                || await context.Testimonials.AnyAsync()
+                || await context.Credentials.AnyAsync()
+                || await context.Contacts.AnyAsync())
             {
                 return; // Database already has data.
             }
@@ -134,6 +144,55 @@ namespace PortfolioAPI.Infrastructure.Data
                         UpdatedAt datetime2 NULL,
                         IsDeleted bit NOT NULL DEFAULT 0,
                         DeletedAt datetime2 NULL
+                    );");
+            }
+
+            // Remaining model drift the baseline never adds (the history table
+            // is stamped as "applied" without running DDL, so these would
+            // otherwise surface as "Invalid column name" 500s on legacy
+            // databases). All idempotent; existing data is never touched.
+            if (!await ColumnExistsAsync(context, "Contacts", "IpAddress"))
+            {
+                await context.Database.ExecuteSqlRawAsync(
+                    "ALTER TABLE dbo.Contacts ADD IpAddress nvarchar(45) NULL, UserAgent nvarchar(500) NULL;");
+            }
+
+            if (!await ColumnExistsAsync(context, "Testimonials", "ProjectUrl"))
+            {
+                await context.Database.ExecuteSqlRawAsync(
+                    "ALTER TABLE dbo.Testimonials ADD ProjectUrl nvarchar(500) NULL;");
+            }
+
+            if (!await TableExistsAsync(context, "ProjectImages"))
+            {
+                await context.Database.ExecuteSqlRawAsync(@"
+                    CREATE TABLE dbo.ProjectImages (
+                        Id int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+                        ProjectId int NOT NULL,
+                        ImageUrl nvarchar(500) NOT NULL,
+                        AltText nvarchar(200) NULL,
+                        [Order] int NOT NULL DEFAULT 0,
+                        IsPrimary bit NOT NULL DEFAULT 0,
+                        CreatedAt datetime2 NOT NULL,
+                        UpdatedAt datetime2 NULL,
+                        IsDeleted bit NOT NULL DEFAULT 0,
+                        DeletedAt datetime2 NULL,
+                        CONSTRAINT FK_ProjectImages_Projects_ProjectId FOREIGN KEY (ProjectId)
+                            REFERENCES dbo.Projects (Id) ON DELETE CASCADE
+                    );");
+            }
+
+            if (!await TableExistsAsync(context, "SkillProject"))
+            {
+                await context.Database.ExecuteSqlRawAsync(@"
+                    CREATE TABLE dbo.SkillProject (
+                        SkillId int NOT NULL,
+                        ProjectId int NOT NULL,
+                        CONSTRAINT PK_SkillProject PRIMARY KEY (SkillId, ProjectId),
+                        CONSTRAINT FK_SkillProject_Projects_ProjectId FOREIGN KEY (ProjectId)
+                            REFERENCES dbo.Projects (Id) ON DELETE CASCADE,
+                        CONSTRAINT FK_SkillProject_Skills_SkillId FOREIGN KEY (SkillId)
+                            REFERENCES dbo.Skills (Id) ON DELETE CASCADE
                     );");
             }
         }

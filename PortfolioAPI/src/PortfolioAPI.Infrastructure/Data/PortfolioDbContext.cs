@@ -54,13 +54,13 @@ namespace PortfolioAPI.Infrastructure.Data
                 entity.Property(c => c.SummaryAr).HasMaxLength(1000);
                 entity.Property(c => c.HighlightsEn)
                     .HasMaxLength(4000)
-                    .HasConversion(JsonListConverter.HighlightsJson);
+                    .HasConversion(JsonListConverter.HighlightsJson, StringListConverter.ListComparerOrNull);
                 entity.Property(c => c.HighlightsAr)
                     .HasMaxLength(4000)
-                    .HasConversion(JsonListConverter.HighlightsJson);
+                    .HasConversion(JsonListConverter.HighlightsJson, StringListConverter.ListComparerOrNull);
                 entity.Property(c => c.Stack)
                     .HasMaxLength(500)
-                    .HasConversion(StringListConverter.CommaSeparated);
+                    .HasConversion(StringListConverter.CommaSeparatedOrNull, StringListConverter.ListComparerOrNull);
                 entity.Property(c => c.CredentialId).HasMaxLength(100);
                 entity.Property(c => c.StatusEn).HasMaxLength(50);
                 entity.Property(c => c.StatusAr).HasMaxLength(50);
@@ -136,7 +136,7 @@ namespace PortfolioAPI.Infrastructure.Data
 
                 entity.Property(e => e.Technologies)
                     .HasMaxLength(500)
-                    .HasConversion(StringListConverter.CommaSeparated);
+                    .HasConversion(StringListConverter.CommaSeparated, StringListConverter.ListComparer);
 
                 entity.Property(e => e.Location)
                     .HasMaxLength(100);
@@ -215,7 +215,10 @@ namespace PortfolioAPI.Infrastructure.Data
                     .HasMaxLength(500);
 
                 entity.Property(t => t.Rating)
-                    .HasDefaultValue(5);
+                    // No DB default: the model default would act as an insert
+                    // sentinel for the CLR default (0) and silently rewrite a
+                    // legitimate 0 to 5. Validators own the 1-5 range.
+                    .IsRequired();
 
                 entity.Property(t => t.Featured)
                     .HasDefaultValue(false);

@@ -26,9 +26,6 @@ var builder = WebApplication.CreateBuilder(args);
 var swaggerEnabled = builder.Configuration.GetValue("Swagger:Enabled", builder.Environment.IsDevelopment());
 
 // Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
-
 if (swaggerEnabled)
 {
     builder.Services.AddSwaggerGen(options =>
@@ -89,6 +86,20 @@ builder.Services.AddControllers();
 var allowedOrigins = (builder.Configuration["Cors:AllowedOrigins"] ?? string.Empty)
     .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
+// Origin patterns are precompiled ONCE at startup: the previous version built
+// and compiled a fresh regex per request on this hot path.
+var exactOrigins = new HashSet<string>(
+    allowedOrigins.Where(pattern => !pattern.Contains('*')),
+    StringComparer.OrdinalIgnoreCase);
+var originRegexes = allowedOrigins
+    .Where(pattern => pattern.Contains('*'))
+    .Select(pattern => new System.Text.RegularExpressions.Regex(
+        "^" + System.Text.RegularExpressions.Regex.Escape(pattern).Replace("\\*", ".*") + "$",
+        System.Text.RegularExpressions.RegexOptions.IgnoreCase
+        | System.Text.RegularExpressions.RegexOptions.CultureInvariant
+        | System.Text.RegularExpressions.RegexOptions.Compiled))
+    .ToArray();
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("Frontends", policy =>
@@ -106,15 +117,9 @@ builder.Services.AddCors(options =>
         else if (allowedOrigins.Length > 0)
         {
             // Exact origins are compared directly; patterns containing '*'
-            // (e.g. https://*.vercel.app) are matched as wildcards.
+            // (e.g. https://*.vercel.app) are matched against the compiled set.
             policy.SetIsOriginAllowed(origin =>
-                allowedOrigins.Any(pattern =>
-                    pattern.Contains('*')
-                        ? System.Text.RegularExpressions.Regex.IsMatch(
-                            origin,
-                            "^" + System.Text.RegularExpressions.Regex.Escape(pattern).Replace("\\*", ".*") + "$",
-                            System.Text.RegularExpressions.RegexOptions.IgnoreCase)
-                        : string.Equals(pattern, origin, StringComparison.OrdinalIgnoreCase)));
+                exactOrigins.Contains(origin) || originRegexes.Any(r => r.IsMatch(origin)));
         }
         else
         {
@@ -158,6 +163,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 context.HandleResponse();
                 context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                 context.Response.ContentType = "application/json";
+                // Standard challenge header (RFC 6750) so API tools/probes can
+                // tell "missing/expired JWT" from a plain 401.
+                context.Response.Headers["WWW-Authenticate"] = "Bearer";
                 await context.Response.WriteAsJsonAsync(new { message = "Authentication required. Sign in to continue." });
             },
             OnForbidden = async context =>
@@ -227,8 +235,9 @@ builder.Services.AddDbContext<PortfolioDbContext>(options =>
         connectionString,
         sql => sql.EnableRetryOnFailure()));
 
-// Add repositories
-builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
+// Repositories: only the UnitOfWork is registered — it constructs its own
+// repositories over the scoped DbContext. (The old open-generic
+// `IRepository<>` registration was never resolved by anything.)
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 // Add services
@@ -243,14 +252,6 @@ builder.Services.AddScoped<ICredentialService, CredentialService>();
 // Add infrastructure services
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
-builder.Services.AddScoped<ICacheService, CacheService>();
-
-// Distributed cache backing the CacheService. Swap for Redis by adding a
-// Redis connection string and calling AddStackExchangeRedisCache instead.
-builder.Services.AddDistributedMemoryCache();
-
-// Add AutoMapper (profiles and validators live in the Application assembly)
-builder.Services.AddAutoMapper(typeof(PortfolioAPI.Application.Mappings.AutoMapperProfile).Assembly);
 
 // Add FluentValidation
 builder.Services.AddValidatorsFromAssembly(typeof(PortfolioAPI.Application.Services.ProjectService).Assembly);
@@ -269,48 +270,21 @@ builder.Configuration["FileStorage:Path"] =
 
 var app = builder.Build();
 
-// Restore real client IP/scheme behind the Vercel proxy / hosting load
-// balancer — must run before anything that reads RemoteIpAddress (rate limiting).
+// Restore real client IP/scheme behind the hosting reverse proxy — first,
+// since everything downstream (rate limiting, redirects) reads them.
+//
+// Deliberately clearing KnownProxies/KnownNetworks: behind a single
+// appending proxy the middleware then identifies the client from the NEAREST
+// forwarded entry, which the proxy itself appended — clients cannot mint rate
+// limit buckets by forging X-Forwarded-For. This is only safe while clients
+// cannot reach Kestrel directly; if you ever expose the port publicly,
+// populate KnownProxies/KnownNetworks instead of clearing them.
 app.UseForwardedHeaders();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-}
-
-// Use CORS (policy name set up above)
-app.UseCors("Frontends");
-
-// Serve uploaded files (UploadController) at {FileStorage:BaseUrl} — /api/files
-// by default. Both frontends reach this path through their own /api proxy, so
-// stored cover URLs stay relative in the database and load over HTTPS on every
-// frontend without any hardcoded API host.
-var uploadsRoot = UploadStorage.ResolveRoot(app.Configuration);
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = new PhysicalFileProvider(uploadsRoot),
-    RequestPath = UploadStorage.PublicBase(app.Configuration),
-    // Uploads use random (guid) filenames, so they are immutable — cache hard.
-    OnPrepareResponse = ctx => ctx.Context.Response.Headers.CacheControl = "public, max-age=31536000, immutable"
-});
-
-// Swagger UI: /swagger  (JSON spec: /swagger/v1/swagger.json)
-if (swaggerEnabled)
-{
-    app.UseSwagger();
-    app.UseSwaggerUI(options =>
-    {
-        options.SwaggerEndpoint("/swagger/v1/swagger.json", "Portfolio API v1");
-        options.DocumentTitle = "Portfolio API";
-    });
-}
-
-// Use HTTPS redirection (only when an HTTPS port is configured)
-app.UseHttpsRedirection();
-
-// Error handling: known domain exceptions get a proper status + a REAL message
-// (the dashboards render `message` verbatim); everything else stays a generic
+// Error handling at the TOP so faults anywhere below — CORS, static uploads,
+// Swagger, controllers — get the shared JSON shape instead of a blank 500.
+// Known domain exceptions get a proper status + a REAL message (the
+// dashboards render `message` verbatim); everything else stays a generic
 // 500 so production never leaks stack traces. Before this mapping, a missing
 // entity or a FluentValidation failure from any service surfaced as a 500
 // "An unexpected error occurred..." — validation messages were silently lost.
@@ -340,6 +314,8 @@ app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
             message = "That name is already taken — choose a different one.";
             break;
         default:
+            var logger = context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("PortfolioAPI.ExceptionHandler");
+            logger.LogError(exception, "Unhandled exception for {Method} {Path}", context.Request.Method, context.Request.Path);
             status = StatusCodes.Status500InternalServerError;
             message = "An unexpected error occurred while processing the request.";
             break;
@@ -357,11 +333,61 @@ app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
     }
 }));
 
+// Transport security before any response can leave (Swagger UI included).
+// HSTS is a no-op until TLS exists (#19) and only ever applies to https://
+// responses, so it is safe to enable unconditionally outside Development.
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+}
+
+// Use HTTPS redirection (only when an HTTPS port is configured)
+app.UseHttpsRedirection();
+
+// Baseline security headers on every response (review finding: missing).
+app.Use(async (context, next) =>
+{
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    context.Response.Headers["X-Frame-Options"] = "DENY";
+    context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    await next();
+});
+
+// Use CORS (policy name set up above)
+app.UseCors("Frontends");
+
+// Serve uploaded files (UploadController) at {FileStorage:BaseUrl} — /api/files
+// by default. Both frontends reach this path through their own /api proxy, so
+// stored cover URLs stay relative in the database and load over HTTPS on every
+// frontend without any hardcoded API host.
+var uploadsRoot = UploadStorage.ResolveRoot(app.Configuration);
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(uploadsRoot),
+    RequestPath = UploadStorage.PublicBase(app.Configuration),
+    // Uploads use random (guid) filenames, so they are immutable — cache hard.
+    OnPrepareResponse = ctx => ctx.Context.Response.Headers.CacheControl = "public, max-age=31536000, immutable"
+});
+
+// Swagger UI: /swagger  (JSON spec: /swagger/v1/swagger.json)
+if (swaggerEnabled)
+{
+    app.UseSwagger();
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", "Portfolio API v1");
+        options.DocumentTitle = "Portfolio API";
+    });
+}
+
+// Error handling and transport security are re-inserted at the TOP of the
+// pipeline below (review finding: they must wrap CORS/static files/Swagger).
+
 // Health endpoint: verifies process + database connectivity (used for
 // deployment checks and uptime monitors; 503 when the DB is unreachable).
 // Served under the versioned path (canonical, issue #24) plus the legacy
 // unversioned alias for existing monitors.
-async Task<IResult> HealthAsync(PortfolioDbContext db, CancellationToken cancellationToken)
+async Task<IResult> HealthAsync(PortfolioDbContext db, ILoggerFactory loggerFactory, CancellationToken cancellationToken)
 {
     var now = DateTime.UtcNow;
     try
@@ -372,8 +398,11 @@ async Task<IResult> HealthAsync(PortfolioDbContext db, CancellationToken cancell
             : Results.Json(new { status = "degraded", database = "unreachable", time = now },
                 statusCode: StatusCodes.Status503ServiceUnavailable);
     }
-    catch
+    catch (Exception ex)
     {
+        // Never swallow silently — uptime monitors see 503, the log says why.
+        loggerFactory.CreateLogger("PortfolioAPI.Health")
+            .LogWarning(ex, "Health probe failed: database unreachable.");
         return Results.Json(new { status = "degraded", database = "unreachable", time = now },
             statusCode: StatusCodes.Status503ServiceUnavailable);
     }
@@ -381,6 +410,18 @@ async Task<IResult> HealthAsync(PortfolioDbContext db, CancellationToken cancell
 
 app.MapGet("/api/v1/health", HealthAsync);
 app.MapGet("/api/health", HealthAsync); // deprecated alias (issue #24)
+
+// Version root: makes the Deprecation `Link` successor target resolve (it
+// used to point at /api/v1, which was a dead 404) and gives human consumers
+// a discoverable entry point.
+app.MapGet("/api/v1", () => Results.Ok(new
+{
+    name = "Portfolio API",
+    version = "v1",
+    health = "/api/v1/health",
+    publicApi = "/api/v1/public/*",
+    docs = "/swagger"
+}));
 
 // Root landing: never a dead 404 — send browsers to the Swagger UI (human
 // landing page for the API) or, when Swagger is disabled, a JSON index.
@@ -427,7 +468,7 @@ app.UseAuthorization();
 // Map controllers
 app.MapControllers();
 
-// Seed database
+// Initialize/migrate the database.
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -439,7 +480,14 @@ using (var scope = app.Services.CreateScope())
     catch (Exception ex)
     {
         var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "An error occurred while seeding the database.");
+        logger.LogError(ex, "An error occurred while initializing the database.");
+        if (!app.Environment.IsDevelopment())
+        {
+            // Fail fast outside Development (review finding): booting with a
+            // broken schema only turns a deploy problem into intermittent 500s
+            // on the first request. Let the platform surface the crash.
+            throw;
+        }
     }
 }
 

@@ -1,86 +1,51 @@
 using FluentValidation;
-using PortfolioAPI.Application.Exceptions;
 using PortfolioAPI.Core.Entities;
 using PortfolioAPI.Core.Interfaces;
 using PortfolioAPI.Core.Interfaces.Services;
-using ValidationException = PortfolioAPI.Application.Exceptions.ValidationException;
 
 namespace PortfolioAPI.Application.Services
 {
-    public class TestimonialService : ITestimonialService
+    public class TestimonialService : CrudService<Testimonial>, ITestimonialService
     {
-        private readonly IUnitOfWork _unitOfWork;
-        private readonly IValidator<Testimonial> _validator;
-
         public TestimonialService(IUnitOfWork unitOfWork, IValidator<Testimonial> validator)
+            : base(unitOfWork, validator)
         {
-            _unitOfWork = unitOfWork;
-            _validator = validator;
         }
+
+        protected override IRepository<Testimonial> Repository => UnitOfWork.Testimonials;
 
         public async Task<IEnumerable<Testimonial>> GetAllTestimonialsAsync()
         {
-            return await _unitOfWork.Testimonials.GetAllAsync();
+            return await UnitOfWork.Testimonials.GetAllAsync();
         }
 
-        public async Task<Testimonial?> GetTestimonialByIdAsync(int id)
+        public async Task<Testimonial> GetTestimonialByIdAsync(int id)
         {
-            var testimonial = await _unitOfWork.Testimonials.GetByIdAsync(id);
-            if (testimonial == null)
-            {
-                throw new NotFoundException($"Testimonial with id {id} not found.");
-            }
-            return testimonial;
+            return await GetRequiredAsync(id);
         }
 
         public async Task<IEnumerable<Testimonial>> GetVisibleTestimonialsAsync()
         {
-            return await _unitOfWork.Testimonials.FindAsync(t => t.IsActive);
+            return await UnitOfWork.Testimonials.FindAsync(t => t.IsActive);
         }
 
         public async Task<Testimonial> CreateTestimonialAsync(Testimonial testimonial)
         {
-            var validationResult = await _validator.ValidateAsync(testimonial);
-            if (!validationResult.IsValid)
-            {
-                throw new ValidationException(validationResult.Errors);
-            }
-
-            testimonial.CreatedAt = DateTime.UtcNow;
-            var createdTestimonial = await _unitOfWork.Testimonials.AddAsync(testimonial);
-            await _unitOfWork.SaveChangesAsync();
-            return createdTestimonial;
+            return await CreateValidatedAsync(testimonial);
         }
 
         public async Task UpdateTestimonialAsync(Testimonial testimonial)
         {
-            var existingTestimonial = await _unitOfWork.Testimonials.GetByIdAsync(testimonial.Id);
-            if (existingTestimonial == null)
-            {
-                throw new NotFoundException($"Testimonial with id {testimonial.Id} not found.");
-            }
-
-            var validationResult = await _validator.ValidateAsync(testimonial);
-            if (!validationResult.IsValid)
-            {
-                throw new ValidationException(validationResult.Errors);
-            }
-
-            testimonial.UpdatedAt = DateTime.UtcNow;
-            await _unitOfWork.Testimonials.UpdateAsync(testimonial);
-            await _unitOfWork.SaveChangesAsync();
+            // Apply onto the tracked instance — attaching the incoming
+            // detached entity (the previous behaviour) threw EF's
+            // "another instance with the same key ... is already being tracked"
+            // and surfaced as an HTTP 500 on every testimonial update.
+            await UpdateTrackedAsync(testimonial.Id, existing => existing.Apply(testimonial));
         }
 
         public async Task DeleteTestimonialAsync(int id)
         {
-            var testimonial = await _unitOfWork.Testimonials.GetByIdAsync(id);
-            if (testimonial == null)
-            {
-                throw new NotFoundException($"Testimonial with id {id} not found.");
-            }
-
-            await _unitOfWork.Testimonials.DeleteAsync(testimonial);
-            await _unitOfWork.SaveChangesAsync();
+            await DeleteOrThrowAsync(id);
         }
     }
 }

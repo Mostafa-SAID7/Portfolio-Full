@@ -23,7 +23,7 @@ namespace PortfolioAPI.Infrastructure.Data.Configurations
 
             builder.Property(p => p.Technologies)
                 .HasMaxLength(500)
-                .HasConversion(StringListConverter.CommaSeparated);
+                .HasConversion(StringListConverter.CommaSeparated, StringListConverter.ListComparer);
 
             builder.Property(p => p.GithubUrl)
                 .HasMaxLength(500);
@@ -48,10 +48,10 @@ namespace PortfolioAPI.Infrastructure.Data.Configurations
             builder.Property(p => p.Status).HasMaxLength(50);
             builder.Property(p => p.Badges)
                 .HasMaxLength(200)
-                .HasConversion(StringListConverter.CommaSeparated);
+                .HasConversion(StringListConverter.CommaSeparatedOrNull, StringListConverter.ListComparerOrNull);
             builder.Property(p => p.Metrics)
                 .HasMaxLength(2000)
-                .HasConversion(JsonListConverter.MetricsJson);
+                .HasConversion(JsonListConverter.MetricsJson, JsonListConverter.MetricsComparer);
             builder.Property(p => p.Gradient).HasMaxLength(200);
 
             builder.HasIndex(p => p.Title);

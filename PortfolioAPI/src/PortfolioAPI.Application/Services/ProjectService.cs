@@ -10,9 +10,10 @@ using ValidationException = PortfolioAPI.Application.Exceptions.ValidationExcept
 namespace PortfolioAPI.Application.Services
 {
     /// <summary>
-    /// Project management. Implements the DTO/Result-based contract; expected
-    /// outcomes (not found, validation) are returned as failed results instead
-    /// of exceptions so controllers can map them to proper HTTP responses.
+    /// Project management. Implements the DTO/Result-based contract: "not
+    /// found" comes back as a failed Result (→ 404), while validation failures
+    /// throw ValidationException like every other service, so the exception
+    /// middleware emits the one shared { message, errors } 400 shape.
     /// </summary>
     public class ProjectService : IProjectService
     {
@@ -30,20 +31,20 @@ namespace PortfolioAPI.Application.Services
             var project = await _unitOfWork.Projects.GetByIdAsync(id);
             return project == null
                 ? Result<ProjectDto>.NotFound($"Project with id {id} was not found.")
-                : Result<ProjectDto>.Ok(Map(project));
+                : Result<ProjectDto>.Ok(EntityMappings.ToDto(project));
         }
 
         public async Task<Result<IEnumerable<ProjectDto>>> GetAllAsync()
         {
             var projects = await _unitOfWork.Projects.GetAllAsync();
             var ordered = projects.OrderBy(p => p.Order).ThenByDescending(p => p.CreatedAt);
-            return Result<IEnumerable<ProjectDto>>.Ok(ordered.Select(Map).ToList());
+            return Result<IEnumerable<ProjectDto>>.Ok(ordered.Select(EntityMappings.ToDto).ToList());
         }
 
         public async Task<Result<IEnumerable<ProjectDto>>> GetFeaturedAsync()
         {
             var projects = await _unitOfWork.Projects.FindAsync(p => p.Featured && p.IsActive);
-            return Result<IEnumerable<ProjectDto>>.Ok(projects.OrderBy(p => p.Order).Select(Map).ToList());
+            return Result<IEnumerable<ProjectDto>>.Ok(projects.OrderBy(p => p.Order).Select(EntityMappings.ToDto).ToList());
         }
 
         public async Task<Result<IEnumerable<ProjectDto>>> GetByTechnologyAsync(string technology)
@@ -52,7 +53,7 @@ namespace PortfolioAPI.Application.Services
             // column) — EF cannot translate collection operators over the
             // converted column (issue #17).
             var projects = await _unitOfWork.Projects.GetByTechnologyAsync(technology);
-            return Result<IEnumerable<ProjectDto>>.Ok(projects.OrderBy(p => p.Order).Select(Map).ToList());
+            return Result<IEnumerable<ProjectDto>>.Ok(projects.OrderBy(p => p.Order).Select(EntityMappings.ToDto).ToList());
         }
 
         public async Task<Result<IEnumerable<ProjectDto>>> SearchAsync(string searchTerm)
@@ -60,15 +61,17 @@ namespace PortfolioAPI.Application.Services
             // Database-side LIKE search across title/description/technologies
             // (issue #17) — previously an untranslatable expression that 500'd.
             var projects = await _unitOfWork.Projects.SearchAsync(searchTerm);
-            return Result<IEnumerable<ProjectDto>>.Ok(projects.OrderBy(p => p.Order).Select(Map).ToList());
+            return Result<IEnumerable<ProjectDto>>.Ok(projects.OrderBy(p => p.Order).Select(EntityMappings.ToDto).ToList());
         }
 
         public async Task<Result<ProjectDto>> CreateAsync(CreateProjectDto dto)
         {
             var project = new Project
             {
-                Title = dto.Title.Trim(),
-                Description = dto.Description.Trim(),
+                // Null-tolerant: an explicit JSON null must reach the validator
+                // as an empty string (→ 400) instead of NRE-ing here (→ 500).
+                Title = dto.Title?.Trim() ?? string.Empty,
+                Description = dto.Description?.Trim() ?? string.Empty,
                 ImageUrl = dto.ImageUrl,
                 Technologies = Sanitize(dto.Technologies),
                 GithubUrl = dto.GithubUrl,
@@ -102,7 +105,7 @@ namespace PortfolioAPI.Application.Services
 
             var created = await _unitOfWork.Projects.AddAsync(project);
             await _unitOfWork.SaveChangesAsync();
-            return Result<ProjectDto>.Ok(Map(created), "Project created.");
+            return Result<ProjectDto>.Ok(EntityMappings.ToDto(created), "Project created.");
         }
 
         public async Task<Result<ProjectDto>> UpdateAsync(int id, UpdateProjectDto dto)
@@ -113,8 +116,8 @@ namespace PortfolioAPI.Application.Services
                 return Result<ProjectDto>.NotFound($"Project with id {id} was not found.");
             }
 
-            project.Title = dto.Title.Trim();
-            project.Description = dto.Description.Trim();
+            project.Title = dto.Title?.Trim() ?? string.Empty;
+            project.Description = dto.Description?.Trim() ?? string.Empty;
             project.ImageUrl = dto.ImageUrl;
             project.Technologies = Sanitize(dto.Technologies);
             project.GithubUrl = dto.GithubUrl;
@@ -145,7 +148,7 @@ namespace PortfolioAPI.Application.Services
 
             await _unitOfWork.Projects.UpdateAsync(project);
             await _unitOfWork.SaveChangesAsync();
-            return Result<ProjectDto>.Ok(Map(project), "Project updated.");
+            return Result<ProjectDto>.Ok(EntityMappings.ToDto(project), "Project updated.");
         }
 
         public async Task<Result<bool>> DeleteAsync(int id)
@@ -184,30 +187,5 @@ namespace PortfolioAPI.Application.Services
 
         private static string? NullIfBlank(string? value) =>
             string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-
-        private static ProjectDto Map(Project p) => new()
-        {
-            Id = p.Id,
-            Title = p.Title,
-            Description = p.Description,
-            ImageUrl = p.ImageUrl,
-            Technologies = p.Technologies?.ToList() ?? new List<string>(),
-            GithubUrl = p.GithubUrl,
-            LiveUrl = p.LiveUrl,
-            Featured = p.Featured,
-            Order = p.Order,
-            IsActive = p.IsActive,
-            Category = p.Category,
-            Client = p.Client,
-            Type = p.Type,
-            Database = p.Database,
-            Status = p.Status,
-            Badges = p.Badges?.ToList() ?? new List<string>(),
-            Metrics = p.Metrics?.Select(m => new ProjectMetricDto { Label = m.Label, Value = m.Value }).ToList()
-                      ?? new List<ProjectMetricDto>(),
-            Gradient = p.Gradient,
-            CreatedAt = p.CreatedAt,
-            UpdatedAt = p.UpdatedAt
-        };
     }
 }

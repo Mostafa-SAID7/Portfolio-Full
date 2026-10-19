@@ -12,5 +12,20 @@ namespace PortfolioAPI.Core.Entities
         public bool Current { get; set; } = false;
         public int Order { get; set; } = 0;
         public bool IsActive { get; set; } = true;
+
+        /// <summary>Copies the editable fields from another instance onto this tracked one.</summary>
+        public void Apply(Experience other)
+        {
+            Company = other.Company;
+            Position = other.Position;
+            StartDate = other.StartDate;
+            EndDate = other.EndDate;
+            Description = other.Description;
+            Technologies = other.Technologies ?? Technologies;
+            Location = other.Location;
+            Current = other.Current;
+            Order = other.Order;
+            IsActive = other.IsActive;
+        }
     }
 }

@@ -1,9 +1,11 @@
 using FluentAssertions;
+using FluentValidation.Results;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
+using PortfolioAPI.Application.Exceptions;
 using PortfolioAPI.Controllers;
 using PortfolioAPI.Core.Common;
 using PortfolioAPI.Core.DTOs;
@@ -167,23 +169,30 @@ namespace PortfolioAPI.UnitTests
         }
 
         [Fact]
-        public async Task ProjectsController_CreateProject_ShouldReturn400_WhenValidationFails()
+        public async Task ProjectsController_CreateProject_ShouldPropagateValidationException_WhenValidationFails()
         {
-            // Arrange
+            // Arrange — the real contract: ProjectService.CreateAsync validates
+            // the assembled entity and THROWS ValidationException (see
+            // ProjectService.cs); the exception middleware in Program.cs renders
+            // the shared 400 { message, errors } body. The controller itself
+            // must let it propagate, not swallow it into a 200/500.
             var mockService = new Mock<IProjectService>();
             var dto = new CreateProjectDto { Title = "", Description = "" };
-            mockService.Setup(s => s.CreateAsync(dto))
-                .ReturnsAsync(Result<ProjectDto>.Fail(
-                    "Validation failed.", new[] { "Title is required." }));
+            var validationException = new ValidationException(new[]
+            {
+                new ValidationFailure("Title", "Title is required.")
+            });
+            mockService.Setup(s => s.CreateAsync(dto)).ThrowsAsync(validationException);
             var controller = CreateProjectsController(mockService);
 
             // Act
-            var result = await controller.CreateProject(dto);
+            var act = () => controller.CreateProject(dto);
 
             // Assert
-            var objectResult = result.Result.Should().BeOfType<ObjectResult>().Subject;
-            objectResult.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
-            objectResult.Value.Should().NotBeNull();
+            var assertions = await act.Should().ThrowAsync<ValidationException>();
+            var exception = assertions.Which;
+            exception.Errors.Should().ContainKey("Title");
+            exception.Errors["Title"].Should().Contain("Title is required.");
         }
 
         [Fact]

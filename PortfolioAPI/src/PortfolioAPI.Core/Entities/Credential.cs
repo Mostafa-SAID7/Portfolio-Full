@@ -35,5 +35,36 @@ namespace PortfolioAPI.Core.Entities
         public bool Featured { get; set; } = false;
         public int Order { get; set; } = 0;
         public bool IsActive { get; set; } = true;
+
+        /// <summary>
+        /// Copies the editable fields from another instance onto this tracked
+        /// one. Attaching the incoming instance directly (the old behaviour)
+        /// threw "another instance with the same key ... is already being
+        /// tracked" → HTTP 500 on every credential update.
+        /// </summary>
+        public void Apply(Credential other)
+        {
+            Tab = other.Tab;
+            Year = other.Year;
+            PeriodEn = other.PeriodEn;
+            PeriodAr = other.PeriodAr;
+            TitleEn = other.TitleEn;
+            TitleAr = other.TitleAr;
+            OrgEn = other.OrgEn;
+            OrgAr = other.OrgAr;
+            LocationEn = other.LocationEn;
+            LocationAr = other.LocationAr;
+            SummaryEn = other.SummaryEn;
+            SummaryAr = other.SummaryAr;
+            HighlightsEn = other.HighlightsEn;
+            HighlightsAr = other.HighlightsAr;
+            Stack = other.Stack;
+            CredentialId = other.CredentialId;
+            StatusEn = other.StatusEn;
+            StatusAr = other.StatusAr;
+            Featured = other.Featured;
+            Order = other.Order;
+            IsActive = other.IsActive;
+        }
     }
 }

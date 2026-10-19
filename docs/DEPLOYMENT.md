@@ -30,9 +30,10 @@ Verified by direct HTTP probes — not claims:
   - dashboard: `npm run build` → `dist/portfolio-dashboard/browser/index.html` ✔
 - Tests: `PortfolioAPI` builds **0 errors**; `PortfolioAPI.IntegrationTests` compiles **0 errors**
   (running it needs Docker to pull `mcr.microsoft.com/mssql/server:2022-latest`, ~1.5 GB — not run);
-  `PortfolioAPI.UnitTests` was **already broken at commit `1c79423`** (tests call old service
-  names like `GetAllProjectsAsync` that don't exist in `IProjectService` even in HEAD — pre-existing,
-  needs a rewrite against the current `Result<T>` API; listed in §6).
+  `PortfolioAPI.UnitTests` — **135/135 passing** against the current service/DTO API (rewritten
+  during the 2026-10-19 review pass: `DtoMappingsTests` replaces the old AutoMapper tests,
+  `UnitOfWorkTests`/`ContactServiceTests` updated for the trimmed `IUnitOfWork` and the
+  `ContactService` email dependency).
 
 ---
 
@@ -63,6 +64,23 @@ Set these in the hosting panel only if you prefer env config (they override the 
 | `ASPNETCORE_ENVIRONMENT` | `Production` |
 | `Cors__AllowedOrigins` | comma-separated allowed browser origins (only needed for *direct* browser calls, §4) |
 | `Swagger__Enabled` | `true` (default) / `false` to hide `/swagger` |
+
+### Contact-form email (optional — admin notification)
+`POST /api/v1/public/contact` always succeeds. On success the API *attempts* to email the
+submission to the admin via SMTP and logs a warning if it fails — the submission is never
+rolled back because of an email problem. To enable it, set these in
+`appsettings.Production.json` (or as env vars):
+
+| Key | Env variable | Notes |
+| --- | --- | --- |
+| `EmailSettings:SmtpServer` | `EmailSettings__SmtpServer` | SMTP host (e.g. `smtp.gmail.com`) |
+| `EmailSettings:SmtpPort` | `EmailSettings__SmtpPort` | default `587` (STARTTLS, `EnableSsl` is always on) |
+| `EmailSettings:Username` / `EmailSettings:Password` | `EmailSettings__Username` / `EmailSettings__Password` | for Gmail use an **app password** |
+| `EmailSettings:FromEmail` | `EmailSettings__FromEmail` | sender address; must match the authenticated account |
+| `EmailSettings:AdminEmail` | `EmailSettings__AdminEmail` | recipient; falls back to `Auth:Email` |
+
+JWT lifetime: `Auth:TokenHours` (default **2** hours — the dashboard clears the session and
+prompts a re-login when the token expires).
 
 ### Updating the API later
 Re-run the publish command, upload `publish/` again, done. Pending migrations apply automatically

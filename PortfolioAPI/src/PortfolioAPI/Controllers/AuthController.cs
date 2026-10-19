@@ -25,22 +25,29 @@ namespace PortfolioAPI.Controllers
     {
         private readonly IConfiguration _configuration;
         private readonly ITokenService _tokenService;
+        private readonly ILogger<AuthController> _logger;
 
-        public AuthController(IConfiguration configuration, ITokenService tokenService)
+        public AuthController(IConfiguration configuration, ITokenService tokenService, ILogger<AuthController> logger)
         {
             _configuration = configuration;
             _tokenService = tokenService;
+            _logger = logger;
         }
 
         [HttpPost("login")]
         [EnableRateLimiting("login")]
         public IActionResult Login([FromBody] LoginDto? dto)
         {
+            var remoteIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
             var configuredUser = _configuration["Auth:Username"];
             var configuredPassword = _configuration["Auth:Password"];
 
             if (string.IsNullOrWhiteSpace(configuredUser) || string.IsNullOrWhiteSpace(configuredPassword))
             {
+                // Fail closed AND make the misconfiguration visible in the log
+                // (review finding: auth outcomes were never logged at all).
+                _logger.LogWarning(
+                    "Login rejected ({RemoteIp}): Auth:Username/Auth:Password are not configured (503).", remoteIp);
                 return StatusCode(StatusCodes.Status503ServiceUnavailable, new
                 {
                     message = "Authentication is not configured on this server. Set Auth:Username and Auth:Password "
@@ -53,6 +60,11 @@ namespace PortfolioAPI.Controllers
 
             if (!userOk || !passwordOk)
             {
+                // Audit trail for brute-force forensics. Never log the submitted
+                // password or the configured one — only the attempt and source.
+                _logger.LogWarning(
+                    "Login failed for username {AttemptedUsername} from {RemoteIp}.",
+                    string.IsNullOrWhiteSpace(dto?.Username) ? "(empty)" : dto!.Username, remoteIp);
                 return Unauthorized(new { message = "Invalid username or password." });
             }
 
@@ -61,6 +73,10 @@ namespace PortfolioAPI.Controllers
             var (token, expiresAt) = _tokenService.IssueToken(
                 string.IsNullOrWhiteSpace(displayName) ? configuredUser : displayName!,
                 email ?? string.Empty);
+
+            _logger.LogInformation(
+                "Login succeeded for {Username} from {RemoteIp} (token expires {ExpiresAt:u}).",
+                configuredUser, remoteIp, expiresAt);
 
             return Ok(new
             {

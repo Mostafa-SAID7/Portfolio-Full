@@ -1,6 +1,5 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 using PortfolioAPI.Core.Entities;
 using PortfolioAPI.Infrastructure.Data;
 using PortfolioAPI.Infrastructure.Repositories;
@@ -18,8 +17,6 @@ namespace PortfolioAPI.UnitTests
         {
             var options = new DbContextOptionsBuilder<PortfolioDbContext>()
                 .UseInMemoryDatabase(databaseName: _databaseName)
-                // InMemory has no real transactions; without this, Begin/Commit/Rollback throw.
-                .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
                 .Options;
 
             _context = new PortfolioDbContext(options);
@@ -28,7 +25,9 @@ namespace PortfolioAPI.UnitTests
 
         public void Dispose()
         {
-            _unitOfWork.Dispose();
+            // The container owns the DbContext lifetime — UnitOfWork no longer
+            // exposes Dispose (there is no transaction API either; see the
+            // UnitOfWork doc comment), so the test disposes the context itself.
             _context.Dispose();
         }
 
@@ -36,7 +35,6 @@ namespace PortfolioAPI.UnitTests
         {
             var options = new DbContextOptionsBuilder<PortfolioDbContext>()
                 .UseInMemoryDatabase(databaseName)
-                .ConfigureWarnings(w => w.Ignore(InMemoryEventId.TransactionIgnoredWarning))
                 .Options;
 
             return new PortfolioDbContext(options);
@@ -133,128 +131,34 @@ namespace PortfolioAPI.UnitTests
         }
 
         [Fact]
-        public async Task BeginTransactionAsync_ShouldStartTransaction()
+        public async Task SaveChangesAsync_ShouldPersistEveryStagedAggregate()
         {
-            // Act
-            await _unitOfWork.BeginTransactionAsync();
-
-            // Assert
-            // InMemory ignores transactions (warning configured off); this test
-            // asserts the call completes without throwing.
-        }
-
-        [Fact]
-        public async Task CommitTransactionAsync_ShouldCommitTransaction()
-        {
-            // Arrange
-            await _unitOfWork.BeginTransactionAsync();
-            var project = new Project { Title = "Test Project", Description = "Test Description" };
-            await _unitOfWork.Projects.AddAsync(project);
-            await _unitOfWork.SaveChangesAsync();
+            // Arrange — two entities staged through two different repositories
+            // over the SAME context, committed by the single SaveChanges call.
+            await _unitOfWork.Projects.AddAsync(new Project { Title = "Project 1", Description = "Description 1" });
+            await _unitOfWork.Skills.AddAsync(new Skill { Name = "C#", Category = "Languages", Proficiency = 90 });
 
             // Act
-            await _unitOfWork.CommitTransactionAsync();
+            var affected = await _unitOfWork.SaveChangesAsync();
 
-            // Assert — verify via a separate context on the same store
+            // Assert — visible through a separate context on the same store
+            affected.Should().Be(2);
             using var assertContext = CreateContext(_databaseName);
-            var savedProject = await assertContext.Projects.FindAsync(project.Id);
-            savedProject.Should().NotBeNull();
-            savedProject!.Title.Should().Be("Test Project");
+            (await assertContext.Projects.CountAsync()).Should().Be(1);
+            (await assertContext.Skills.CountAsync()).Should().Be(1);
         }
 
         [Fact]
-        public async Task RollbackTransactionAsync_ShouldNotPersistChanges()
+        public async Task SaveChangesAsync_ShouldNotPersist_WhenNothingWasCommitted()
         {
-            // Arrange
-            await _unitOfWork.BeginTransactionAsync();
-            var project = new Project { Title = "Test Project", Description = "Test Description" };
-            await _unitOfWork.Projects.AddAsync(project);
+            // Arrange — staged but never committed
+            await _unitOfWork.Projects.AddAsync(new Project { Title = "Unsaved", Description = "Pending" });
 
-            // Act
-            await _unitOfWork.RollbackTransactionAsync();
+            // Act — no SaveChangesAsync call
 
-            // Assert — nothing was saved, so the store must stay empty. The
-            // change tracker is cleared first because FindAsync consults it
-            // before the store and InMemory has no real transaction to roll back.
-            _context.ChangeTracker.Clear();
-            var savedProject = await _unitOfWork.Projects.GetByIdAsync(project.Id);
-            savedProject.Should().BeNull();
-        }
-
-        [Fact]
-        public void Dispose_ShouldDisposeContext()
-        {
-            // Arrange
-            var options = new DbContextOptionsBuilder<PortfolioDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options;
-            var context = new PortfolioDbContext(options);
-            var unitOfWork = new UnitOfWork(context);
-
-            // Act
-            unitOfWork.Dispose();
-
-            // Assert — a disposed context rejects further use
-            Action act = () => context.Projects.ToList();
-            act.Should().Throw<ObjectDisposedException>();
-        }
-
-        [Fact]
-        public void Dispose_ShouldHandleMultipleCalls()
-        {
-            // Arrange
-            var options = new DbContextOptionsBuilder<PortfolioDbContext>()
-                .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                .Options;
-            var context = new PortfolioDbContext(options);
-            var unitOfWork = new UnitOfWork(context);
-
-            // Act
-            Action act = () =>
-            {
-                unitOfWork.Dispose();
-                unitOfWork.Dispose();
-            };
-
-            // Assert — must not throw
-            act.Should().NotThrow();
-        }
-
-        [Fact]
-        public async Task TransactionOperations_ShouldWorkTogether()
-        {
-            // Arrange
-            var project1 = new Project { Title = "Project 1", Description = "Description 1" };
-            var project2 = new Project { Title = "Project 2", Description = "Description 2" };
-
-            // Act
-            await _unitOfWork.BeginTransactionAsync();
-            await _unitOfWork.Projects.AddAsync(project1);
-            await _unitOfWork.Projects.AddAsync(project2);
-            await _unitOfWork.SaveChangesAsync();
-            await _unitOfWork.CommitTransactionAsync();
-
-            // Assert
-            var projects = await _unitOfWork.Projects.GetAllAsync();
-            projects.Should().HaveCount(2);
-        }
-
-        [Fact]
-        public async Task TransactionRollback_ShouldNotPersistChanges()
-        {
-            // Arrange
-            var project1 = new Project { Title = "Project 1", Description = "Description 1" };
-            var project2 = new Project { Title = "Project 2", Description = "Description 2" };
-
-            // Act
-            await _unitOfWork.BeginTransactionAsync();
-            await _unitOfWork.Projects.AddAsync(project1);
-            await _unitOfWork.Projects.AddAsync(project2);
-            await _unitOfWork.RollbackTransactionAsync();
-
-            // Assert — nothing was saved, so the store stays empty
-            var projects = await _unitOfWork.Projects.GetAllAsync();
-            projects.Should().BeEmpty();
+            // Assert — a fresh context over the same store sees nothing
+            using var assertContext = CreateContext(_databaseName);
+            (await assertContext.Projects.CountAsync()).Should().Be(0);
         }
     }
 }

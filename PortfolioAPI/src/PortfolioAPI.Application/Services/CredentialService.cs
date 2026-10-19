@@ -1,90 +1,56 @@
 using FluentValidation;
-using PortfolioAPI.Application.Exceptions;
 using PortfolioAPI.Core.Entities;
 using PortfolioAPI.Core.Interfaces;
 using PortfolioAPI.Core.Interfaces.Services;
-using ValidationException = PortfolioAPI.Application.Exceptions.ValidationException;
 
 namespace PortfolioAPI.Application.Services
 {
-    public class CredentialService : ICredentialService
+    public class CredentialService : CrudService<Credential>, ICredentialService
     {
-        private readonly IUnitOfWork _unitOfWork;
-        private readonly IValidator<Credential> _validator;
-
         public CredentialService(IUnitOfWork unitOfWork, IValidator<Credential> validator)
+            : base(unitOfWork, validator)
         {
-            _unitOfWork = unitOfWork;
-            _validator = validator;
         }
+
+        protected override IRepository<Credential> Repository => UnitOfWork.Credentials;
 
         public async Task<IEnumerable<Credential>> GetAllCredentialsAsync()
         {
-            return await _unitOfWork.Credentials.GetAllAsync();
+            return await UnitOfWork.Credentials.GetAllAsync();
         }
 
-        public async Task<Credential?> GetCredentialByIdAsync(int id)
+        public async Task<Credential> GetCredentialByIdAsync(int id)
         {
-            var credential = await _unitOfWork.Credentials.GetByIdAsync(id);
-            if (credential == null)
-            {
-                throw new NotFoundException($"Credential with id {id} not found.");
-            }
-            return credential;
+            return await GetRequiredAsync(id);
         }
 
         public async Task<IEnumerable<Credential>> GetCredentialsByTabAsync(string tab)
         {
-            return await _unitOfWork.Credentials.FindAsync(c => c.Tab == tab);
+            return await UnitOfWork.Credentials.FindAsync(c => c.Tab == tab);
         }
 
         public async Task<IEnumerable<Credential>> GetActiveCredentialsAsync()
         {
-            return await _unitOfWork.Credentials.FindAsync(c => c.IsActive);
+            return await UnitOfWork.Credentials.FindAsync(c => c.IsActive);
         }
 
         public async Task<Credential> CreateCredentialAsync(Credential credential)
         {
-            var validationResult = await _validator.ValidateAsync(credential);
-            if (!validationResult.IsValid)
-            {
-                throw new ValidationException(validationResult.Errors);
-            }
-
-            var createdCredential = await _unitOfWork.Credentials.AddAsync(credential);
-            await _unitOfWork.SaveChangesAsync();
-            return createdCredential;
+            return await CreateValidatedAsync(credential);
         }
 
         public async Task<Credential> UpdateCredentialAsync(Credential credential)
         {
-            var existingCredential = await _unitOfWork.Credentials.GetByIdAsync(credential.Id);
-            if (existingCredential == null)
-            {
-                throw new NotFoundException($"Credential with id {credential.Id} not found.");
-            }
-
-            var validationResult = await _validator.ValidateAsync(credential);
-            if (!validationResult.IsValid)
-            {
-                throw new ValidationException(validationResult.Errors);
-            }
-
-            await _unitOfWork.Credentials.UpdateAsync(credential);
-            await _unitOfWork.SaveChangesAsync();
-            return credential;
+            // Apply onto the tracked instance — attaching the incoming
+            // detached entity (the previous behaviour) threw EF's
+            // "another instance with the same key ... is already being tracked"
+            // and surfaced as an HTTP 500 on every credential update.
+            return await UpdateTrackedAsync(credential.Id, existing => existing.Apply(credential));
         }
 
         public async Task DeleteCredentialAsync(int id)
         {
-            var credential = await _unitOfWork.Credentials.GetByIdAsync(id);
-            if (credential == null)
-            {
-                throw new NotFoundException($"Credential with id {id} not found.");
-            }
-
-            await _unitOfWork.Credentials.DeleteAsync(credential);
-            await _unitOfWork.SaveChangesAsync();
+            await DeleteOrThrowAsync(id);
         }
     }
 }

@@ -35,7 +35,10 @@ namespace PortfolioAPI.Auth
         {
             _issuer = configuration["Auth:Issuer"] ?? "PortfolioAPI";
             _audience = configuration["Auth:Audience"] ?? "PortfolioDashboard";
-            _tokenHours = configuration.GetValue("Auth:TokenHours", 12);
+            // Default token lifetime tightened 12 h → 2 h (short-lived JWT; override
+        // with Auth:TokenHours). The dashboard recovers from expiry cleanly —
+        // the interceptor clears the session and prompts a re-login.
+        _tokenHours = configuration.GetValue("Auth:TokenHours", 2);
 
             var configuredKey = configuration["Auth:SigningKey"];
             if (string.IsNullOrWhiteSpace(configuredKey))

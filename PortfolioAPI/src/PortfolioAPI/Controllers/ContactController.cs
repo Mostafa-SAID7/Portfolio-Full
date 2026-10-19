@@ -25,43 +25,37 @@ namespace PortfolioAPI.Controllers
         public async Task<ActionResult<IEnumerable<ContactDto>>> GetAllContacts()
         {
             var contacts = await _contactService.GetAllContactsAsync();
-            return Ok(contacts.OrderByDescending(c => c.CreatedAt).Select(Map));
+            return Ok(contacts.OrderByDescending(c => c.CreatedAt).Select(EntityMappings.ToDto));
         }
 
         [HttpGet("{id}")]
         public async Task<ActionResult<ContactDto>> GetContactById(int id)
         {
             var contact = await _contactService.GetContactByIdAsync(id);
-            return Ok(Map(contact));
+            return Ok(EntityMappings.ToDto(contact));
         }
 
         [HttpGet("unread")]
         public async Task<ActionResult<IEnumerable<ContactDto>>> GetUnreadContacts()
         {
             var contacts = await _contactService.GetUnreadContactsAsync();
-            return Ok(contacts.OrderByDescending(c => c.CreatedAt).Select(Map));
+            return Ok(contacts.OrderByDescending(c => c.CreatedAt).Select(EntityMappings.ToDto));
         }
 
-        /// <summary>Public contact-form submission (from the portfolio site).</summary>
+        /// <summary>Admin-side message composition (public form: POST /api/v1/public/contact).</summary>
         [HttpPost]
         public async Task<ActionResult<ContactDto>> CreateContact([FromBody] CreateContactDto dto)
         {
             // Validation runs in ContactService via ContactValidator — failures
-            // surface as 400 { message, errors } from the exception middleware
-            // (the old ModelState branch never fired: no DataAnnotations exist
-            // on the DTO, and its shape differed from the API contract — #16).
-            var contact = new Contact
-            {
-                Name = dto.Name.Trim(),
-                Email = dto.Email.Trim(),
-                Subject = dto.Subject.Trim(),
-                Message = dto.Message.Trim(),
-                IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
-                UserAgent = Request.Headers.UserAgent.ToString()
-            };
+            // surface as 400 { message, errors } from the exception middleware.
+            // Contact.From trims, null-guards and clamps IP/UA to column sizes.
+            var contact = Contact.From(
+                dto,
+                HttpContext.Connection.RemoteIpAddress?.ToString(),
+                Request.Headers.UserAgent.ToString());
 
             var createdContact = await _contactService.CreateContactAsync(contact);
-            return CreatedAtAction(nameof(GetContactById), new { id = createdContact.Id }, Map(createdContact));
+            return CreatedAtAction(nameof(GetContactById), new { id = createdContact.Id }, EntityMappings.ToDto(createdContact));
         }
 
         [HttpPut("{id}/read")]
@@ -77,20 +71,5 @@ namespace PortfolioAPI.Controllers
             await _contactService.DeleteContactAsync(id);
             return NoContent();
         }
-
-        private static ContactDto Map(Contact c) => new()
-        {
-            Id = c.Id,
-            Name = c.Name,
-            Email = c.Email,
-            Subject = c.Subject,
-            Message = c.Message,
-            IsRead = c.IsRead,
-            ReadAt = c.ReadAt,
-            IpAddress = c.IpAddress,
-            UserAgent = c.UserAgent,
-            CreatedAt = c.CreatedAt,
-            UpdatedAt = c.UpdatedAt
-        };
     }
 }

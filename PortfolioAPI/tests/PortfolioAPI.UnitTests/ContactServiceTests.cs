@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
 using Moq;
 using PortfolioAPI.Application.Exceptions;
 using PortfolioAPI.Core.Entities;
@@ -14,13 +15,19 @@ namespace PortfolioAPI.UnitTests
     {
         private readonly Mock<IUnitOfWork> _unitOfWorkMock;
         private readonly Mock<IValidator<Contact>> _validatorMock;
+        private readonly Mock<IEmailService> _emailServiceMock;
         private readonly ContactService _contactService;
 
         public ContactServiceTests()
         {
             _unitOfWorkMock = new Mock<IUnitOfWork>();
             _validatorMock = new Mock<IValidator<Contact>>();
-            _contactService = new ContactService(_unitOfWorkMock.Object, _validatorMock.Object);
+            _emailServiceMock = new Mock<IEmailService>();
+            _contactService = new ContactService(
+                _unitOfWorkMock.Object,
+                _validatorMock.Object,
+                _emailServiceMock.Object,
+                new Mock<ILogger<ContactService>>().Object);
         }
 
         [Fact]
@@ -197,6 +204,72 @@ namespace PortfolioAPI.UnitTests
             // Assert
             await act.Should().ThrowAsync<NotFoundException>()
                 .WithMessage("Contact with id 1 not found.");
+        }
+
+        [Fact]
+        public async Task CreateContactAsync_ShouldSendAdminNotificationEmail()
+        {
+            // Arrange
+            var contact = new Contact { Name = "Jane", Email = "jane@example.com", Subject = "Hi", Message = "Hello" };
+            var createdContact = new Contact { Id = 7, Name = "Jane", Email = "jane@example.com", Subject = "Hi", Message = "Hello" };
+            _validatorMock.Setup(v => v.ValidateAsync(contact, default))
+                .ReturnsAsync(new FluentValidation.Results.ValidationResult());
+            _unitOfWorkMock.Setup(u => u.Contacts.AddAsync(It.IsAny<Contact>())).ReturnsAsync(createdContact);
+            _unitOfWorkMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
+
+            // Act
+            var result = await _contactService.CreateContactAsync(contact);
+
+            // Assert — the notification was attempted with the STORED values
+            result.Should().Be(createdContact);
+            _emailServiceMock.Verify(
+                e => e.SendContactFormEmailAsync("Jane", "jane@example.com", "Hi", "Hello"), Times.Once);
+        }
+
+        [Fact]
+        public async Task CreateContactAsync_ShouldStillSucceed_WhenEmailSendingFails()
+        {
+            // Arrange — SMTP outage / unconfigured credentials must never fail
+            // the visitor's submission.
+            var contact = new Contact { Name = "Jane", Email = "jane@example.com", Message = "Hello" };
+            var createdContact = new Contact { Id = 8, Name = "Jane", Email = "jane@example.com", Message = "Hello" };
+            _validatorMock.Setup(v => v.ValidateAsync(contact, default))
+                .ReturnsAsync(new FluentValidation.Results.ValidationResult());
+            _unitOfWorkMock.Setup(u => u.Contacts.AddAsync(It.IsAny<Contact>())).ReturnsAsync(createdContact);
+            _unitOfWorkMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
+            _emailServiceMock.Setup(e => e.SendContactFormEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+                .ThrowsAsync(new InvalidOperationException("SMTP not configured"));
+
+            // Act — must NOT throw despite the email failure
+            var result = await _contactService.CreateContactAsync(contact);
+
+            // Assert — the stored contact comes back regardless
+            result.Should().Be(createdContact);
+            _emailServiceMock.Verify(
+                e => e.SendContactFormEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task CreateContactAsync_ShouldNotSendEmail_WhenValidationFails()
+        {
+            // Arrange
+            var contact = new Contact { Name = "", Email = "bad", Message = "" };
+            var validationResult = new FluentValidation.Results.ValidationResult(
+                new List<FluentValidation.Results.ValidationFailure>
+                {
+                    new FluentValidation.Results.ValidationFailure("Name", "Name is required.")
+                });
+            _validatorMock.Setup(v => v.ValidateAsync(contact, default)).ReturnsAsync(validationResult);
+
+            // Act
+            Func<Task> act = async () => await _contactService.CreateContactAsync(contact);
+
+            // Assert
+            await act.Should().ThrowAsync<ValidationException>();
+            _emailServiceMock.Verify(
+                e => e.SendContactFormEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()),
+                Times.Never);
         }
     }
 }

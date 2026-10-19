@@ -30,6 +30,20 @@ namespace PortfolioAPI.Application.Validators
                 .When(e => e.EndDate.HasValue)
                 .WithMessage("End date must be after the start date.");
 
+            // Current ↔ EndDate invariant (missing business rule): a role
+            // marked Current must not carry an end date, and a past role must
+            // have one — otherwise the public timeline renders contradictory
+            // entries (e.g. "Current since 2020, ended 2021").
+            RuleFor(e => e.EndDate)
+                .Null()
+                .When(e => e.Current)
+                .WithMessage("A current role must not have an end date.");
+
+            RuleFor(e => e.EndDate)
+                .NotNull()
+                .Unless(e => e.Current)
+                .WithMessage("A past role needs an end date.");
+
             RuleFor(e => e.Technologies)
                 .Must(list => list == null || list.Count <= 20)
                 .WithMessage("An experience can list at most 20 technologies.");

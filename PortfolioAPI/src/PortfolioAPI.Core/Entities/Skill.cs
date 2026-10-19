@@ -14,5 +14,22 @@ namespace PortfolioAPI.Core.Entities
 
         // Navigation properties
         public ICollection<SkillProject> SkillProjects { get; set; } = new List<SkillProject>();
+
+        /// <summary>
+        /// Copies the editable fields from another (request-shaped) instance
+        /// onto this tracked one. Server-owned fields (Id, CreatedAt,
+        /// UpdatedAt) are deliberately untouched — attaching a second instance
+        /// with the same key is what used to 500 updates.
+        /// </summary>
+        public void Apply(Skill other)
+        {
+            Name = other.Name;
+            Category = other.Category;
+            Proficiency = other.Proficiency;
+            IconUrl = other.IconUrl;
+            Description = other.Description;
+            Order = other.Order;
+            IsActive = other.IsActive;
+        }
     }
 }
