@@ -5,6 +5,8 @@ publish/
 *.user
 *.suo
 .vs/
+# Publish profiles embed deploy credentials (e.g. site99981-WebDeploy.pubxml).
+**/PublishProfiles/*.pubxml
 
 # Local/secrets configuration — never commit these.
 # appsettings.Development.json carries the local connection string;
@@ -29,6 +31,8 @@ dist/
 .env
 .env.*
 !.env.example
+# Dev-only API origin (localhost) — no secrets, committed so dev works out of the box.
+!.env.development
 
 # ---- Misc -------------------------------------------------------------
 *.log

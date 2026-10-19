@@ -9,7 +9,7 @@ export const SITE = {
   /** Absolute origin, no trailing slash. Override with VITE_SITE_URL if needed. */
   url:
     (import.meta.env["VITE_SITE_URL"] as string | undefined)?.replace(/\/$/, "") ??
-    "https://cozy-darkness.lovable.app",
+    "https://portfolio-market.vercel.app",
   twitter: "@Lovable",
 } as const;
 

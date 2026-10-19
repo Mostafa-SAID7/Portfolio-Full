@@ -79,7 +79,7 @@ Re-run the publish command, upload `publish/` again, done. No migrations to run.
    leave “Build” enabled):
    | Name | Value | Required? |
    | --- | --- | --- |
-   | `VITE_SITE_URL` | `https://<your-portfolio-domain>` (no trailing slash) | **YES** — otherwise canonical URLs, sitemap and structured data still emit the stale `https://cozy-darkness.lovable.app` default (`portfolio/src/lib/site.ts`) |
+   | `VITE_SITE_URL` | `https://<your-portfolio-domain>` (no trailing slash) | Optional — the code defaults to `https://portfolio-market.vercel.app` (`portfolio/src/lib/site.ts`); **set it only if the site moves to a custom domain**. Build-time: changing it requires a redeploy |
    | `VITE_API_BASE_URL` | `https://portfolio-market.runasp.net` | Optional — only after TLS exists (§4). Default: same-origin `/api` proxy rewrite, works immediately |
 5. Deploy. First deploy → you get `https://<project>.vercel.app`.
    `VITE_*` variables are **build-time** — changing them requires a redeploy.
@@ -137,6 +137,9 @@ No secrets exist in either frontend. `VITE_*` values are public by design.
       (`appsettings.Development.json` up to commit `1c79423`; the repo is private, but rotation closes it).
       The current tracked `appsettings.json` has an **empty** connection string; the secret now lives only
       in git-ignored `appsettings.Development.json` / `appsettings.Production.json`.
+- [ ] **Rotate the WebDeploy password** — `Properties/PublishProfiles/site99981-WebDeploy.pubxml`
+      embeds deploy credentials and was committed in `02a5436`; it is untracked going forward
+      (see `.gitignore`) but the password should be regenerated in the MonsterASP panel.
 - [ ] Optional: run integration tests once — `dotnet test PortfolioAPI\tests\PortfolioAPI.IntegrationTests`
       (Docker pulls `mssql/server:2022-latest`, ~1.5 GB).
 - [ ] Optional/follow-up: rewrite `PortfolioAPI.UnitTests` to the current `Result<T>` service API
@@ -157,3 +160,4 @@ No secrets exist in either frontend. `VITE_*` values are public by design.
 | SEO points to lovable.app | `VITE_SITE_URL` not set (build-time) — set it and **redeploy** |
 | Direct API calls blocked in browser | Mixed content (API has no TLS) or origin not in `Cors__AllowedOrigins` — use the proxy rewrite (default) or complete §4 |
 | `VERCEL_OIDC_TOKEN is not set` during build | Harmless nitro dev warning (per `portfolio/AGENTS.md`) |
+| `msdeploy` 401 `ERROR_USER_UNAUTHORIZED` | WebDeploy password in the `.pubxml` is stale — reset it in the MonsterASP panel / VS publish settings, or just upload `publish/` manually (File Manager/FTP), which is the documented flow in §1 |
