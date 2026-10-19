@@ -71,11 +71,13 @@ const MAX_COVER_BYTES = 10 * 1024 * 1024; // API-side cap is 10MB.
           </p>
           <div class="grid gap-5 sm:grid-cols-2">
             <div>
-              <label for="category" class="field-label">Category</label>
-              <input id="category" type="text" formControlName="category" class="input" list="category-options" placeholder="Clothing" />
-              <datalist id="category-options">
-                @for (option of categoryOptions; track option) { <option [value]="option"></option> }
-              </datalist>
+              <app-select-field
+                formControlName="category"
+                label="Category"
+                [options]="categoryOptions"
+                [allowCustom]="true"
+                placeholder="Clothing"
+              />
             </div>
             <div>
               <label for="client" class="field-label">Client</label>
