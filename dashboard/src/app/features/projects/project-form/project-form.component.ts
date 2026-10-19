@@ -5,6 +5,8 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Observable, firstValueFrom } from 'rxjs';
 import { ProjectService } from '../../../core/services/project.service';
 import { CategoryService } from '../../../core/services/category.service';
+import { SkillService } from '../../../core/services/skill.service';
+import { TagsInputComponent } from '../../../shared/tags-input.component';
 import { ProjectMetric, ProjectPayload } from '../../../core/models/project.model';
 import { resolvePortfolioImage } from '../../../core/portfolio-origin';
 import { SelectFieldComponent } from '../../../shared/select-field.component';
@@ -14,7 +16,7 @@ const MAX_COVER_BYTES = 10 * 1024 * 1024; // API-side cap is 10MB.
 @Component({
   selector: 'app-project-form',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, SelectFieldComponent],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, SelectFieldComponent, TagsInputComponent],
   template: `
     <div class="mx-auto max-w-3xl">
       <div class="mb-8">
@@ -60,9 +62,13 @@ const MAX_COVER_BYTES = 10 * 1024 * 1024; // API-side cap is 10MB.
         </div>
 
         <div>
-          <label for="technologies" class="field-label">Technologies</label>
-          <input id="technologies" type="text" formControlName="technologies" class="input" placeholder="Angular, .NET 9, SQL Server" />
-          <p class="mt-2 text-xs text-muted">Separate with commas — they become tech chips on the portfolio.</p>
+          <app-tags-input
+            formControlName="technologies"
+            label="Technologies"
+            placeholder="Angular, .NET 9, SQL Server"
+            [suggestions]="technologySuggestions()"
+            hint="Press Enter or a comma to add a tag - the suggestions come from your skills and the other projects."
+          />
         </div>
 
         <div class="border-t border-line/10 pt-5">
@@ -231,6 +237,7 @@ export class ProjectFormComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly projectService = inject(ProjectService);
   private readonly categoryService = inject(CategoryService);
+  private readonly skillService = inject(SkillService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
 
@@ -272,6 +279,24 @@ export class ProjectFormComponent implements OnInit {
     const fromApi = this.categoryService.names();
     return fromApi.length ? fromApi : [...ProjectFormComponent.FALLBACK_CATEGORIES];
   });
+
+  /**
+   * Technology suggestions for the tag input: the skill names (the same
+   * vocabulary the portfolio shows as tech chips) plus the technologies the
+   * other projects already use.
+   */
+  readonly technologySuggestions = computed<string[]>(() => {
+    const fromSkills = this.skillService.skills().map(skill => skill.name);
+    const fromProjects = this.projectService
+      .projects()
+      .flatMap(project => project.technologies ?? []);
+
+    return [...new Set(
+      [...fromSkills, ...fromProjects]
+        .map(name => name.trim())
+        .filter(name => name.length > 0)
+    )].sort((a, b) => a.localeCompare(b));
+  });
   readonly typeOptions = ['Team', 'Freelance', 'Self'];
   readonly statusOptions = ['In Progress', 'Completed', 'Deployed'];
 
@@ -304,6 +329,12 @@ export class ProjectFormComponent implements OnInit {
     // category added there shows up here without touching the frontend.
     if (this.categoryService.categories().length === 0) {
       this.categoryService.loadCategories().subscribe({ error: () => undefined });
+    }
+
+    // The skills are the vocabulary behind the technology chips, so they are
+    // the suggestions for the technology tags.
+    if (this.skillService.skills().length === 0) {
+      this.skillService.loadSkills().subscribe({ error: () => undefined });
     }
   }
 
