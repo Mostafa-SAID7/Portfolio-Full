@@ -201,6 +201,16 @@ for its API fetches, in this order:
       mutations (rate-limited login).
 - [ ] **Set `Auth:Username` / `Auth:Password`** in `appsettings.Production.json` (or the matching
       env vars) — while unset, login fails closed with `503` and no admin mutation is possible.
+- [ ] **Keep `App_Data/uploads` when redeploying the API.** Uploaded project covers are stored in
+      `App_Data/uploads` **inside the app folder** on the server (never in the publish output) and
+      are served back at `/api/files/*`. If a redeploy replaces the whole app folder, the files
+      disappear while the database still references them → the cover 404s and the portfolio falls
+      back to the gradient card. Either upload `publish/` **without deleting `App_Data`**, or point
+      `FileStorage:Path` at an absolute path outside the app folder (e.g. `D:\sites\<app>\uploads`).
+- [ ] **Upload project covers from the production dashboard** (`dashboard-portfolio-ms.vercel.app`),
+      not from a local dev dashboard: the file is written to the disk of whichever API handled the
+      request, while the database is shared. A cover uploaded through the local dev API exists only
+      on that machine → production 404s it.
 
 ## 7. Troubleshooting
 
@@ -215,3 +225,4 @@ for its API fetches, in this order:
 | Direct API calls blocked in browser | Mixed content (API has no TLS) or origin not in `Cors__AllowedOrigins` — use the proxy rewrite (default) or complete §4 |
 | `VERCEL_OIDC_TOKEN is not set` during build | Harmless nitro dev warning (per `portfolio/AGENTS.md`) |
 | `msdeploy` 401 `ERROR_USER_UNAUTHORIZED` | WebDeploy password in the `.pubxml` is stale — reset it in the MonsterASP panel / VS publish settings, or just upload `publish/` manually (File Manager/FTP), which is the documented flow in §1 |
+| Project cover shows the gradient card instead of the image | The cover file is missing on the server: `GET /api/files/<guid>.png` → 404. Either it was uploaded through a different deployment (dev vs production — the database is shared, the disk is not) or `App_Data/uploads` was wiped by a redeploy. Re-upload the cover from the production dashboard and keep `App_Data` when redeploying (§6). The dashboard now shows a "Cover not found — re-upload" badge instead of failing silently. |

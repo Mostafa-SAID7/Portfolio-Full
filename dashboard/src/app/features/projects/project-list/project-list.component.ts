@@ -74,8 +74,16 @@ const PAGE_SIZE = 9;
                     [alt]="project.title + ' cover'"
                     loading="lazy"
                     class="relative h-full w-full object-cover"
-                    (error)="onCoverError($event)"
+                    (error)="onCoverError($event, project)"
                   />
+                }
+                @if (coverBroken(project)) {
+                  <span
+                    class="badge-danger absolute bottom-2 right-2 z-10"
+                    title="The cover file is referenced by the database but missing on the server. Upload it again (and keep the App_Data/uploads folder when redeploying the API)."
+                  >
+                    Cover not found — re-upload
+                  </span>
                 }
               </div>
 
@@ -150,6 +158,9 @@ export class ProjectListComponent implements OnInit {
   readonly pageSize = PAGE_SIZE;
   readonly page = signal(1);
 
+  /** Ids of projects whose cover image failed to load (404 on the server). */
+  readonly brokenCovers = signal<Set<number>>(new Set<number>());
+
   query = '';
 
   readonly projectCount = computed(() => this.service.projects().length);
@@ -179,8 +190,18 @@ export class ProjectListComponent implements OnInit {
   }
 
   /** Hide a broken cover so the gradient + letter fallback shows through. */
-  onCoverError(event: Event): void {
+  onCoverError(event: Event, project: Project): void {
     (event.currentTarget as HTMLImageElement).style.display = 'none';
+    // Flag it: the file is referenced by the database but missing on the
+    // server (e.g. it was uploaded through a different deployment, or the
+    // upload folder was wiped by a redeploy). Silently hiding the image left
+    // the admin with a gradient and no clue why.
+    this.brokenCovers.update(ids => new Set(ids).add(project.id));
+  }
+
+  /** True when the cover image failed to load for this project. */
+  coverBroken(project: Project): boolean {
+    return this.brokenCovers().has(project.id);
   }
 
   ngOnInit(): void {

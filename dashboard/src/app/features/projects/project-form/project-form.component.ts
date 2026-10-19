@@ -132,6 +132,13 @@ const MAX_COVER_BYTES = 10 * 1024 * 1024; // API-side cap is 10MB.
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 6l12 12M18 6 6 18"/></svg>
               </button>
             </div>
+            @if (coverBroken()) {
+              <p class="mt-2 rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">
+                The cover file is referenced by the database but missing on the server — upload it again.
+                (Common cause: it was uploaded through a different deployment, or the API's
+                <code>App_Data/uploads</code> folder was replaced during a redeploy.)
+              </p>
+            }
           } @else {
             <div
               class="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-line/20 bg-line/[0.03] px-6 py-8 text-center transition"
@@ -224,6 +231,8 @@ export class ProjectFormComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
 
   readonly isLoading = signal(false);
+  /** True when the stored cover file could not be loaded (missing on the server). */
+  readonly coverBroken = signal(false);
   readonly errorMessage = signal<string | null>(null);
   readonly isEditMode = this.route.snapshot.url.some(segment => segment.path === 'edit');
 
@@ -291,9 +300,15 @@ export class ProjectFormComponent implements OnInit {
     return resolvePortfolioImage(this.projectForm.getRawValue().imageUrl);
   }
 
-  /** Hide a broken external image so the fallback surface shows through. */
+  /**
+   * Hide a broken external image so the fallback surface shows through — and
+   * say so: the file is referenced by the database but missing on the server
+   * (uploaded through another deployment, or the upload folder was wiped by
+   * a redeploy). Silently hiding it left no clue what to fix.
+   */
   onPreviewError(event: Event): void {
     (event.currentTarget as HTMLImageElement).style.display = 'none';
+    this.coverBroken.set(true);
   }
 
   onFileSelected(event: Event): void {
@@ -316,6 +331,7 @@ export class ProjectFormComponent implements OnInit {
 
   clearCover(): void {
     this.projectForm.patchValue({ imageUrl: '' });
+    this.coverBroken.set(false);
   }
 
   /**
@@ -338,6 +354,8 @@ export class ProjectFormComponent implements OnInit {
     try {
       const uploaded = await firstValueFrom(this.projectService.uploadCover(file));
       this.projectForm.patchValue({ imageUrl: uploaded.url });
+      // A fresh upload replaces the missing file — clear the warning.
+      this.coverBroken.set(false);
     } catch (err: any) {
       this.uploadError.set(
         err?.error?.message ?? 'Upload failed — make sure the Portfolio API is running and try again.'
