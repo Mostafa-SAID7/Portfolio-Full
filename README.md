@@ -62,7 +62,8 @@ and detail pages 404, so deleted content can never resurface. Public reads
 
 ## Quick start
 
-Prerequisites: .NET SDK 9, Node.js 20+.
+Prerequisites: .NET SDK 9, Node.js 22+ (the portfolio's TanStack Start
+requires ≥22.12; the dashboard also builds on Node 20).
 
 ### 1. API
 

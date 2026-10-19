@@ -78,6 +78,11 @@ use `EnsureCreated`:
 2. Vercel → **Add New → Project** → import the repo → set **Root Directory = `portfolio`**.
 3. Framework is auto-detected (Vite). Build command/output come from `portfolio/vercel.json`:
    - install: `npm ci` (pinned so the stray `bun.lock` never hijacks the build)
+   - **Lock-file hygiene:** `npm ci` is strict — whenever `portfolio/package.json`
+     changes, refresh `portfolio/package-lock.json` with
+     `npm install --package-lock-only` (the bun-based dev flow only updates
+     `bun.lock` and will not do this for you). Both CI and Vercel fail fast on a
+     stale npm lock. TanStack Start requires **Node ≥ 22.12** (CI pins Node 22).
    - build: `npm run build` → nitro emits `.vercel/output/` → Vercel auto-switches to
      **Build Output API** mode. **Do not set an Output Directory in project settings** (it conflicts).
 4. **Environment Variables** (Project → Settings → Environment Variables; scopes: Production + Preview,
