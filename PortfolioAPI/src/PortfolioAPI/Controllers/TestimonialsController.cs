@@ -20,88 +20,32 @@ namespace PortfolioAPI.Controllers
         public async Task<ActionResult<IEnumerable<TestimonialDto>>> GetAllTestimonials()
         {
             var testimonials = await _testimonialService.GetAllTestimonialsAsync();
-            var testimonialDtos = testimonials.Select(t => new TestimonialDto
-            {
-                Id = t.Id,
-                ClientName = t.ClientName,
-                ClientPosition = t.ClientPosition,
-                ClientCompany = t.ClientCompany,
-                Content = t.Content,
-                Rating = t.Rating,
-                ClientImageUrl = t.ClientImageUrl,
-                IsVisible = t.IsVisible,
-                GivenDate = t.GivenDate,
-                CreatedAt = t.CreatedAt,
-                UpdatedAt = t.UpdatedAt
-            });
-            return Ok(testimonialDtos);
+            return Ok(testimonials.OrderBy(t => t.Order).ThenByDescending(t => t.Rating).Select(Map));
         }
 
         [HttpGet("{id}")]
         public async Task<ActionResult<TestimonialDto>> GetTestimonialById(int id)
         {
             var testimonial = await _testimonialService.GetTestimonialByIdAsync(id);
-            var testimonialDto = new TestimonialDto
-            {
-                Id = testimonial.Id,
-                ClientName = testimonial.ClientName,
-                ClientPosition = testimonial.ClientPosition,
-                ClientCompany = testimonial.ClientCompany,
-                Content = testimonial.Content,
-                Rating = testimonial.Rating,
-                ClientImageUrl = testimonial.ClientImageUrl,
-                IsVisible = testimonial.IsVisible,
-                GivenDate = testimonial.GivenDate,
-                CreatedAt = testimonial.CreatedAt,
-                UpdatedAt = testimonial.UpdatedAt
-            };
-            return Ok(testimonialDto);
+            return Ok(Map(testimonial));
         }
 
         [HttpGet("visible")]
         public async Task<ActionResult<IEnumerable<TestimonialDto>>> GetVisibleTestimonials()
         {
             var testimonials = await _testimonialService.GetVisibleTestimonialsAsync();
-            var testimonialDtos = testimonials.Select(t => new TestimonialDto
-            {
-                Id = t.Id,
-                ClientName = t.ClientName,
-                ClientPosition = t.ClientPosition,
-                ClientCompany = t.ClientCompany,
-                Content = t.Content,
-                Rating = t.Rating,
-                ClientImageUrl = t.ClientImageUrl,
-                IsVisible = t.IsVisible,
-                GivenDate = t.GivenDate,
-                CreatedAt = t.CreatedAt,
-                UpdatedAt = t.UpdatedAt
-            });
-            return Ok(testimonialDtos);
+            return Ok(testimonials.OrderBy(t => t.Order).Select(Map));
         }
 
         [HttpPost]
-        public async Task<ActionResult<TestimonialDto>> CreateTestimonial(Testimonial testimonial)
+        public async Task<ActionResult<TestimonialDto>> CreateTestimonial([FromBody] Testimonial testimonial)
         {
             var createdTestimonial = await _testimonialService.CreateTestimonialAsync(testimonial);
-            var testimonialDto = new TestimonialDto
-            {
-                Id = createdTestimonial.Id,
-                ClientName = createdTestimonial.ClientName,
-                ClientPosition = createdTestimonial.ClientPosition,
-                ClientCompany = createdTestimonial.ClientCompany,
-                Content = createdTestimonial.Content,
-                Rating = createdTestimonial.Rating,
-                ClientImageUrl = createdTestimonial.ClientImageUrl,
-                IsVisible = createdTestimonial.IsVisible,
-                GivenDate = createdTestimonial.GivenDate,
-                CreatedAt = createdTestimonial.CreatedAt,
-                UpdatedAt = createdTestimonial.UpdatedAt
-            };
-            return CreatedAtAction(nameof(GetTestimonialById), new { id = testimonialDto.Id }, testimonialDto);
+            return CreatedAtAction(nameof(GetTestimonialById), new { id = createdTestimonial.Id }, Map(createdTestimonial));
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateTestimonial(int id, Testimonial testimonial)
+        public async Task<IActionResult> UpdateTestimonial(int id, [FromBody] Testimonial testimonial)
         {
             if (id != testimonial.Id)
             {
@@ -118,5 +62,22 @@ namespace PortfolioAPI.Controllers
             await _testimonialService.DeleteTestimonialAsync(id);
             return NoContent();
         }
+
+        private static TestimonialDto Map(Testimonial t) => new()
+        {
+            Id = t.Id,
+            Name = t.Name,
+            Position = t.Position,
+            Company = t.Company,
+            Content = t.Content,
+            ImageUrl = t.ImageUrl,
+            Rating = t.Rating,
+            Featured = t.Featured,
+            Order = t.Order,
+            IsActive = t.IsActive,
+            ProjectUrl = t.ProjectUrl,
+            CreatedAt = t.CreatedAt,
+            UpdatedAt = t.UpdatedAt
+        };
     }
 }

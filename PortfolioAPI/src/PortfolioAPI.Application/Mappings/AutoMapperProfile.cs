@@ -8,13 +8,11 @@ namespace PortfolioAPI.Application.Mappings
     {
         public AutoMapperProfile()
         {
-            // Project mappings
             CreateMap<Project, ProjectDto>().ReverseMap();
-
-            // Skill mappings
             CreateMap<Skill, SkillDto>().ReverseMap();
-
-            // Contact mappings
+            CreateMap<Experience, ExperienceDto>().ReverseMap();
+            CreateMap<BlogPost, BlogPostDto>().ReverseMap();
+            CreateMap<Testimonial, TestimonialDto>().ReverseMap();
             CreateMap<Contact, ContactDto>().ReverseMap();
         }
     }

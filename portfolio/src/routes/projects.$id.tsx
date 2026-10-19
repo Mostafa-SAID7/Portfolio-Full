@@ -1,7 +1,7 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { m as motion } from "framer-motion";
 import { ArrowLeft } from "lucide-react";
-import { projects } from "@/data";
+import { portfolioProjectsQuery, usePortfolioProjects } from "@/lib/content";
 import { getProjectDetail, getRelatedProjects } from "@/data/project-details";
 import { PageShell } from "@/components/layout/PageShell";
 import { CtaLink } from "@/components/ui/CtaLink";
@@ -28,13 +28,16 @@ import { pageSeo } from "@/lib/seo";
 import { absoluteUrl } from "@/lib/site";
 
 export const Route = createFileRoute("/projects/$id")({
-  loader: ({ params }) => {
-    const project = projects.find((p) => p.id === params.id);
+  loader: async ({ context, params }) => {
+    // The project list comes from the centralized PortfolioAPI; TanStack
+    // Query dedupes the fetch across the SSR render and the client.
+    const list = await context.queryClient.ensureQueryData(portfolioProjectsQuery);
+    const project = list.find((p) => p.id === params.id);
     if (!project) throw notFound();
     return { project };
   },
-  head: ({ params }) => {
-    const project = projects.find((p) => p.id === params.id);
+  head: ({ params, loaderData }) => {
+    const project = loaderData?.project;
     if (!project) {
       return {
         meta: [{ title: "Project not found" }, { name: "robots", content: "noindex" }],
@@ -92,6 +95,8 @@ function ProjectNotFound() {
 
 function ProjectDetail() {
   const { project } = Route.useLoaderData();
+  // Same cached API list the loader primed (local fallback if offline).
+  const projects = usePortfolioProjects();
   const detail = getProjectDetail(project);
   const related = getRelatedProjects(project, projects);
 

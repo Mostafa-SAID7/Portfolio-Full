@@ -1,51 +1,51 @@
+/** Mirrors PortfolioAPI.Core.DTOs.ProjectDto (api/Projects, api/public/projects). */
+export interface ProjectMetric {
+  label: string;
+  value: string;
+}
+
+/** Mirrors PortfolioAPI.Core.DTOs.ProjectDto (api/Projects, api/public/projects). */
 export interface Project {
-  id: string;
-  name: string;
-  description: string;
-  color: string;
-  createdAt: Date;
-  updatedAt: Date;
-  ownerId: string;
-  teamIds: string[];
-}
-
-export interface CreateProjectDto {
-  name: string;
-  description: string;
-  color: string;
-  teamIds: string[];
-}
-
-// src/app/core/models/task.model.ts
-export type TaskStatus = 'todo' | 'in-progress' | 'review' | 'done';
-export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
-
-export interface Task {
-  id: string;
+  id: number;
   title: string;
   description: string;
-  status: TaskStatus;
-  priority: TaskPriority;
-  projectId: string;
-  assigneeId?: string;
-  dueDate?: Date;
-  tags: string[];
+  imageUrl: string | null;
+  technologies: string[];
+  githubUrl: string | null;
+  liveUrl: string | null;
+  featured: boolean;
   order: number;
-  createdAt: Date;
-  updatedAt: Date;
+  isActive: boolean;
+  /** Editorial fields consumed by the public portfolio (filters, chips, badges). */
+  category: string | null;
+  client: string | null;
+  type: string | null;
+  database: string | null;
+  status: string | null;
+  badges: string[];
+  metrics: ProjectMetric[];
+  gradient: string | null;
+  createdAt: string;
+  updatedAt: string | null;
 }
 
-export interface CreateTaskDto {
+/** Payload accepted by POST/PUT api/Projects. */
+export interface ProjectPayload {
   title: string;
   description: string;
-  status: TaskStatus;
-  priority: TaskPriority;
-  projectId: string;
-  assigneeId?: string;
-  dueDate?: Date;
-  tags: string[];
-}
-
-export interface UpdateTaskDto extends Partial<CreateTaskDto> {
+  imageUrl?: string | null;
+  technologies?: string[];
+  githubUrl?: string | null;
+  liveUrl?: string | null;
+  featured?: boolean;
   order?: number;
+  isActive?: boolean;
+  category?: string | null;
+  client?: string | null;
+  type?: string | null;
+  database?: string | null;
+  status?: string | null;
+  badges?: string[];
+  metrics?: ProjectMetric[];
+  gradient?: string | null;
 }

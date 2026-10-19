@@ -15,6 +15,8 @@ namespace PortfolioAPI.Infrastructure.Repositories
         private IRepository<Contact>? _contacts;
         private IRepository<Testimonial>? _testimonials;
         private IRepository<BlogPost>? _blogPosts;
+        private IRepository<ProjectImage>? _projectImages;
+        private IRepository<Credential>? _credentials;
 
         public UnitOfWork(PortfolioDbContext context)
         {
@@ -27,6 +29,8 @@ namespace PortfolioAPI.Infrastructure.Repositories
         public IRepository<Contact> Contacts => _contacts ??= new Repository<Contact>(_context);
         public IRepository<Testimonial> Testimonials => _testimonials ??= new Repository<Testimonial>(_context);
         public IRepository<BlogPost> BlogPosts => _blogPosts ??= new Repository<BlogPost>(_context);
+        public IRepository<ProjectImage> ProjectImages => _projectImages ??= new Repository<ProjectImage>(_context);
+        public IRepository<Credential> Credentials => _credentials ??= new Repository<Credential>(_context);
 
         public async Task<int> SaveChangesAsync()
         {

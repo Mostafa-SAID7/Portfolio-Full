@@ -20,80 +20,44 @@ namespace PortfolioAPI.Controllers
         public async Task<ActionResult<IEnumerable<ContactDto>>> GetAllContacts()
         {
             var contacts = await _contactService.GetAllContactsAsync();
-            var contactDtos = contacts.Select(c => new ContactDto
-            {
-                Id = c.Id,
-                Name = c.Name,
-                Email = c.Email,
-                Phone = c.Phone,
-                Subject = c.Subject,
-                Message = c.Message,
-                IsRead = c.IsRead,
-                ReadAt = c.ReadAt,
-                CreatedAt = c.CreatedAt,
-                UpdatedAt = c.UpdatedAt
-            });
-            return Ok(contactDtos);
+            return Ok(contacts.OrderByDescending(c => c.CreatedAt).Select(Map));
         }
 
         [HttpGet("{id}")]
         public async Task<ActionResult<ContactDto>> GetContactById(int id)
         {
             var contact = await _contactService.GetContactByIdAsync(id);
-            var contactDto = new ContactDto
-            {
-                Id = contact.Id,
-                Name = contact.Name,
-                Email = contact.Email,
-                Phone = contact.Phone,
-                Subject = contact.Subject,
-                Message = contact.Message,
-                IsRead = contact.IsRead,
-                ReadAt = contact.ReadAt,
-                CreatedAt = contact.CreatedAt,
-                UpdatedAt = contact.UpdatedAt
-            };
-            return Ok(contactDto);
+            return Ok(Map(contact));
         }
 
         [HttpGet("unread")]
         public async Task<ActionResult<IEnumerable<ContactDto>>> GetUnreadContacts()
         {
             var contacts = await _contactService.GetUnreadContactsAsync();
-            var contactDtos = contacts.Select(c => new ContactDto
-            {
-                Id = c.Id,
-                Name = c.Name,
-                Email = c.Email,
-                Phone = c.Phone,
-                Subject = c.Subject,
-                Message = c.Message,
-                IsRead = c.IsRead,
-                ReadAt = c.ReadAt,
-                CreatedAt = c.CreatedAt,
-                UpdatedAt = c.UpdatedAt
-            });
-            return Ok(contactDtos);
+            return Ok(contacts.OrderByDescending(c => c.CreatedAt).Select(Map));
         }
 
+        /// <summary>Public contact-form submission (from the portfolio site).</summary>
         [HttpPost]
-        public async Task<ActionResult<ContactDto>> CreateContact(Contact contact)
+        public async Task<ActionResult<ContactDto>> CreateContact([FromBody] CreateContactDto dto)
         {
-            var createdContact = await _contactService.CreateContactAsync(contact);
-            var contactDto = new ContactDto
+            if (!ModelState.IsValid)
             {
-                Id = createdContact.Id,
-                Name = createdContact.Name,
-                Email = createdContact.Email,
-                Phone = createdContact.Phone,
-                Subject = createdContact.Subject,
-                Message = createdContact.Message,
-                IsRead = createdContact.IsRead,
-                ReadAt = createdContact.ReadAt,
-                CreatedAt = createdContact.CreatedAt,
-                UpdatedAt = createdContact.UpdatedAt
+                return BadRequest(ModelState);
+            }
+
+            var contact = new Contact
+            {
+                Name = dto.Name.Trim(),
+                Email = dto.Email.Trim(),
+                Subject = dto.Subject.Trim(),
+                Message = dto.Message.Trim(),
+                IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+                UserAgent = Request.Headers.UserAgent.ToString()
             };
-            return CreatedAtAction(nameof(GetContactById), new { id = contactDto.Id }, contactDto);
+
+            var createdContact = await _contactService.CreateContactAsync(contact);
+            return CreatedAtAction(nameof(GetContactById), new { id = createdContact.Id }, Map(createdContact));
         }
 
         [HttpPut("{id}/read")]
@@ -109,5 +73,20 @@ namespace PortfolioAPI.Controllers
             await _contactService.DeleteContactAsync(id);
             return NoContent();
         }
+
+        private static ContactDto Map(Contact c) => new()
+        {
+            Id = c.Id,
+            Name = c.Name,
+            Email = c.Email,
+            Subject = c.Subject,
+            Message = c.Message,
+            IsRead = c.IsRead,
+            ReadAt = c.ReadAt,
+            IpAddress = c.IpAddress,
+            UserAgent = c.UserAgent,
+            CreatedAt = c.CreatedAt,
+            UpdatedAt = c.UpdatedAt
+        };
     }
 }

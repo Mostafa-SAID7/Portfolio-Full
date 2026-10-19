@@ -15,16 +15,23 @@ namespace PortfolioAPI.Infrastructure.Data.Configurations
                 .HasMaxLength(50);
 
             builder.Property(s => s.Category)
+                .IsRequired()
                 .HasMaxLength(100);
 
-            builder.Property(s => s.ProficiencyLevel)
+            builder.Property(s => s.Proficiency)
                 .HasDefaultValue(50)
                 .IsRequired();
 
             builder.Property(s => s.IconUrl)
                 .HasMaxLength(500);
 
-            builder.Property(s => s.IsVisible)
+            builder.Property(s => s.Description)
+                .HasMaxLength(500);
+
+            builder.Property(s => s.Order)
+                .HasDefaultValue(0);
+
+            builder.Property(s => s.IsActive)
                 .HasDefaultValue(true);
 
             builder.HasIndex(s => s.Name)
@@ -32,7 +39,7 @@ namespace PortfolioAPI.Infrastructure.Data.Configurations
 
             builder.HasIndex(s => s.Category);
 
-            builder.HasIndex(s => s.IsVisible);
+            builder.HasIndex(s => s.IsActive);
         }
     }
 }

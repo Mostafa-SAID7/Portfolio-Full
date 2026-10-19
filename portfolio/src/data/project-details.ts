@@ -290,6 +290,18 @@ const categoryFeatures: Record<ProjectCategory, ProjectFeature[]> = {
         "Repository abstraction over the database with paging, filtering and projection support.",
     },
   ],
+  Other: [
+    {
+      title: "End-to-end delivery",
+      description:
+        "Shaped, built and shipped as a complete slice: data model, API surface and interface working together from day one.",
+    },
+    {
+      title: "Production-ready foundation",
+      description:
+        "Typed contracts, validation and structured errors, so the next feature lands without renegotiating the basics.",
+    },
+  ],
 };
 
 const categoryChallenge: Record<ProjectCategory, string> = {
@@ -310,6 +322,8 @@ const categoryChallenge: Record<ProjectCategory, string> = {
     "Accessory buying is a compatibility problem. Without structured specifications the customer leaves the site to verify a fit, and often does not come back.",
   Backend:
     "The API had to serve multiple front-end clients with different needs while remaining stable, discoverable and documented enough for another team to integrate without hand-holding.",
+  Other:
+    "Every project starts from a different constraint — a new domain, an unfamiliar stack, a deadline that cannot move — and the solution has to fit all of them without leaning on a template.",
 };
 
 const categorySolution: Record<ProjectCategory, string> = {
@@ -330,6 +344,8 @@ const categorySolution: Record<ProjectCategory, string> = {
     "Specifications became structured data instead of description text, which unlocked comparison tables, compatibility filters and cleaner product pages from the same fields.",
   Backend:
     "Clean separation between controllers, services and data access, an OpenAPI contract generated from the code, and a consistent validation and error envelope across every endpoint.",
+  Other:
+    "A pragmatic, layered build: clear boundaries between data, logic and presentation, contracts typed end to end, and delivery sliced into demonstrable increments.",
 };
 
 const categoryPlatforms: Record<ProjectCategory, string[]> = {
@@ -342,6 +358,7 @@ const categoryPlatforms: Record<ProjectCategory, string[]> = {
   Sports: ["Responsive web", "Mobile web"],
   "Tech Accessories": ["Responsive web", "Web3 wallet"],
   Backend: ["HTTP API", "Swagger UI"],
+  Other: ["Web app"],
 };
 
 const techNotes: Record<string, string> = {

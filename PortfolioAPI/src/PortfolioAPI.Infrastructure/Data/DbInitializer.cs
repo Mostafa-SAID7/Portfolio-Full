@@ -1,156 +1,231 @@
+using Microsoft.EntityFrameworkCore;
 using PortfolioAPI.Core.Entities;
 
 namespace PortfolioAPI.Infrastructure.Data
 {
+    /// <summary>
+    /// Creates the schema on first run (EnsureCreated), patches in columns and
+    /// tables introduced later (EnsureCreated never alters an existing
+    /// database), and seeds demo content when the database is empty. Safe to
+    /// run against the remote database: it never overwrites existing rows.
+    /// </summary>
     public static class DbInitializer
     {
-        public static void Initialize(PortfolioDbContext context)
+        public static async Task InitializeAsync(PortfolioDbContext context)
         {
-            // Ensure database is created
-            context.Database.EnsureCreated();
+            await context.Database.EnsureCreatedAsync();
+            await PatchSchemaAsync(context);
 
-            // Check if data already exists
-            if (context.Projects.Any() || context.Skills.Any())
+            if (await context.Projects.AnyAsync() || await context.Skills.AnyAsync())
             {
-                return; // Database has been seeded
+                return; // Database already has data.
             }
 
-            // Seed initial data
-            SeedSkills(context);
-            SeedProjects(context);
-            SeedExperiences(context);
-            SeedTestimonials(context);
-
-            context.SaveChanges();
+            await SeedSkills(context);
+            await SeedProjects(context);
+            await SeedExperiences(context);
+            await SeedTestimonials(context);
+            await context.SaveChangesAsync();
         }
 
-        private static void SeedSkills(PortfolioDbContext context)
+        /// <summary>Idempotent DDL for schema added after the first EnsureCreated.</summary>
+        private static async Task PatchSchemaAsync(PortfolioDbContext context)
+        {
+            if (!await ColumnExistsAsync(context, "Projects", "Category"))
+            {
+                await context.Database.ExecuteSqlRawAsync(@"
+                    ALTER TABLE dbo.Projects
+                    ADD Category nvarchar(100) NULL,
+                        Client nvarchar(100) NULL,
+                        [Type] nvarchar(50) NULL,
+                        [Database] nvarchar(100) NULL,
+                        Status nvarchar(50) NULL,
+                        Badges nvarchar(200) NULL,
+                        Metrics nvarchar(2000) NULL,
+                        Gradient nvarchar(200) NULL;");
+            }
+
+            if (!await TableExistsAsync(context, "Credentials"))
+            {
+                await context.Database.ExecuteSqlRawAsync(@"
+                    CREATE TABLE dbo.Credentials (
+                        Id int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+                        Tab nvarchar(30) NOT NULL,
+                        Year nvarchar(10) NOT NULL,
+                        PeriodEn nvarchar(100) NOT NULL,
+                        PeriodAr nvarchar(100) NOT NULL,
+                        TitleEn nvarchar(200) NOT NULL,
+                        TitleAr nvarchar(200) NOT NULL,
+                        OrgEn nvarchar(150) NOT NULL,
+                        OrgAr nvarchar(150) NOT NULL,
+                        LocationEn nvarchar(150) NULL,
+                        LocationAr nvarchar(150) NULL,
+                        SummaryEn nvarchar(1000) NULL,
+                        SummaryAr nvarchar(1000) NULL,
+                        HighlightsEn nvarchar(4000) NULL,
+                        HighlightsAr nvarchar(4000) NULL,
+                        Stack nvarchar(500) NULL,
+                        CredentialId nvarchar(100) NULL,
+                        StatusEn nvarchar(50) NULL,
+                        StatusAr nvarchar(50) NULL,
+                        Featured bit NOT NULL DEFAULT 0,
+                        [Order] int NOT NULL DEFAULT 0,
+                        IsActive bit NOT NULL DEFAULT 1,
+                        CreatedAt datetime2 NOT NULL,
+                        UpdatedAt datetime2 NULL,
+                        IsDeleted bit NOT NULL DEFAULT 0,
+                        DeletedAt datetime2 NULL
+                    );");
+            }
+        }
+
+        private static async Task<bool> ColumnExistsAsync(PortfolioDbContext context, string table, string column)
+        {
+            var count = await context.Database
+                .SqlQuery<int>($"SELECT COUNT(*) AS Value FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = {table} AND COLUMN_NAME = {column}")
+                .SingleAsync();
+            return count > 0;
+        }
+
+        private static async Task<bool> TableExistsAsync(PortfolioDbContext context, string table)
+        {
+            var count = await context.Database
+                .SqlQuery<int>($"SELECT COUNT(*) AS Value FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = {table}")
+                .SingleAsync();
+            return count > 0;
+        }
+
+        private static Task SeedSkills(PortfolioDbContext context)
         {
             var skills = new[]
             {
-                new Skill { Name = "C#", Category = "Programming Languages", ProficiencyLevel = 90, IsVisible = true },
-                new Skill { Name = ".NET Core", Category = "Frameworks", ProficiencyLevel = 85, IsVisible = true },
-                new Skill { Name = "Entity Framework", Category = "ORM", ProficiencyLevel = 80, IsVisible = true },
-                new Skill { Name = "SQL Server", Category = "Databases", ProficiencyLevel = 75, IsVisible = true },
-                new Skill { Name = "JavaScript", Category = "Programming Languages", ProficiencyLevel = 85, IsVisible = true },
-                new Skill { Name = "React", Category = "Frontend Frameworks", ProficiencyLevel = 80, IsVisible = true },
-                new Skill { Name = "HTML/CSS", Category = "Web Technologies", ProficiencyLevel = 90, IsVisible = true },
-                new Skill { Name = "Git", Category = "Version Control", ProficiencyLevel = 85, IsVisible = true },
-                new Skill { Name = "Azure", Category = "Cloud Platforms", ProficiencyLevel = 70, IsVisible = true },
-                new Skill { Name = "Docker", Category = "Containerization", ProficiencyLevel = 65, IsVisible = true }
+                new Skill { Name = "C#", Category = "Programming Languages", Proficiency = 90, IsActive = true, Order = 1 },
+                new Skill { Name = ".NET", Category = "Frameworks", Proficiency = 88, IsActive = true, Order = 2 },
+                new Skill { Name = "ASP.NET Core", Category = "Frameworks", Proficiency = 85, IsActive = true, Order = 3 },
+                new Skill { Name = "Entity Framework", Category = "Data Access", Proficiency = 82, IsActive = true, Order = 4 },
+                new Skill { Name = "SQL Server", Category = "Databases", Proficiency = 80, IsActive = true, Order = 5 },
+                new Skill { Name = "Angular", Category = "Frontend", Proficiency = 85, IsActive = true, Order = 6 },
+                new Skill { Name = "React", Category = "Frontend", Proficiency = 80, IsActive = true, Order = 7 },
+                new Skill { Name = "TypeScript", Category = "Programming Languages", Proficiency = 82, IsActive = true, Order = 8 },
+                new Skill { Name = "JavaScript", Category = "Programming Languages", Proficiency = 85, IsActive = true, Order = 9 },
+                new Skill { Name = "HTML/CSS", Category = "Web Technologies", Proficiency = 90, IsActive = true, Order = 10 },
+                new Skill { Name = "Git", Category = "Tools", Proficiency = 85, IsActive = true, Order = 11 },
+                new Skill { Name = "Docker", Category = "DevOps", Proficiency = 70, IsActive = true, Order = 12 },
+                new Skill { Name = "Azure", Category = "Cloud", Proficiency = 72, IsActive = true, Order = 13 }
             };
 
             context.Skills.AddRange(skills);
+            return Task.CompletedTask;
         }
 
-        private static void SeedProjects(PortfolioDbContext context)
+        private static Task SeedProjects(PortfolioDbContext context)
         {
             var projects = new[]
             {
                 new Project
                 {
-                    Title = "Portfolio API",
-                    Description = "A comprehensive REST API for managing portfolio data including projects, skills, and contact information.",
-                    Technologies = "C#, .NET Core, Entity Framework, SQL Server",
-                    ProjectUrl = "https://github.com/username/portfolio-api",
-                    RepositoryUrl = "https://github.com/username/portfolio-api",
-                    IsFeatured = true,
-                    StartDate = new DateTime(2024, 1, 1),
-                    EndDate = new DateTime(2024, 6, 1)
+                    Title = "Portfolio Platform",
+                    Description = "Full portfolio suite: .NET 9 REST API, Angular admin dashboard and a TanStack Start public site, all driven by one centralized backend.",
+                    Technologies = new List<string> { ".NET 9", "Angular", "React", "SQL Server" },
+                    GithubUrl = "https://github.com/Mostafa-SAID7/Portfolio-Full",
+                    LiveUrl = null,
+                    Featured = true,
+                    Order = 1,
+                    IsActive = true
                 },
                 new Project
                 {
-                    Title = "E-commerce Platform",
-                    Description = "A full-stack e-commerce solution with user authentication, product management, and payment integration.",
-                    Technologies = "React, Node.js, MongoDB, Stripe API",
-                    ProjectUrl = "https://example-ecommerce.com",
-                    RepositoryUrl = "https://github.com/username/ecommerce-platform",
-                    IsFeatured = true,
-                    StartDate = new DateTime(2023, 6, 1),
-                    EndDate = new DateTime(2023, 12, 1)
+                    Title = "Inventory Management System",
+                    Description = "E-Inventory platform for tracking stock levels, suppliers and purchase orders with role-based access and reporting.",
+                    Technologies = new List<string> { "ASP.NET Core", "SQL Server", "Angular" },
+                    GithubUrl = null,
+                    LiveUrl = null,
+                    Featured = true,
+                    Order = 2,
+                    IsActive = true
                 },
                 new Project
                 {
                     Title = "Task Management App",
                     Description = "A collaborative task management application with real-time updates and team collaboration features.",
-                    Technologies = "Vue.js, Firebase, Tailwind CSS",
-                    ProjectUrl = "https://taskmanager-demo.com",
-                    RepositoryUrl = "https://github.com/username/task-manager",
-                    IsFeatured = false,
-                    StartDate = new DateTime(2023, 3, 1),
-                    EndDate = new DateTime(2023, 5, 1)
+                    Technologies = new List<string> { "Vue.js", "Firebase", "Tailwind CSS" },
+                    GithubUrl = null,
+                    LiveUrl = null,
+                    Featured = false,
+                    Order = 3,
+                    IsActive = true
                 }
             };
 
             context.Projects.AddRange(projects);
+            return Task.CompletedTask;
         }
 
-        private static void SeedExperiences(PortfolioDbContext context)
+        private static Task SeedExperiences(PortfolioDbContext context)
         {
             var experiences = new[]
             {
                 new Experience
                 {
-                    JobTitle = "Senior Software Developer",
-                    CompanyName = "Tech Solutions Inc.",
-                    Location = "New York, NY",
-                    StartDate = new DateTime(2022, 1, 1),
-                    IsCurrentPosition = true,
-                    Description = "Leading development of enterprise applications using .NET technologies. Responsible for architecture design, code reviews, and mentoring junior developers.",
-                    Technologies = "C#, .NET Core, Azure, SQL Server, React"
+                    Position = "Software Developer",
+                    Company = "Freelance",
+                    Location = "Remote",
+                    StartDate = new DateTime(2023, 1, 1),
+                    Current = true,
+                    Description = "Building full-stack web applications: .NET APIs, Angular/React frontends and SQL Server databases for clients.",
+                    Technologies = new List<string> { ".NET", "Angular", "React", "SQL Server" },
+                    Order = 1,
+                    IsActive = true
                 },
                 new Experience
                 {
-                    JobTitle = "Software Developer",
-                    CompanyName = "Digital Innovations Ltd.",
-                    Location = "San Francisco, CA",
-                    StartDate = new DateTime(2020, 6, 1),
-                    EndDate = new DateTime(2021, 12, 31),
-                    Description = "Developed and maintained web applications using modern JavaScript frameworks. Collaborated with cross-functional teams to deliver high-quality software solutions.",
-                    Technologies = "JavaScript, React, Node.js, MongoDB"
-                },
-                new Experience
-                {
-                    JobTitle = "Junior Developer",
-                    CompanyName = "StartupXYZ",
-                    Location = "Austin, TX",
-                    StartDate = new DateTime(2019, 3, 1),
-                    EndDate = new DateTime(2020, 5, 31),
-                    Description = "Contributed to the development of mobile and web applications. Gained experience in agile development practices and version control systems.",
-                    Technologies = "C#, ASP.NET, JavaScript, Git"
+                    Position = "Junior Software Developer",
+                    Company = "Tech Solutions Inc.",
+                    Location = "Cairo, EG",
+                    StartDate = new DateTime(2021, 6, 1),
+                    EndDate = new DateTime(2022, 12, 31),
+                    Current = false,
+                    Description = "Developed and maintained web applications using .NET technologies and modern JavaScript frameworks.",
+                    Technologies = new List<string> { "C#", "ASP.NET", "JavaScript", "Git" },
+                    Order = 2,
+                    IsActive = true
                 }
             };
 
             context.Experiences.AddRange(experiences);
+            return Task.CompletedTask;
         }
 
-        private static void SeedTestimonials(PortfolioDbContext context)
+        private static Task SeedTestimonials(PortfolioDbContext context)
         {
             var testimonials = new[]
             {
                 new Testimonial
                 {
-                    ClientName = "John Smith",
-                    ClientPosition = "CTO",
-                    ClientCompany = "TechCorp",
-                    Content = "Excellent work on our e-commerce platform. The solution was delivered on time and exceeded our expectations in terms of performance and scalability.",
+                    Name = "John Smith",
+                    Position = "CTO",
+                    Company = "TechCorp",
+                    Content = "Excellent work on our platform. The solution was delivered on time and exceeded our expectations in terms of performance and scalability.",
                     Rating = 5,
-                    IsVisible = true,
-                    GivenDate = new DateTime(2024, 1, 15)
+                    Featured = true,
+                    IsActive = true,
+                    Order = 1
                 },
                 new Testimonial
                 {
-                    ClientName = "Sarah Johnson",
-                    ClientPosition = "Project Manager",
-                    ClientCompany = "InnovateNow",
+                    Name = "Sarah Johnson",
+                    Position = "Project Manager",
+                    Company = "InnovateNow",
                     Content = "Professional, reliable, and highly skilled developer. Great communication throughout the project and delivered quality code.",
                     Rating = 5,
-                    IsVisible = true,
-                    GivenDate = new DateTime(2023, 11, 20)
+                    Featured = false,
+                    IsActive = true,
+                    Order = 2
                 }
             };
 
             context.Testimonials.AddRange(testimonials);
+            return Task.CompletedTask;
         }
     }
 }

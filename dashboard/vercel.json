@@ -1,13 +1,14 @@
 {
-  "version": 2,
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "npm run build",
-  "outputDirectory": "dist/taskflow-starter/browser",
-  "env": {
-    "NG_CLI_ANALYTICS": "false"
-  },
+  "outputDirectory": "dist/portfolio-dashboard/browser",
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/api/:path*",
+      "destination": "http://portfolio-market.runasp.net/api/:path*"
+    },
+    {
+      "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
   ]

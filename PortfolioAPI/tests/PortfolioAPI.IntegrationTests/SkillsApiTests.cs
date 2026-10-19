@@ -14,11 +14,11 @@ namespace PortfolioAPI.IntegrationTests
         public SkillsApiTests()
         {
             _skillFaker = new Faker<Skill>()
-                .RuleFor(s => s.Name, f => f.Hacker.Ingredient())
+                .RuleFor(s => s.Name, f => f.Hacker.Noun())
                 .RuleFor(s => s.Category, f => f.PickRandom("Frontend", "Backend", "Database", "DevOps", "Mobile", "Cloud"))
-                .RuleFor(s => s.ProficiencyLevel, f => f.Random.Int(1, 100))
+                .RuleFor(s => s.Proficiency, f => f.Random.Int(1, 100))
                 .RuleFor(s => s.IconUrl, f => f.Image.PicsumUrl(32, 32))
-                .RuleFor(s => s.IsVisible, f => f.Random.Bool());
+                .RuleFor(s => s.IsActive, f => f.Random.Bool());
         }
 
         [Fact]
@@ -52,7 +52,7 @@ namespace PortfolioAPI.IntegrationTests
             {
                 s.Id.Should().BeGreaterThan(0);
                 s.Name.Should().NotBeNullOrEmpty();
-                s.ProficiencyLevel.Should().BeInRange(1, 100);
+                s.Proficiency.Should().BeInRange(1, 100);
                 s.CreatedAt.Should().NotBe(default);
                 s.UpdatedAt.Should().NotBe(default);
             });
@@ -76,7 +76,7 @@ namespace PortfolioAPI.IntegrationTests
             skill!.Id.Should().Be(testSkill.Id);
             skill.Name.Should().Be(testSkill.Name);
             skill.Category.Should().Be(testSkill.Category);
-            skill.ProficiencyLevel.Should().Be(testSkill.ProficiencyLevel);
+            skill.Proficiency.Should().Be(testSkill.Proficiency);
         }
 
         [Fact]
@@ -131,10 +131,10 @@ namespace PortfolioAPI.IntegrationTests
         {
             // Arrange
             var visibleSkill = _skillFaker.Generate();
-            visibleSkill.IsVisible = true;
+            visibleSkill.IsActive = true;
 
             var hiddenSkill = _skillFaker.Generate();
-            hiddenSkill.IsVisible = false;
+            hiddenSkill.IsActive = false;
 
             await _dbContext.Skills.AddRangeAsync(visibleSkill, hiddenSkill);
             await _dbContext.SaveChangesAsync();
@@ -147,7 +147,7 @@ namespace PortfolioAPI.IntegrationTests
             var skills = await DeserializeResponseAsync<IEnumerable<SkillDto>>(response);
             skills.Should().HaveCount(1);
             skills.First().Id.Should().Be(visibleSkill.Id);
-            skills.First().IsVisible.Should().BeTrue();
+            skills.First().IsActive.Should().BeTrue();
         }
 
         [Fact]
@@ -165,8 +165,8 @@ namespace PortfolioAPI.IntegrationTests
             createdSkill.Should().NotBeNull();
             createdSkill!.Name.Should().Be(newSkill.Name);
             createdSkill.Category.Should().Be(newSkill.Category);
-            createdSkill.ProficiencyLevel.Should().Be(newSkill.ProficiencyLevel);
-            createdSkill.IsVisible.Should().Be(newSkill.IsVisible);
+            createdSkill.Proficiency.Should().Be(newSkill.Proficiency);
+            createdSkill.IsActive.Should().Be(newSkill.IsActive);
             createdSkill.Id.Should().BeGreaterThan(0);
             createdSkill.CreatedAt.Should().NotBe(default);
             createdSkill.UpdatedAt.Should().NotBe(default);
@@ -220,11 +220,11 @@ namespace PortfolioAPI.IntegrationTests
         }
 
         [Fact]
-        public async Task CreateSkill_ReturnsBadRequest_WhenProficiencyLevelIsOutOfRange()
+        public async Task CreateSkill_ReturnsBadRequest_WhenProficiencyIsOutOfRange()
         {
             // Arrange - Test minimum value (should fail)
             var invalidSkill = _skillFaker.Generate();
-            invalidSkill.ProficiencyLevel = 0; // Below minimum of 1
+            invalidSkill.Proficiency = 0; // Below minimum of 1
 
             // Act
             var response = await PostAsync("api/skills", invalidSkill);
@@ -234,11 +234,11 @@ namespace PortfolioAPI.IntegrationTests
         }
 
         [Fact]
-        public async Task CreateSkill_ReturnsBadRequest_WhenProficiencyLevelExceedsMaximum()
+        public async Task CreateSkill_ReturnsBadRequest_WhenProficiencyExceedsMaximum()
         {
             // Arrange - Test maximum value (should fail)
             var invalidSkill = _skillFaker.Generate();
-            invalidSkill.ProficiencyLevel = 101; // Above maximum of 100
+            invalidSkill.Proficiency = 101; // Above maximum of 100
 
             // Act
             var response = await PostAsync("api/skills", invalidSkill);
@@ -269,7 +269,7 @@ namespace PortfolioAPI.IntegrationTests
             dbSkill.Should().NotBeNull();
             dbSkill!.Name.Should().Be(updatedSkill.Name);
             dbSkill.Category.Should().Be(updatedSkill.Category);
-            dbSkill.ProficiencyLevel.Should().Be(updatedSkill.ProficiencyLevel);
+            dbSkill.Proficiency.Should().Be(updatedSkill.Proficiency);
             dbSkill.UpdatedAt.Should().BeAfter(dbSkill.CreatedAt);
         }
 
@@ -398,9 +398,9 @@ namespace PortfolioAPI.IntegrationTests
                     Id = skill.Id,
                     Name = skill.Name,
                     Category = skill.Category,
-                    ProficiencyLevel = skill.ProficiencyLevel,
+                    Proficiency = skill.Proficiency,
                     IconUrl = skill.IconUrl,
-                    IsVisible = true
+                    IsActive = true
                 };
 
                 var updateResponse = await PutAsync($"api/skills/{skill.Id}", updatedSkill);
@@ -412,7 +412,7 @@ namespace PortfolioAPI.IntegrationTests
             visibleResponse.StatusCode.Should().Be(HttpStatusCode.OK);
             var visibleSkills = await DeserializeResponseAsync<IEnumerable<SkillDto>>(visibleResponse);
             visibleSkills.Should().HaveCount(10);
-            visibleSkills.Should().AllSatisfy(s => s.IsVisible.Should().BeTrue());
+            visibleSkills.Should().AllSatisfy(s => s.IsActive.Should().BeTrue());
         }
     }
 }

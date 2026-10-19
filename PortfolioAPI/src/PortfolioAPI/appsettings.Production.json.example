@@ -1,0 +1,17 @@
+{
+  "_comment": "Template for production settings. Copy to appsettings.Production.json (git-ignored) and upload next to the published DLL, or — preferred — set the same keys as environment variables: ConnectionStrings__DefaultConnection, Cors__AllowedOrigins, Swagger__Enabled.",
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=YOUR_SQL_HOST;Database=YOUR_DB;User Id=YOUR_USER;Password=YOUR_PASSWORD;Encrypt=True;MultipleActiveResultSets=True;"
+  },
+  "Cors": {
+    "AllowedOrigins": "https://your-portfolio.vercel.app,https://your-dashboard.vercel.app"
+  },
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning",
+      "Microsoft.EntityFrameworkCore.Database.Command": "Warning"
+    }
+  },
+  "AllowedHosts": "*"
+}

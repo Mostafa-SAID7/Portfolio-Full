@@ -15,20 +15,35 @@ namespace PortfolioAPI.Application.Validators
                 .NotEmpty().WithMessage("Description is required.")
                 .MaximumLength(500).WithMessage("Description must not exceed 500 characters.");
 
-            RuleFor(p => p.ProjectUrl)
+            RuleFor(p => p.LiveUrl)
                 .Must(uri => Uri.TryCreate(uri, UriKind.Absolute, out _))
-                .When(p => !string.IsNullOrEmpty(p.ProjectUrl))
-                .WithMessage("Project URL must be a valid URL.");
+                .When(p => !string.IsNullOrEmpty(p.LiveUrl))
+                .WithMessage("Live URL must be a valid URL.");
 
-            RuleFor(p => p.RepositoryUrl)
+            RuleFor(p => p.GithubUrl)
                 .Must(uri => Uri.TryCreate(uri, UriKind.Absolute, out _))
-                .When(p => !string.IsNullOrEmpty(p.RepositoryUrl))
-                .WithMessage("Repository URL must be a valid URL.");
+                .When(p => !string.IsNullOrEmpty(p.GithubUrl))
+                .WithMessage("GitHub URL must be a valid URL.");
 
-            RuleFor(p => p.StartDate)
-                .LessThanOrEqualTo(p => p.EndDate)
-                .When(p => p.StartDate.HasValue && p.EndDate.HasValue)
-                .WithMessage("Start date must be before or equal to end date.");
+            RuleFor(p => p.ImageUrl)
+                .MaximumLength(500).WithMessage("Image URL must not exceed 500 characters.");
+
+            RuleFor(p => p.Technologies)
+                .Must(list => list == null || list.Count <= 20)
+                .WithMessage("A project can list at most 20 technologies.");
+
+            RuleFor(p => p.Category).MaximumLength(100).WithMessage("Category must not exceed 100 characters.");
+            RuleFor(p => p.Client).MaximumLength(100).WithMessage("Client must not exceed 100 characters.");
+            RuleFor(p => p.Type).MaximumLength(50).WithMessage("Type must not exceed 50 characters.");
+            RuleFor(p => p.Database).MaximumLength(100).WithMessage("Database must not exceed 100 characters.");
+            RuleFor(p => p.Status).MaximumLength(50).WithMessage("Status must not exceed 50 characters.");
+            RuleFor(p => p.Gradient).MaximumLength(200).WithMessage("Gradient must not exceed 200 characters.");
+            RuleFor(p => p.Badges)
+                .Must(list => list == null || list.Count <= 5)
+                .WithMessage("A project can have at most 5 badges.");
+            RuleFor(p => p.Metrics)
+                .Must(list => list == null || list.Count <= 6)
+                .WithMessage("A project can show at most 6 metrics.");
         }
     }
 }

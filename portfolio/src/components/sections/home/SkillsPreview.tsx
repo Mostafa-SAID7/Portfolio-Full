@@ -2,13 +2,15 @@ import { Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 import { Reveal } from "@/components/ui/Reveal";
 import { SectionHeading } from "@/components/ui/SectionHeading";
-import { skillGroups } from "@/data";
 import { useI18n } from "@/lib/i18n";
 import { useLocalizedContent } from "@/lib/localize";
+import { usePortfolioSkillGroups } from "@/lib/content";
 
 export function SkillsPreview() {
   const { tr } = useI18n();
   const { skillGroupTitle } = useLocalizedContent();
+  // Live content from the PortfolioAPI (local fallback while it loads/offline).
+  const skillGroups = usePortfolioSkillGroups();
   const featured = skillGroups.slice(0, 4);
 
   return (

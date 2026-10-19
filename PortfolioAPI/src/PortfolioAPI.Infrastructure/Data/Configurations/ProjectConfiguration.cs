@@ -18,24 +18,52 @@ namespace PortfolioAPI.Infrastructure.Data.Configurations
                 .IsRequired()
                 .HasMaxLength(500);
 
-            builder.Property(p => p.Technologies)
-                .HasMaxLength(200);
-
-            builder.Property(p => p.ProjectUrl)
-                .HasMaxLength(500);
-
-            builder.Property(p => p.RepositoryUrl)
-                .HasMaxLength(500);
-
             builder.Property(p => p.ImageUrl)
                 .HasMaxLength(500);
 
-            builder.Property(p => p.IsFeatured)
+            builder.Property(p => p.Technologies)
+                .HasMaxLength(500)
+                .HasConversion(StringListConverter.CommaSeparated);
+
+            builder.Property(p => p.GithubUrl)
+                .HasMaxLength(500);
+
+            builder.Property(p => p.LiveUrl)
+                .HasMaxLength(500);
+
+            builder.Property(p => p.Featured)
                 .HasDefaultValue(false);
 
-            builder.HasIndex(p => p.Title);
+            builder.Property(p => p.Order)
+                .HasDefaultValue(0);
 
-            builder.HasIndex(p => p.IsFeatured);
+            builder.Property(p => p.IsActive)
+                .HasDefaultValue(true);
+
+            // Editorial fields consumed by the public portfolio.
+            builder.Property(p => p.Category).HasMaxLength(100);
+            builder.Property(p => p.Client).HasMaxLength(100);
+            builder.Property(p => p.Type).HasMaxLength(50);
+            builder.Property(p => p.Database).HasMaxLength(100);
+            builder.Property(p => p.Status).HasMaxLength(50);
+            builder.Property(p => p.Badges)
+                .HasMaxLength(200)
+                .HasConversion(StringListConverter.CommaSeparated);
+            builder.Property(p => p.Metrics)
+                .HasMaxLength(2000)
+                .HasConversion(JsonListConverter.MetricsJson);
+            builder.Property(p => p.Gradient).HasMaxLength(200);
+
+            builder.HasIndex(p => p.Title);
+            builder.HasIndex(p => p.Featured);
+            builder.HasIndex(p => p.IsActive);
+            builder.HasIndex(p => p.Category);
+
+            // Gallery images
+            builder.HasMany(p => p.Images)
+                .WithOne(i => i.Project)
+                .HasForeignKey(i => i.ProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

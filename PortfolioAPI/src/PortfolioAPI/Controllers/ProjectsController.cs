@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
 using PortfolioAPI.Core.DTOs;
-using PortfolioAPI.Core.Entities;
 using PortfolioAPI.Core.Interfaces.Services;
 
 namespace PortfolioAPI.Controllers
@@ -19,108 +18,82 @@ namespace PortfolioAPI.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<ProjectDto>>> GetAllProjects()
         {
-            var projects = await _projectService.GetAllProjectsAsync();
-            var projectDtos = projects.Select(p => new ProjectDto
-            {
-                Id = p.Id,
-                Title = p.Title,
-                Description = p.Description,
-                Technologies = p.Technologies,
-                ProjectUrl = p.ProjectUrl,
-                RepositoryUrl = p.RepositoryUrl,
-                ImageUrl = p.ImageUrl,
-                IsFeatured = p.IsFeatured,
-                StartDate = p.StartDate,
-                EndDate = p.EndDate,
-                CreatedAt = p.CreatedAt,
-                UpdatedAt = p.UpdatedAt
-            });
-            return Ok(projectDtos);
-        }
-
-        [HttpGet("{id}")]
-        public async Task<ActionResult<ProjectDto>> GetProjectById(int id)
-        {
-            var project = await _projectService.GetProjectByIdAsync(id);
-            var projectDto = new ProjectDto
-            {
-                Id = project.Id,
-                Title = project.Title,
-                Description = project.Description,
-                Technologies = project.Technologies,
-                ProjectUrl = project.ProjectUrl,
-                RepositoryUrl = project.RepositoryUrl,
-                ImageUrl = project.ImageUrl,
-                IsFeatured = project.IsFeatured,
-                StartDate = project.StartDate,
-                EndDate = project.EndDate,
-                CreatedAt = project.CreatedAt,
-                UpdatedAt = project.UpdatedAt
-            };
-            return Ok(projectDto);
+            var result = await _projectService.GetAllAsync();
+            return Ok(result.Data);
         }
 
         [HttpGet("featured")]
         public async Task<ActionResult<IEnumerable<ProjectDto>>> GetFeaturedProjects()
         {
-            var projects = await _projectService.GetFeaturedProjectsAsync();
-            var projectDtos = projects.Select(p => new ProjectDto
-            {
-                Id = p.Id,
-                Title = p.Title,
-                Description = p.Description,
-                Technologies = p.Technologies,
-                ProjectUrl = p.ProjectUrl,
-                RepositoryUrl = p.RepositoryUrl,
-                ImageUrl = p.ImageUrl,
-                IsFeatured = p.IsFeatured,
-                StartDate = p.StartDate,
-                EndDate = p.EndDate,
-                CreatedAt = p.CreatedAt,
-                UpdatedAt = p.UpdatedAt
-            });
-            return Ok(projectDtos);
+            var result = await _projectService.GetFeaturedAsync();
+            return Ok(result.Data);
+        }
+
+        [HttpGet("technology/{technology}")]
+        public async Task<ActionResult<IEnumerable<ProjectDto>>> GetProjectsByTechnology(string technology)
+        {
+            var result = await _projectService.GetByTechnologyAsync(technology);
+            return Ok(result.Data);
+        }
+
+        [HttpGet("search")]
+        public async Task<ActionResult<IEnumerable<ProjectDto>>> SearchProjects([FromQuery] string term)
+        {
+            var result = await _projectService.SearchAsync(term);
+            return Ok(result.Data);
+        }
+
+        [HttpGet("{id}")]
+        public async Task<ActionResult<ProjectDto>> GetProject(int id)
+        {
+            var result = await _projectService.GetByIdAsync(id);
+            return result.Success && result.Data != null ? Ok(result.Data) : NotFound(result);
         }
 
         [HttpPost]
-        public async Task<ActionResult<ProjectDto>> CreateProject(Project project)
+        public async Task<ActionResult<ProjectDto>> CreateProject([FromBody] CreateProjectDto dto)
         {
-            var createdProject = await _projectService.CreateProjectAsync(project);
-            var projectDto = new ProjectDto
+            if (!ModelState.IsValid)
             {
-                Id = createdProject.Id,
-                Title = createdProject.Title,
-                Description = createdProject.Description,
-                Technologies = createdProject.Technologies,
-                ProjectUrl = createdProject.ProjectUrl,
-                RepositoryUrl = createdProject.RepositoryUrl,
-                ImageUrl = createdProject.ImageUrl,
-                IsFeatured = createdProject.IsFeatured,
-                StartDate = createdProject.StartDate,
-                EndDate = createdProject.EndDate,
-                CreatedAt = createdProject.CreatedAt,
-                UpdatedAt = createdProject.UpdatedAt
-            };
-            return CreatedAtAction(nameof(GetProjectById), new { id = projectDto.Id }, projectDto);
+                return BadRequest(ModelState);
+            }
+
+            var result = await _projectService.CreateAsync(dto);
+            if (!result.Success || result.Data == null)
+            {
+                return BadRequest(result);
+            }
+
+            return CreatedAtAction(
+                nameof(GetProject),
+                new { id = result.Data.Id },
+                result.Data);
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateProject(int id, Project project)
+        public async Task<IActionResult> UpdateProject(int id, [FromBody] UpdateProjectDto dto)
         {
-            if (id != project.Id)
+            if (!ModelState.IsValid)
             {
-                return BadRequest();
+                return BadRequest(ModelState);
             }
 
-            await _projectService.UpdateProjectAsync(project);
-            return NoContent();
+            var result = await _projectService.UpdateAsync(id, dto);
+            return result.Success ? NoContent() : BadRequest(result);
         }
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteProject(int id)
         {
-            await _projectService.DeleteProjectAsync(id);
-            return NoContent();
+            var result = await _projectService.DeleteAsync(id);
+            return result.Success ? NoContent() : NotFound(result);
+        }
+
+        [HttpPatch("{id}/toggle-featured")]
+        public async Task<IActionResult> ToggleFeatured(int id)
+        {
+            var result = await _projectService.ToggleFeaturedAsync(id);
+            return result.Success ? Ok(new { isFeatured = result.Data }) : NotFound(result);
         }
     }
 }

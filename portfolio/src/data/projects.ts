@@ -7,7 +7,9 @@ export type ProjectCategory =
   | "Web3"
   | "Sports"
   | "Tech Accessories"
-  | "Backend";
+  | "Backend"
+  /** Projects added via the API/dashboard without local presentation metadata. */
+  | "Other";
 
 export interface Project {
   id: string;
@@ -274,4 +276,5 @@ export const projectFilters: (ProjectCategory | "All")[] = [
   "Sports",
   "Tech Accessories",
   "Backend",
+  "Other",
 ];

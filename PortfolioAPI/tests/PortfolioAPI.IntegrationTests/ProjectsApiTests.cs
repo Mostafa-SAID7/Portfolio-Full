@@ -16,13 +16,11 @@ namespace PortfolioAPI.IntegrationTests
             _projectFaker = new Faker<Project>()
                 .RuleFor(p => p.Title, f => f.Lorem.Sentence(3))
                 .RuleFor(p => p.Description, f => f.Lorem.Paragraphs(2))
-                .RuleFor(p => p.Technologies, f => string.Join(", ", f.Make(3, () => f.Hacker.Ingredient())))
-                .RuleFor(p => p.ProjectUrl, f => f.Internet.Url())
-                .RuleFor(p => p.RepositoryUrl, f => f.Internet.Url())
+                .RuleFor(p => p.Technologies, f => f.Make(3, () => f.Hacker.Noun()))
+                .RuleFor(p => p.LiveUrl, f => f.Internet.Url())
+                .RuleFor(p => p.GithubUrl, f => f.Internet.Url())
                 .RuleFor(p => p.ImageUrl, f => f.Image.PicsumUrl())
-                .RuleFor(p => p.IsFeatured, f => f.Random.Bool())
-                .RuleFor(p => p.StartDate, f => f.Date.Past(2))
-                .RuleFor(p => p.EndDate, f => f.Date.Future());
+                .RuleFor(p => p.Featured, f => f.Random.Bool());
         }
 
         [Fact]
@@ -97,10 +95,10 @@ namespace PortfolioAPI.IntegrationTests
         {
             // Arrange
             var featuredProject = _projectFaker.Generate();
-            featuredProject.IsFeatured = true;
+            featuredProject.Featured = true;
 
             var nonFeaturedProject = _projectFaker.Generate();
-            nonFeaturedProject.IsFeatured = false;
+            nonFeaturedProject.Featured = false;
 
             await _dbContext.Projects.AddRangeAsync(featuredProject, nonFeaturedProject);
             await _dbContext.SaveChangesAsync();
@@ -113,7 +111,7 @@ namespace PortfolioAPI.IntegrationTests
             var projects = await DeserializeResponseAsync<IEnumerable<ProjectDto>>(response);
             projects.Should().HaveCount(1);
             projects.First().Id.Should().Be(featuredProject.Id);
-            projects.First().IsFeatured.Should().BeTrue();
+            projects.First().Featured.Should().BeTrue();
         }
 
         [Fact]
@@ -198,11 +196,11 @@ namespace PortfolioAPI.IntegrationTests
         }
 
         [Fact]
-        public async Task CreateProject_ReturnsBadRequest_WhenProjectUrlIsInvalid()
+        public async Task CreateProject_ReturnsBadRequest_WhenLiveUrlIsInvalid()
         {
             // Arrange
             var invalidProject = _projectFaker.Generate();
-            invalidProject.ProjectUrl = "not-a-valid-url";
+            invalidProject.LiveUrl = "not-a-valid-url";
 
             // Act
             var response = await PostAsync("api/projects", invalidProject);
@@ -212,11 +210,11 @@ namespace PortfolioAPI.IntegrationTests
         }
 
         [Fact]
-        public async Task CreateProject_ReturnsBadRequest_WhenRepositoryUrlIsInvalid()
+        public async Task CreateProject_ReturnsBadRequest_WhenGithubUrlIsInvalid()
         {
             // Arrange
             var invalidProject = _projectFaker.Generate();
-            invalidProject.RepositoryUrl = "not-a-valid-url";
+            invalidProject.GithubUrl = "not-a-valid-url";
 
             // Act
             var response = await PostAsync("api/projects", invalidProject);

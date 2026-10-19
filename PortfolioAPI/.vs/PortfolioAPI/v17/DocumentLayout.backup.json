@@ -1,6 +1,6 @@
 {
   "Version": 1,
-  "WorkspaceRootPath": "C:\\Users\\Mostafa\\OneDrive\\Desktop\\Projects\\Quick Application1\\PortfolioAPI\\",
+  "WorkspaceRootPath": "C:\\Users\\mosta\\Downloads\\Portfolio-Full-master\\Portfolio-Full-master\\PortfolioAPI\\",
   "Documents": [],
   "DocumentGroupContainers": [
     {
@@ -18,6 +18,10 @@
             {
               "$type": "Bookmark",
               "Name": "ST:129:0:{1fc202d4-d401-403c-9834-5b218574bb67}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{cce594b6-0c39-4442-ba28-10c64ac7e89f}"
             }
           ]
         }

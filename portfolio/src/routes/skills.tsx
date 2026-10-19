@@ -5,7 +5,8 @@ import { PageShell } from "@/components/layout/PageShell";
 import { PageIntro } from "@/components/ui/PageIntro";
 import { CtaLink } from "@/components/ui/CtaLink";
 import { CtaBand } from "@/components/ui/CtaBand";
-import { skillGroups, type SkillIcon } from "@/data";
+import { type SkillIcon } from "@/data";
+import { usePortfolioSkillGroups } from "@/lib/content";
 import { pageSeo, pageTitle } from "@/lib/seo";
 import { useI18n } from "@/lib/i18n";
 import { useLocalizedContent } from "@/lib/localize";
@@ -36,6 +37,8 @@ export const Route = createFileRoute("/skills")({
 function SkillsPage() {
   const { tr } = useI18n();
   const { skillGroupTitle } = useLocalizedContent();
+  // Live content from the PortfolioAPI (local fallback while it loads/offline).
+  const skillGroups = usePortfolioSkillGroups();
 
   return (
     <PageShell>

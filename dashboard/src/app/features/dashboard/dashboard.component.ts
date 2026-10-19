@@ -1,11 +1,12 @@
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { ProjectService } from '../../core/services/project.service';
-import { TaskService } from '../../core/services/task.service';
+import { SkillService } from '../../core/services/skill.service';
+import { ExperienceService } from '../../core/services/experience.service';
+import { BlogService } from '../../core/services/blog.service';
+import { ContactService } from '../../core/services/contact.service';
 import { AuthService } from '../../core/services/auth.service';
-import { Project } from '../../core/models/project.model';
-import { Task } from '../../core/models/task.model';
 
 @Component({
   selector: 'app-dashboard',
@@ -13,196 +14,304 @@ import { Task } from '../../core/models/task.model';
   imports: [CommonModule, RouterLink],
   template: `
     <div class="space-y-7">
-      <section class="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
+      <!-- Header -->
+      <section class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <p class="eyebrow mb-3">Monday, September 7, 2026</p>
-          <h1 class="font-display text-4xl font-semibold tracking-[-0.06em] text-[#f4f1ea] sm:text-5xl">
-            Good morning<span class="text-[#ff6b35]">,</span>
-            <span class="block text-[#8f96a5]">{{ firstName() }}.</span>
-          </h1>
+          <p class="eyebrow mb-2">{{ todayLabel }}</p>
+          <h2 class="font-display text-3xl font-semibold tracking-[-0.05em] text-ink sm:text-4xl">
+            Welcome back<span class="text-accent">,</span>
+            <span class="text-muted">{{ firstName() }}.</span>
+          </h2>
         </div>
         <div class="flex items-center gap-3">
-          <a routerLink="/projects/new" class="hidden rounded-xl border border-white/[0.1] px-4 py-2.5 text-sm font-semibold text-[#c8ccd4] transition hover:border-white/20 hover:bg-white/[0.04] sm:block">New project</a>
-          <a routerLink="/tasks/new" class="orange-glow flex items-center gap-2 rounded-xl bg-[#ff6b35] px-4 py-2.5 text-sm font-bold text-[#1d120d] transition hover:-translate-y-0.5 hover:bg-[#ff8254]">
-            <span class="text-lg leading-none">+</span> Add task
+          <a routerLink="/messages" class="btn-ghost">
+            Inbox
+            @if (unreadCount() > 0) {
+              <span class="badge-accent">{{ unreadCount() }}</span>
+            }
           </a>
+          <a routerLink="/projects/new" class="btn-primary"><span class="text-lg leading-none">+</span> New project</a>
         </div>
       </section>
 
-      <section class="grid gap-5 xl:grid-cols-[1.5fr_1fr]">
-        <div class="surface-card relative min-h-[248px] overflow-hidden p-6 sm:p-8">
-          <div class="absolute -right-20 -top-24 h-72 w-72 rounded-full bg-[#ff6b35]/10 blur-3xl"></div>
-          <div class="relative z-10 max-w-md">
-            <div class="mb-6 flex items-center gap-2">
-              <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-[#ff6b35]/15 text-[#ff8254]">
-                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none"><path d="M12 4v16M4 12h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-              </span>
-              <span class="eyebrow text-[#ff9d7c]">Your focus today</span>
+      @if (loading()) {
+        <div class="card flex min-h-[280px] items-center justify-center">
+          <div class="spinner" role="status" aria-label="Loading dashboard"></div>
+        </div>
+      } @else if (loadError()) {
+        <div class="card empty-state">
+          <p class="text-sm font-semibold text-ink">Could not reach the Portfolio API</p>
+          <p class="max-w-md text-sm leading-6 text-soft">{{ loadError() }}</p>
+          <button type="button" (click)="reload()" class="btn-ghost mt-2">Retry</button>
+        </div>
+      } @else {
+        <!-- Stat cards -->
+        <section class="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Portfolio statistics">
+          @for (stat of stats(); track stat.label) {
+            <div class="card-raised p-4 sm:p-5">
+              <div class="mb-4 flex items-center justify-between">
+                <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-accent/10 text-accent-text" [innerHTML]="stat.icon"></span>
+                <span class="text-[11px] font-semibold text-muted">{{ stat.hint }}</span>
+              </div>
+              <p class="font-display text-3xl font-semibold tracking-[-0.04em] text-ink">{{ stat.value }}</p>
+              <p class="mt-1 text-xs text-soft">{{ stat.label }}</p>
             </div>
-            <h2 class="font-display text-3xl font-semibold leading-[1.05] tracking-[-0.05em] text-[#f4f1ea] sm:text-4xl">Make space for<br><span class="text-[#ff6b35]">deep work.</span></h2>
-            <p class="mt-5 max-w-xs text-sm leading-6 text-[#8f96a5]">You have {{ focusTaskCount() }} focused tasks left today. A little progress is still progress.</p>
-          </div>
-          <div class="absolute bottom-7 right-7 flex h-28 w-28 items-center justify-center rounded-full border-[10px] border-[#ff6b35]/15 sm:h-32 sm:w-32">
-            <div class="absolute inset-[-10px] rounded-full border-[10px] border-transparent border-t-[#ff6b35] border-r-[#ff6b35] border-b-[#ff6b35] rotate-[-34deg]"></div>
-            <div class="text-center"><strong class="font-display text-3xl font-semibold text-[#f4f1ea]">72</strong><span class="block text-[10px] font-bold uppercase tracking-widest text-[#8f96a5]">focus</span></div>
-          </div>
-        </div>
-
-        <div class="surface-card p-6">
-          <div class="mb-6 flex items-start justify-between">
-            <div><p class="eyebrow mb-2">This week</p><h2 class="font-display text-xl font-semibold tracking-[-0.04em] text-[#f4f1ea]">Your productivity</h2></div>
-            <button type="button" class="rounded-lg border border-white/[0.08] px-2.5 py-1 text-[11px] font-semibold text-[#8f96a5]">7 days⌄</button>
-          </div>
-          <div class="flex h-[120px] items-end gap-2">
-            @for (day of week; track day.label) {
-              <div class="flex h-full flex-1 flex-col items-center justify-end gap-2">
-                <div class="flex h-[92px] w-full items-end justify-center rounded-t-lg bg-white/[0.025]">
-                  <div class="w-2/3 rounded-t-md transition hover:bg-[#ff8254]" [style.background]="day.active ? '#ff6b35' : '#343b48'" [style.height.%]="day.value"></div>
-                </div>
-                <span class="text-[10px] font-semibold" [style.color]="day.active ? '#f4f1ea' : '#687080'">{{ day.label }}</span>
-              </div>
-            }
-          </div>
-        </div>
-      </section>
-
-      <section class="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        @for (stat of stats(); track stat.label) {
-          <div class="surface-card-raised p-4 sm:p-5">
-            <div class="mb-5 flex items-center justify-between"><span class="flex h-8 w-8 items-center justify-center rounded-lg" [style.background]="stat.background" [style.color]="stat.color" [innerHTML]="stat.icon"></span><span class="text-[11px] font-semibold" [style.color]="stat.color">{{ stat.change }}</span></div>
-            <p class="font-display text-2xl font-semibold tracking-[-0.05em] text-[#f4f1ea]">{{ stat.value }}</p><p class="mt-1 text-xs text-[#8f96a5]">{{ stat.label }}</p>
-          </div>
-        }
-      </section>
-
-      <section class="grid gap-5 xl:grid-cols-[1.35fr_0.65fr]">
-        <div class="surface-card overflow-hidden">
-          <div class="flex items-center justify-between border-b border-white/[0.07] px-6 py-5">
-            <div><p class="eyebrow mb-2">Priority queue</p><h2 class="font-display text-xl font-semibold tracking-[-0.04em] text-[#f4f1ea]">Today’s tasks</h2></div>
-            <a routerLink="/tasks" class="text-xs font-semibold text-[#ff8254] transition hover:text-[#ffad91]">View all <span aria-hidden="true">↗</span></a>
-          </div>
-          <div class="divide-y divide-white/[0.06]">
-            @for (task of todayTasks(); track task.id) {
-              <div class="group flex items-center gap-4 px-6 py-4 transition hover:bg-white/[0.025]">
-                <button type="button" class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-[#687080] text-transparent transition hover:border-[#ff6b35] hover:text-[#ff6b35]" [attr.aria-label]="'Complete ' + task.title">✓</button>
-                <div class="min-w-0 flex-1">
-                  <div class="flex flex-wrap items-center gap-2"><h3 class="truncate text-sm font-semibold text-[#e5e3dd]">{{ task.title }}</h3><span class="rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide" [ngClass]="priorityClass(task.priority)">{{ task.priority }}</span></div>
-                  <p class="mt-1 truncate text-xs text-[#747c8c]">{{ task.description }}</p>
-                </div>
-                <span class="hidden shrink-0 text-xs text-[#747c8c] sm:block">{{ task.dueDate | date:'h:mm a' }}</span>
-                <div class="hidden h-7 w-7 items-center justify-center rounded-full bg-[#9b8cff] text-[10px] font-bold text-[#201c38] sm:flex">{{ avatar(task.assigneeId) }}</div>
-                <button type="button" class="text-[#687080] opacity-0 transition group-hover:opacity-100" [attr.aria-label]="'More options for ' + task.title">•••</button>
-              </div>
-            }
-          </div>
-        </div>
-
-        <div id="activity" class="surface-card p-6">
-          <div class="mb-6 flex items-center justify-between"><div><p class="eyebrow mb-2">Stay in the loop</p><h2 class="font-display text-xl font-semibold tracking-[-0.04em] text-[#f4f1ea]">Recent activity</h2></div><span class="h-2 w-2 rounded-full bg-[#7ee2c0] shadow-[0_0_12px_#7ee2c0]"></span></div>
-           <div class="space-y-5">
-             @for (event of visibleActivity(); track event.name) {
-              <div class="flex gap-3"><div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[10px] font-bold" [style.background]="event.background" [style.color]="event.color">{{ event.initials }}</div><div class="min-w-0"><p class="text-xs leading-5 text-[#c8ccd4]"><strong class="font-semibold text-[#f4f1ea]">{{ event.name }}</strong> {{ event.action }}</p><p class="mt-1 text-[10px] text-[#687080]">{{ event.time }}</p></div></div>
-            }
-             @if (visibleActivity().length === 0) {
-               <p class="text-sm leading-6 text-[#8f96a5]">Activity from your workspace will appear here.</p>
-             }
-          </div>
-        </div>
-      </section>
-
-      <section>
-        <div class="mb-4 flex items-end justify-between"><div><p class="eyebrow mb-2">Workspaces</p><h2 class="font-display text-xl font-semibold tracking-[-0.04em] text-[#f4f1ea]">Active projects</h2></div><a routerLink="/projects" class="text-xs font-semibold text-[#ff8254]">See all projects ↗</a></div>
-        <div class="grid gap-4 md:grid-cols-3">
-          @for (project of projectCards(); track project.id) {
-            <a [routerLink]="['/projects', project.id]" class="surface-card-raised group p-5 transition duration-200 hover:-translate-y-1 hover:border-white/20">
-              <div class="mb-9 flex items-start justify-between"><span class="h-2.5 w-2.5 rounded-full" [style.background]="project.color"></span><span class="text-[#687080] transition group-hover:translate-x-1 group-hover:text-[#f4f1ea]">↗</span></div>
-              <h3 class="font-display text-lg font-semibold tracking-[-0.04em] text-[#f4f1ea]">{{ project.name }}</h3><p class="mt-2 line-clamp-1 text-xs text-[#8f96a5]">{{ project.description }}</p>
-              <div class="mt-6 flex items-center justify-between"><div class="flex -space-x-2"><span class="flex h-6 w-6 items-center justify-center rounded-full border-2 border-[#171b24] bg-[#9b8cff] text-[8px] font-bold text-[#201c38]">AM</span><span class="flex h-6 w-6 items-center justify-center rounded-full border-2 border-[#171b24] bg-[#7ee2c0] text-[8px] font-bold text-[#1c3932]">JD</span><span class="flex h-6 w-6 items-center justify-center rounded-full border-2 border-[#171b24] bg-[#ffb38e] text-[8px] font-bold text-[#402317]">+3</span></div><span class="text-xs font-semibold text-[#8f96a5]">{{ projectProgress(project.id) }}% complete</span></div>
-              <div class="mt-3 h-1.5 overflow-hidden rounded-full bg-white/[0.07]"><div class="h-full rounded-full transition-all group-hover:brightness-125" [style.width.%]="projectProgress(project.id)" [style.background]="project.color"></div></div>
-            </a>
           }
-        </div>
-      </section>
+        </section>
+
+        <!-- Health + content snapshot -->
+        <section class="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
+          <div class="card relative overflow-hidden p-6 sm:p-8">
+            <div class="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-accent/10 blur-3xl"></div>
+            <div class="relative z-10 flex flex-col gap-6 sm:flex-row sm:items-center">
+              <div class="flex h-32 w-32 shrink-0 items-center justify-center rounded-full border-[10px] border-accent/15">
+                <div class="text-center">
+                  <strong class="font-display text-3xl font-semibold text-ink">{{ healthScore() }}%</strong>
+                  <span class="block text-[10px] font-bold uppercase tracking-widest text-muted">complete</span>
+                </div>
+              </div>
+              <div>
+                <p class="eyebrow mb-2 text-accent-text">Portfolio health</p>
+                <h3 class="font-display text-2xl font-semibold tracking-[-0.04em] text-ink">
+                  {{ healthMessage() }}
+                </h3>
+                <ul class="mt-4 space-y-1.5">
+                  @for (item of healthChecks(); track item.label) {
+                    <li class="flex items-center gap-2 text-xs">
+                      <span [class]="item.ok ? 'text-success' : 'text-faint'" aria-hidden="true">{{ item.ok ? '✓' : '○' }}</span>
+                      <span [class]="item.ok ? 'text-soft' : 'text-muted'">{{ item.label }}</span>
+                    </li>
+                  }
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div class="card p-6">
+            <p class="eyebrow mb-2">Content</p>
+            <h3 class="font-display mb-5 text-xl font-semibold tracking-[-0.03em] text-ink">Snapshot</h3>
+            <dl class="space-y-4">
+              <div class="flex items-center justify-between border-b border-line/10 pb-3">
+                <dt class="text-sm text-soft">Visible skills</dt>
+                <dd class="text-sm font-bold text-ink">{{ visibleSkills() }} / {{ skillCount() }}</dd>
+              </div>
+              <div class="flex items-center justify-between border-b border-line/10 pb-3">
+                <dt class="text-sm text-soft">Skill categories</dt>
+                <dd class="text-sm font-bold text-ink">{{ skillCategories() }}</dd>
+              </div>
+              <div class="flex items-center justify-between border-b border-line/10 pb-3">
+                <dt class="text-sm text-soft">Current role</dt>
+                <dd class="max-w-[55%] truncate text-right text-sm font-bold text-ink">{{ currentRole() }}</dd>
+              </div>
+              <div class="flex items-center justify-between border-b border-line/10 pb-3">
+                <dt class="text-sm text-soft">Published posts</dt>
+                <dd class="text-sm font-bold text-ink">{{ publishedPosts() }} / {{ postCount() }}</dd>
+              </div>
+              <div class="flex items-center justify-between">
+                <dt class="text-sm text-soft">Featured projects</dt>
+                <dd class="text-sm font-bold text-ink">{{ featuredCount() }} / {{ projectCount() }}</dd>
+              </div>
+            </dl>
+            <a routerLink="/content" class="btn-ghost mt-6 w-full">Manage content</a>
+          </div>
+        </section>
+
+        <!-- Messages + projects -->
+        <section class="grid gap-5 xl:grid-cols-[1fr_1fr]">
+          <div class="card overflow-hidden">
+            <div class="flex items-center justify-between border-b border-line/10 px-6 py-5">
+              <div>
+                <p class="eyebrow mb-1">Inbox</p>
+                <h3 class="font-display text-xl font-semibold tracking-[-0.03em] text-ink">Latest messages</h3>
+              </div>
+              <a routerLink="/messages" class="text-xs font-semibold text-accent-text transition hover:underline">
+                View inbox <span aria-hidden="true">↗</span>
+              </a>
+            </div>
+            @if (recentMessages().length === 0) {
+              <div class="empty-state border-0">
+                <p class="text-sm text-muted">No messages yet. Visitor contact forms land here.</p>
+              </div>
+            } @else {
+              <div class="divide-y divide-line/10">
+                @for (message of recentMessages(); track message.id) {
+                  <a routerLink="/messages" class="flex items-start gap-4 px-6 py-4 transition hover:bg-line/[0.03]">
+                    <span class="mt-1 h-2 w-2 shrink-0 rounded-full" [class]="message.isRead ? 'bg-faint/50' : 'bg-accent'"></span>
+                    <div class="min-w-0 flex-1">
+                      <div class="flex flex-wrap items-center gap-2">
+                        <h4 class="truncate text-sm font-semibold text-ink">{{ message.name }}</h4>
+                        @if (!message.isRead) { <span class="badge-accent">Unread</span> }
+                      </div>
+                      <p class="mt-0.5 truncate text-xs text-soft">{{ message.subject || message.message }}</p>
+                    </div>
+                    <span class="shrink-0 text-xs text-muted">{{ message.createdAt | date:'MMM d' }}</span>
+                  </a>
+                }
+              </div>
+            }
+          </div>
+
+          <div class="card overflow-hidden">
+            <div class="flex items-center justify-between border-b border-line/10 px-6 py-5">
+              <div>
+                <p class="eyebrow mb-1">Showcase</p>
+                <h3 class="font-display text-xl font-semibold tracking-[-0.03em] text-ink">Recent projects</h3>
+              </div>
+              <a routerLink="/projects" class="text-xs font-semibold text-accent-text transition hover:underline">
+                All projects <span aria-hidden="true">↗</span>
+              </a>
+            </div>
+            @if (recentProjects().length === 0) {
+              <div class="empty-state border-0">
+                <p class="text-sm text-muted">No projects yet — create your first one.</p>
+                <a routerLink="/projects/new" class="btn-primary mt-2">New project</a>
+              </div>
+            } @else {
+              <div class="divide-y divide-line/10">
+                @for (project of recentProjects(); track project.id) {
+                  <a [routerLink]="['/projects', project.id, 'edit']" class="block px-6 py-4 transition hover:bg-line/[0.03]">
+                    <div class="flex items-center justify-between gap-3">
+                      <h4 class="truncate text-sm font-semibold text-ink">{{ project.title }}</h4>
+                      @if (project.featured) { <span class="badge-warning shrink-0">Featured</span> }
+                    </div>
+                    <p class="mt-0.5 line-clamp-1 text-xs text-soft">{{ project.description }}</p>
+                    <div class="mt-2 flex flex-wrap gap-1.5">
+                      @for (tech of project.technologies.slice(0, 4); track tech) {
+                        <span class="badge-muted">{{ tech }}</span>
+                      }
+                    </div>
+                  </a>
+                }
+              </div>
+            }
+          </div>
+        </section>
+      }
     </div>
   `
 })
 export class DashboardComponent implements OnInit {
   private readonly projectService = inject(ProjectService);
-  private readonly taskService = inject(TaskService);
+  private readonly skillService = inject(SkillService);
+  private readonly experienceService = inject(ExperienceService);
+  private readonly blogService = inject(BlogService);
+  private readonly contactService = inject(ContactService);
   private readonly authService = inject(AuthService);
 
-  readonly currentUser = this.authService.currentUser;
-  readonly isDemoSession = this.authService.isDemoSession;
   readonly projects = this.projectService.projects;
-  readonly tasks = this.taskService.tasks;
-  readonly firstName = computed(() => this.currentUser()?.name?.split(' ')[0] ?? 'there');
-  readonly projectCards = computed(() => this.isDemoSession() ? this.demoProjects : this.projects().slice(0, 3));
-  readonly todayTasks = computed(() => {
-    const tasks = this.isDemoSession() ? this.demoTasks : this.tasks();
-    return tasks.filter(task => task.status !== 'done').slice(0, 4);
-  });
-  readonly focusTaskCount = computed(() => this.todayTasks().length);
-  readonly stats = computed(() => {
-    const tasks = this.isDemoSession() ? this.demoTasks : this.tasks();
-    const dueThisWeek = tasks.filter(task => {
-      if (!task.dueDate) return false;
-      const dueDate = new Date(task.dueDate);
-      const now = new Date();
-      const daysAway = (dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
-      return daysAway >= 0 && daysAway <= 7;
-    }).length;
+  readonly skills = this.skillService.skills;
+  readonly experience = this.experienceService.experience;
+  readonly posts = this.blogService.posts;
+  readonly messages = this.contactService.messages;
 
-    return [
-      { label: 'Tasks completed', value: tasks.filter(task => task.status === 'done').length, change: this.isDemoSession() ? '+18%' : '', color: '#7ee2c0', background: 'rgba(126,226,192,.12)', icon: '✓' },
-      { label: 'In progress', value: tasks.filter(task => task.status === 'in-progress').length, change: this.isDemoSession() ? '+4%' : '', color: '#ffb38e', background: 'rgba(255,179,142,.12)', icon: '◔' },
-      { label: 'Due this week', value: dueThisWeek, change: this.isDemoSession() ? '-12%' : '', color: '#9b8cff', background: 'rgba(155,140,255,.12)', icon: '⌁' },
-      { label: 'Focus hours', value: this.isDemoSession() ? '24h' : '—', change: this.isDemoSession() ? '+22%' : '', color: '#ff8254', background: 'rgba(255,107,53,.12)', icon: '↗' }
-    ];
+  readonly todayLabel = new Intl.DateTimeFormat('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric'
+  }).format(new Date());
+
+  readonly firstName = computed(() => this.authService.currentUser()?.name?.split(' ')[0] ?? 'there');
+  readonly unreadCount = this.contactService.unreadCount;
+
+  readonly loading = computed(
+    () =>
+      this.projectService.loading() ||
+      this.skillService.loading() ||
+      this.experienceService.loading() ||
+      this.blogService.loading() ||
+      this.contactService.loading()
+  );
+
+  readonly loadError = computed(
+    () =>
+      this.projectService.error() ??
+      this.skillService.error() ??
+      this.experienceService.error() ??
+      this.blogService.error() ??
+      this.contactService.error()
+  );
+
+  readonly projectCount = computed(() => this.projects().length);
+  readonly featuredCount = computed(() => this.projects().filter(p => p.featured).length);
+  readonly skillCount = computed(() => this.skills().length);
+  readonly visibleSkills = computed(() => this.skills().filter(s => s.isActive).length);
+  readonly skillCategories = computed(
+    () => new Set(this.skills().map(s => s.category || 'Uncategorized')).size
+  );
+  readonly postCount = computed(() => this.posts().length);
+  readonly publishedPosts = computed(() => this.posts().filter(p => p.published).length);
+  readonly currentRole = computed(
+    () => this.experience().find(item => item.current)?.company ?? '—'
+  );
+
+  readonly recentMessages = computed(() =>
+    [...this.messages()]
+      .sort((a, b) => Number(a.isRead) - Number(b.isRead) || b.createdAt.localeCompare(a.createdAt))
+      .slice(0, 4)
+  );
+
+  readonly recentProjects = computed(() =>
+    [...this.projects()].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 4)
+  );
+
+  readonly stats = computed(() => [
+    {
+      label: 'Projects',
+      value: this.projectCount(),
+      hint: `${this.featuredCount()} featured`,
+      icon: '<svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M4 7.5a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-10Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>'
+    },
+    {
+      label: 'Skills',
+      value: this.skillCount(),
+      hint: `${this.visibleSkills()} visible`,
+      icon: '<svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="m12 4 2.1 4.3 4.7.7-3.4 3.3.8 4.7-4.2-2.2-4.2 2.2.8-4.7-3.4-3.3 4.7-.7L12 4Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>'
+    },
+    {
+      label: 'Blog posts',
+      value: this.postCount(),
+      hint: `${this.publishedPosts()} live`,
+      icon: '<svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M6 4.75h8.5L18 8.25v11H6v-14.5Z" stroke="currentColor" stroke-width="1.7"/><path d="M14 4.75v3.5h4M9 12h6M9 15.5h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>'
+    },
+    {
+      label: 'Unread messages',
+      value: this.unreadCount(),
+      hint: `${this.messages().length} total`,
+      icon: '<svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v8a2.5 2.5 0 0 1-2.5 2.5H9l-4 3.5v-3.5A2.5 2.5 0 0 1 4 14.5v-8Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>'
+    }
+  ]);
+
+  readonly healthChecks = computed(() => [
+    { label: 'At least one project', ok: this.projectCount() > 0 },
+    { label: 'A featured project is highlighted', ok: this.featuredCount() > 0 },
+    { label: 'Skills are listed and visible', ok: this.visibleSkills() > 0 },
+    { label: 'Work experience is filled in', ok: this.experience().length > 0 },
+    { label: 'A blog post is published', ok: this.publishedPosts() > 0 }
+  ]);
+
+  readonly healthScore = computed(() => {
+    const checks = this.healthChecks();
+    return Math.round((checks.filter(check => check.ok).length / checks.length) * 100);
   });
 
-  readonly week = [
-    { label: 'M', value: 44, active: false }, { label: 'T', value: 69, active: false }, { label: 'W', value: 52, active: false },
-    { label: 'T', value: 82, active: true }, { label: 'F', value: 61, active: false }, { label: 'S', value: 36, active: false }, { label: 'S', value: 28, active: false }
-  ];
-  readonly activity = [
-    { name: 'Jordan Davis', action: 'completed “Audit mobile flows”', time: '12 minutes ago', initials: 'JD', background: 'rgba(126,226,192,.16)', color: '#7ee2c0' },
-    { name: 'You', action: 'moved “Research references” to review', time: '48 minutes ago', initials: 'AM', background: 'rgba(155,140,255,.18)', color: '#b4aaff' },
-    { name: 'Alex Morgan', action: 'commented on Brand refresh', time: '2 hours ago', initials: 'AM', background: 'rgba(255,179,142,.16)', color: '#ffb38e' }
-  ];
-  readonly visibleActivity = computed(() => this.isDemoSession() ? this.activity : []);
-  private readonly demoProjects: Project[] = [
-    { id: 'brand-refresh', name: 'Brand refresh', description: 'A sharper identity for the next chapter.', color: '#ff6b35', createdAt: new Date(), updatedAt: new Date(), ownerId: 'demo', teamIds: [] },
-    { id: 'mobile-flows', name: 'Mobile flows', description: 'Make every tap feel effortless.', color: '#9b8cff', createdAt: new Date(), updatedAt: new Date(), ownerId: 'demo', teamIds: [] },
-    { id: 'launch-week', name: 'Launch week', description: 'Everything we need to ship with confidence.', color: '#7ee2c0', createdAt: new Date(), updatedAt: new Date(), ownerId: 'demo', teamIds: [] }
-  ];
-  private readonly demoTasks: Task[] = [
-    { id: 'task-1', title: 'Finalize onboarding copy', description: 'Review the last pass with the content team', status: 'in-progress', priority: 'high', projectId: 'brand-refresh', assigneeId: 'AM', dueDate: new Date(2026, 8, 7, 10, 30), tags: ['Copy'], order: 1, createdAt: new Date(), updatedAt: new Date() },
-    { id: 'task-2', title: 'Audit mobile flows', description: 'Check the handoff from welcome to setup', status: 'review', priority: 'urgent', projectId: 'mobile-flows', assigneeId: 'JD', dueDate: new Date(2026, 8, 7, 12, 0), tags: ['UX'], order: 2, createdAt: new Date(), updatedAt: new Date() },
-    { id: 'task-3', title: 'Prepare launch checklist', description: 'Align owners and deadlines for launch week', status: 'todo', priority: 'medium', projectId: 'launch-week', assigneeId: 'AM', dueDate: new Date(2026, 8, 7, 15, 0), tags: ['Planning'], order: 3, createdAt: new Date(), updatedAt: new Date() },
-    { id: 'task-4', title: 'Research references', description: 'Collect three visual references for the new system', status: 'todo', priority: 'low', projectId: 'brand-refresh', assigneeId: 'JD', dueDate: new Date(2026, 8, 7, 17, 30), tags: ['Research'], order: 4, createdAt: new Date(), updatedAt: new Date() }
-  ];
+  readonly healthMessage = computed(() => {
+    const score = this.healthScore();
+    if (score === 100) return 'Your portfolio is fully fleshed out.';
+    if (score >= 60) return 'Strong base — a few gaps left.';
+    if (score > 0) return 'Getting started. Fill the gaps below.';
+    return 'Nothing published yet. Add your first content.';
+  });
 
   ngOnInit(): void {
+    this.reload();
+  }
+
+  reload(): void {
     this.projectService.loadProjects().subscribe({ error: () => undefined });
-    this.taskService.loadTasks().subscribe({ error: () => undefined });
-  }
-
-  priorityClass(priority: Task['priority']): string {
-    return { urgent: 'bg-[#ff6b35]/15 text-[#ff8b61]', high: 'bg-[#ffb38e]/15 text-[#ffb38e]', medium: 'bg-[#9b8cff]/15 text-[#b4aaff]', low: 'bg-[#7ee2c0]/15 text-[#7ee2c0]' }[priority];
-  }
-
-  avatar(assigneeId?: string): string {
-    return assigneeId?.slice(0, 2).toUpperCase() ?? 'AM';
-  }
-
-  projectProgress(projectId: string): number {
-    if (this.isDemoSession()) {
-      return { 'brand-refresh': 68, 'mobile-flows': 42, 'launch-week': 84 }[projectId] ?? 0;
-    }
-
-    const projectTasks = this.tasks().filter(task => task.projectId === projectId);
-    return projectTasks.length
-      ? Math.round((projectTasks.filter(task => task.status === 'done').length / projectTasks.length) * 100)
-      : 0;
+    this.skillService.loadSkills().subscribe({ error: () => undefined });
+    this.experienceService.loadExperience().subscribe({ error: () => undefined });
+    this.blogService.loadPosts().subscribe({ error: () => undefined });
+    this.contactService.loadMessages().subscribe({ error: () => undefined });
   }
 }

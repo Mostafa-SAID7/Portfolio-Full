@@ -12,65 +12,166 @@ namespace PortfolioAPI.Infrastructure.Data
         }
 
         public DbSet<Project> Projects { get; set; } = null!;
+        public DbSet<ProjectImage> ProjectImages { get; set; } = null!;
         public DbSet<Skill> Skills { get; set; } = null!;
         public DbSet<Experience> Experiences { get; set; } = null!;
         public DbSet<Contact> Contacts { get; set; } = null!;
         public DbSet<Testimonial> Testimonials { get; set; } = null!;
         public DbSet<BlogPost> BlogPosts { get; set; } = null!;
+        public DbSet<Credential> Credentials { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
-            // Apply configurations
             modelBuilder.ApplyConfiguration(new ProjectConfiguration());
             modelBuilder.ApplyConfiguration(new SkillConfiguration());
 
-            // Configure other entities if needed
+            ConfigureProjectImage(modelBuilder);
             ConfigureExperience(modelBuilder);
             ConfigureContact(modelBuilder);
             ConfigureTestimonial(modelBuilder);
             ConfigureBlogPost(modelBuilder);
+            ConfigureCredential(modelBuilder);
+            ConfigureJoinEntities(modelBuilder);
         }
 
-        private void ConfigureExperience(ModelBuilder modelBuilder)
+        private static void ConfigureCredential(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<Credential>(entity =>
+            {
+                entity.HasKey(c => c.Id);
+
+                entity.Property(c => c.Tab).IsRequired().HasMaxLength(30);
+                entity.Property(c => c.Year).HasMaxLength(10);
+                entity.Property(c => c.PeriodEn).IsRequired().HasMaxLength(100);
+                entity.Property(c => c.PeriodAr).IsRequired().HasMaxLength(100);
+                entity.Property(c => c.TitleEn).IsRequired().HasMaxLength(200);
+                entity.Property(c => c.TitleAr).IsRequired().HasMaxLength(200);
+                entity.Property(c => c.OrgEn).IsRequired().HasMaxLength(150);
+                entity.Property(c => c.OrgAr).IsRequired().HasMaxLength(150);
+                entity.Property(c => c.LocationEn).HasMaxLength(150);
+                entity.Property(c => c.LocationAr).HasMaxLength(150);
+                entity.Property(c => c.SummaryEn).HasMaxLength(1000);
+                entity.Property(c => c.SummaryAr).HasMaxLength(1000);
+                entity.Property(c => c.HighlightsEn)
+                    .HasMaxLength(4000)
+                    .HasConversion(JsonListConverter.HighlightsJson);
+                entity.Property(c => c.HighlightsAr)
+                    .HasMaxLength(4000)
+                    .HasConversion(JsonListConverter.HighlightsJson);
+                entity.Property(c => c.Stack)
+                    .HasMaxLength(500)
+                    .HasConversion(StringListConverter.CommaSeparated);
+                entity.Property(c => c.CredentialId).HasMaxLength(100);
+                entity.Property(c => c.StatusEn).HasMaxLength(50);
+                entity.Property(c => c.StatusAr).HasMaxLength(50);
+                entity.Property(c => c.Featured).HasDefaultValue(false);
+                entity.Property(c => c.Order).HasDefaultValue(0);
+                entity.Property(c => c.IsActive).HasDefaultValue(true);
+
+                entity.HasIndex(c => c.Tab);
+                entity.HasIndex(c => c.IsActive);
+            });
+        }
+
+        /// <summary>Join/lookup entities reached through navigation properties.</summary>
+        private static void ConfigureJoinEntities(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<BlogPostTag>(entity =>
+            {
+                entity.HasKey(t => new { t.BlogPostId, t.Tag });
+
+                entity.Property(t => t.Tag)
+                    .IsRequired()
+                    .HasMaxLength(100);
+
+                entity.HasOne(t => t.BlogPost)
+                    .WithMany(p => p.BlogPostTags)
+                    .HasForeignKey(t => t.BlogPostId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<SkillProject>(entity =>
+            {
+                entity.HasKey(sp => new { sp.SkillId, sp.ProjectId });
+
+                entity.HasOne(sp => sp.Skill)
+                    .WithMany(s => s.SkillProjects)
+                    .HasForeignKey(sp => sp.SkillId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(sp => sp.Project)
+                    .WithMany()
+                    .HasForeignKey(sp => sp.ProjectId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+        }
+
+        private static void ConfigureProjectImage(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<ProjectImage>(entity =>
+            {
+                entity.HasKey(i => i.Id);
+
+                entity.Property(i => i.ImageUrl)
+                    .IsRequired()
+                    .HasMaxLength(500);
+
+                entity.Property(i => i.AltText)
+                    .HasMaxLength(200);
+
+                entity.Property(i => i.Order)
+                    .HasDefaultValue(0);
+
+                entity.Property(i => i.IsPrimary)
+                    .HasDefaultValue(false);
+            });
+        }
+
+        private static void ConfigureExperience(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Experience>(entity =>
             {
                 entity.HasKey(e => e.Id);
 
-                entity.Property(e => e.JobTitle)
+                entity.Property(e => e.Company)
                     .IsRequired()
                     .HasMaxLength(100);
 
-                entity.Property(e => e.CompanyName)
+                entity.Property(e => e.Position)
                     .IsRequired()
-                    .HasMaxLength(100);
-
-                entity.Property(e => e.Location)
                     .HasMaxLength(100);
 
                 entity.Property(e => e.StartDate)
                     .IsRequired();
 
-                entity.Property(e => e.IsCurrentPosition)
-                    .HasDefaultValue(false);
-
                 entity.Property(e => e.Description)
+                    .IsRequired()
                     .HasMaxLength(1000);
 
                 entity.Property(e => e.Technologies)
-                    .HasMaxLength(200);
+                    .HasMaxLength(500)
+                    .HasConversion(StringListConverter.CommaSeparated);
 
-                entity.Property(e => e.CompanyWebsite)
-                    .HasMaxLength(500);
+                entity.Property(e => e.Location)
+                    .HasMaxLength(100);
 
-                entity.HasIndex(e => e.CompanyName);
-                entity.HasIndex(e => e.IsCurrentPosition);
+                entity.Property(e => e.Current)
+                    .HasDefaultValue(false);
+
+                entity.Property(e => e.Order)
+                    .HasDefaultValue(0);
+
+                entity.Property(e => e.IsActive)
+                    .HasDefaultValue(true);
+
+                entity.HasIndex(e => e.Company);
+                entity.HasIndex(e => e.Current);
             });
         }
 
-        private void ConfigureContact(ModelBuilder modelBuilder)
+        private static void ConfigureContact(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Contact>(entity =>
             {
@@ -84,10 +185,8 @@ namespace PortfolioAPI.Infrastructure.Data
                     .IsRequired()
                     .HasMaxLength(256);
 
-                entity.Property(c => c.Phone)
-                    .HasMaxLength(15);
-
                 entity.Property(c => c.Subject)
+                    .IsRequired()
                     .HasMaxLength(200);
 
                 entity.Property(c => c.Message)
@@ -97,46 +196,61 @@ namespace PortfolioAPI.Infrastructure.Data
                 entity.Property(c => c.IsRead)
                     .HasDefaultValue(false);
 
+                entity.Property(c => c.IpAddress)
+                    .HasMaxLength(45); // IPv6-safe
+
+                entity.Property(c => c.UserAgent)
+                    .HasMaxLength(500);
+
                 entity.HasIndex(c => c.Email);
                 entity.HasIndex(c => c.IsRead);
             });
         }
 
-        private void ConfigureTestimonial(ModelBuilder modelBuilder)
+        private static void ConfigureTestimonial(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Testimonial>(entity =>
             {
                 entity.HasKey(t => t.Id);
 
-                entity.Property(t => t.ClientName)
+                entity.Property(t => t.Name)
                     .IsRequired()
                     .HasMaxLength(100);
 
-                entity.Property(t => t.ClientPosition)
+                entity.Property(t => t.Position)
                     .HasMaxLength(100);
 
-                entity.Property(t => t.ClientCompany)
+                entity.Property(t => t.Company)
                     .HasMaxLength(100);
 
                 entity.Property(t => t.Content)
                     .IsRequired()
                     .HasMaxLength(1000);
 
+                entity.Property(t => t.ImageUrl)
+                    .HasMaxLength(500);
+
                 entity.Property(t => t.Rating)
                     .HasDefaultValue(5);
 
-                entity.Property(t => t.ClientImageUrl)
-                    .HasMaxLength(500);
+                entity.Property(t => t.Featured)
+                    .HasDefaultValue(false);
 
-                entity.Property(t => t.IsVisible)
+                entity.Property(t => t.Order)
+                    .HasDefaultValue(0);
+
+                entity.Property(t => t.IsActive)
                     .HasDefaultValue(true);
 
-                entity.HasIndex(t => t.IsVisible);
+                entity.Property(t => t.ProjectUrl)
+                    .HasMaxLength(500);
+
+                entity.HasIndex(t => t.IsActive);
                 entity.HasIndex(t => t.Rating);
             });
         }
 
-        private void ConfigureBlogPost(ModelBuilder modelBuilder)
+        private static void ConfigureBlogPost(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<BlogPost>(entity =>
             {
@@ -150,35 +264,47 @@ namespace PortfolioAPI.Infrastructure.Data
                     .IsRequired()
                     .HasMaxLength(300);
 
+                entity.Property(b => b.Excerpt)
+                    .IsRequired()
+                    .HasMaxLength(500);
+
                 entity.Property(b => b.Content)
                     .IsRequired();
 
-                entity.Property(b => b.Excerpt)
-                    .HasMaxLength(500);
-
                 entity.Property(b => b.Author)
+                    .IsRequired()
                     .HasMaxLength(100);
 
-                entity.Property(b => b.FeaturedImageUrl)
-                    .HasMaxLength(500);
+                entity.Property(b => b.PublishedAt)
+                    .IsRequired();
 
                 entity.Property(b => b.Tags)
-                    .HasMaxLength(200);
+                    .HasMaxLength(500)
+                    .HasConversion(StringListConverter.CommaSeparated);
 
-                entity.Property(b => b.IsPublished)
-                    .HasDefaultValue(false);
+                entity.Property(b => b.FeaturedImage)
+                    .HasMaxLength(500);
 
-                entity.Property(b => b.ReadTimeMinutes)
+                entity.Property(b => b.ReadingTime)
                     .HasDefaultValue(0);
+
+                entity.Property(b => b.Published)
+                    .HasDefaultValue(false);
 
                 entity.Property(b => b.ViewCount)
                     .HasDefaultValue(0);
 
+                entity.Property(b => b.MetaTitle)
+                    .HasMaxLength(200);
+
+                entity.Property(b => b.MetaDescription)
+                    .HasMaxLength(500);
+
                 entity.HasIndex(b => b.Slug)
                     .IsUnique();
 
-                entity.HasIndex(b => b.IsPublished);
-                entity.HasIndex(b => new { b.IsPublished, b.PublishedAt });
+                entity.HasIndex(b => b.Published);
+                entity.HasIndex(b => new { b.Published, b.PublishedAt });
             });
         }
     }

@@ -1,130 +1,156 @@
-// src/app/features/projects/project-form/project-form.component.ts
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router, ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { Observable } from 'rxjs';
 import { ProjectService } from '../../../core/services/project.service';
+import { ProjectMetric, ProjectPayload } from '../../../core/models/project.model';
 
 @Component({
   selector: 'app-project-form',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink],
   template: `
-    <div class="max-w-2xl mx-auto">
+    <div class="mx-auto max-w-3xl">
       <div class="mb-8">
-        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">
-          {{ isEditMode() ? 'Edit Project' : 'Create New Project' }}
-        </h1>
+        <a routerLink="/projects" class="text-xs font-semibold text-accent-text hover:underline">← Back to projects</a>
+        <p class="eyebrow mb-2 mt-3">{{ isEditMode ? 'Editing' : 'New entry' }}</p>
+        <h2 class="font-display text-3xl font-semibold tracking-[-0.05em] text-ink">
+          {{ isEditMode ? 'Edit project' : 'Create project' }}
+        </h2>
+        <p class="mt-2 text-sm text-soft">Saved directly to the Portfolio API — visible on the public site instantly.</p>
       </div>
 
-      <form [formGroup]="projectForm" (ngSubmit)="onSubmit()" class="bg-white dark:bg-gray-800 shadow rounded-lg p-6 space-y-6">
+      <form [formGroup]="projectForm" (ngSubmit)="onSubmit()" class="card space-y-6 p-6" novalidate>
         @if (errorMessage()) {
-          <div 
-            role="alert" 
-            class="rounded-md bg-red-50 dark:bg-red-900/20 p-4 border border-red-200 dark:border-red-800"
-            aria-live="polite"
-          >
-            <p class="text-sm text-red-800 dark:text-red-300">{{ errorMessage() }}</p>
+          <div role="alert" class="rounded-xl border border-danger/30 bg-danger/10 p-3 text-sm text-danger">
+            {{ errorMessage() }}
           </div>
         }
 
         <div>
-          <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Project Name <span class="text-red-500">*</span>
-          </label>
+          <label for="title" class="field-label">Title <span class="text-danger">*</span></label>
           <input
-            id="name"
+            id="title"
             type="text"
-            formControlName="name"
-            required
-            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            [class.border-red-500]="projectForm.get('name')?.invalid && projectForm.get('name')?.touched"
-            placeholder="Enter project name"
-            [attr.aria-invalid]="projectForm.get('name')?.invalid && projectForm.get('name')?.touched"
-            [attr.aria-describedby]="projectForm.get('name')?.invalid && projectForm.get('name')?.touched ? 'name-error' : null"
+            formControlName="title"
+            class="input"
+            placeholder="E-Inventory platform"
+            [attr.aria-invalid]="invalid('title')"
           />
-          @if (projectForm.get('name')?.invalid && projectForm.get('name')?.touched) {
-            <p id="name-error" class="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">
-              Project name is required
-            </p>
-          }
+          @if (invalid('title')) { <p class="field-error" role="alert">Title is required (max 100 characters).</p> }
         </div>
 
         <div>
-          <label for="description" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Description <span class="text-red-500">*</span>
-          </label>
+          <label for="description" class="field-label">Description <span class="text-danger">*</span></label>
           <textarea
             id="description"
             formControlName="description"
-            required
             rows="4"
-            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            [class.border-red-500]="projectForm.get('description')?.invalid && projectForm.get('description')?.touched"
-            placeholder="Enter project description"
-            [attr.aria-invalid]="projectForm.get('description')?.invalid && projectForm.get('description')?.touched"
-            [attr.aria-describedby]="projectForm.get('description')?.invalid && projectForm.get('description')?.touched ? 'description-error' : null"
+            class="input resize-y"
+            placeholder="What the project is, who it was for, the outcome..."
+            [attr.aria-invalid]="invalid('description')"
           ></textarea>
-          @if (projectForm.get('description')?.invalid && projectForm.get('description')?.touched) {
-            <p id="description-error" class="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">
-              Description is required
-            </p>
-          }
+          @if (invalid('description')) { <p class="field-error" role="alert">Description is required (max 500 characters).</p> }
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-            Project Color <span class="text-red-500">*</span>
-          </label>
-          <div class="flex flex-wrap gap-3" role="radiogroup" aria-label="Project color">
-            @for (colorOption of colorOptions; track colorOption.value) {
-              <label
-                class="relative cursor-pointer focus-within:ring-2 focus-within:ring-blue-500 rounded-full"
-                [attr.aria-label]="colorOption.name"
-              >
-                <input
-                  type="radio"
-                  formControlName="color"
-                  [value]="colorOption.value"
-                  class="sr-only"
-                />
-                <div
-                  class="w-10 h-10 rounded-full border-2 transition-all"
-                  [style.background-color]="colorOption.value"
-                  [class.border-gray-900]="projectForm.get('color')?.value === colorOption.value"
-                  [class.border-gray-300]="projectForm.get('color')?.value !== colorOption.value"
-                  [class.ring-2]="projectForm.get('color')?.value === colorOption.value"
-                  [class.ring-blue-500]="projectForm.get('color')?.value === colorOption.value"
-                ></div>
-              </label>
-            }
+          <label for="technologies" class="field-label">Technologies</label>
+          <input id="technologies" type="text" formControlName="technologies" class="input" placeholder="Angular, .NET 9, SQL Server" />
+          <p class="mt-2 text-xs text-muted">Separate with commas — they become tech chips on the portfolio.</p>
+        </div>
+
+        <div class="border-t border-line/10 pt-5">
+          <p class="eyebrow mb-1">Portfolio presentation</p>
+          <p class="mb-4 text-xs text-muted">
+            These fields drive the category filters, client and status chips on the public portfolio.
+          </p>
+          <div class="grid gap-5 sm:grid-cols-2">
+            <div>
+              <label for="category" class="field-label">Category</label>
+              <input id="category" type="text" formControlName="category" class="input" list="category-options" placeholder="Clothing" />
+              <datalist id="category-options">
+                @for (option of categoryOptions; track option) { <option [value]="option"></option> }
+              </datalist>
+            </div>
+            <div>
+              <label for="client" class="field-label">Client</label>
+              <input id="client" type="text" formControlName="client" class="input" placeholder="Under Armour" />
+            </div>
+            <div>
+              <label for="type" class="field-label">Type</label>
+              <select id="type" formControlName="type" class="input">
+                <option value="">—</option>
+                @for (option of typeOptions; track option) { <option [value]="option">{{ option }}</option> }
+              </select>
+            </div>
+            <div>
+              <label for="database" class="field-label">Database</label>
+              <input id="database" type="text" formControlName="database" class="input" placeholder="PostgreSQL" />
+            </div>
+            <div>
+              <label for="status" class="field-label">Build status</label>
+              <select id="status" formControlName="status" class="input">
+                <option value="">—</option>
+                @for (option of statusOptions; track option) { <option [value]="option">{{ option }}</option> }
+              </select>
+            </div>
+            <div>
+              <label for="badges" class="field-label">Badges</label>
+              <input id="badges" type="text" formControlName="badges" class="input" placeholder="Done, Deployed" />
+              <p class="mt-2 text-xs text-muted">Separate with commas — small chips on the project card.</p>
+            </div>
           </div>
         </div>
 
-        <div class="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-          <button
-            type="button"
-            (click)="cancel()"
-            class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            [disabled]="projectForm.invalid || isLoading()"
-            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            [attr.aria-busy]="isLoading()"
-          >
-            @if (isLoading()) {
-              <span class="flex items-center">
-                <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Saving...
+        <div class="grid gap-5 sm:grid-cols-2">
+          <div>
+            <label for="liveUrl" class="field-label">Live URL</label>
+            <input id="liveUrl" type="url" formControlName="liveUrl" class="input" placeholder="https://..." />
+          </div>
+          <div>
+            <label for="githubUrl" class="field-label">GitHub URL</label>
+            <input id="githubUrl" type="url" formControlName="githubUrl" class="input" placeholder="https://github.com/..." />
+          </div>
+        </div>
+
+        <div>
+          <label for="imageUrl" class="field-label">Cover image URL</label>
+          <input id="imageUrl" type="url" formControlName="imageUrl" class="input" placeholder="/api/my-project-1280.webp" />
+        </div>
+
+        <div class="grid gap-5 sm:grid-cols-2">
+          <div>
+            <label for="order" class="field-label">Display order</label>
+            <input id="order" type="number" formControlName="order" class="input" min="0" />
+            <p class="mt-2 text-xs text-muted">Lower numbers appear first on the portfolio.</p>
+          </div>
+          <div class="flex flex-col justify-center gap-3 pt-1">
+            <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-line/10 bg-line/[0.03] p-4">
+              <input type="checkbox" formControlName="featured" class="h-4 w-4 accent-[rgb(var(--accent))]" />
+              <span>
+                <span class="block text-sm font-semibold text-ink">Featured</span>
+                <span class="block text-xs text-muted">Shown in the highlighted section.</span>
               </span>
+            </label>
+            <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-line/10 bg-line/[0.03] p-4">
+              <input type="checkbox" formControlName="isActive" class="h-4 w-4 accent-[rgb(var(--accent))]" />
+              <span>
+                <span class="block text-sm font-semibold text-ink">Visible on site</span>
+                <span class="block text-xs text-muted">Uncheck to keep it as a hidden draft.</span>
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-3 border-t border-line/10 pt-5">
+          <button type="button" (click)="cancel()" class="btn-ghost">Cancel</button>
+          <button type="submit" [disabled]="projectForm.invalid || isLoading()" class="btn-primary" [attr.aria-busy]="isLoading()">
+            @if (isLoading()) {
+              <span class="h-4 w-4 animate-spin rounded-full border-2 border-on-accent/30 border-t-on-accent"></span>
+              Saving…
             } @else {
-              {{ isEditMode() ? 'Update Project' : 'Create Project' }}
+              {{ isEditMode ? 'Update project' : 'Create project' }}
             }
           </button>
         </div>
@@ -140,70 +166,58 @@ export class ProjectFormComponent implements OnInit {
 
   readonly isLoading = signal(false);
   readonly errorMessage = signal<string | null>(null);
-  readonly isEditMode = signal(false);
+  readonly isEditMode = this.route.snapshot.url.some(segment => segment.path === 'edit');
 
-  private projectId: string | null = null;
+  private projectId: number | null = null;
 
-  readonly colorOptions = [
-    { name: 'Red', value: '#ef4444' },
-    { name: 'Orange', value: '#f97316' },
-    { name: 'Yellow', value: '#eab308' },
-    { name: 'Green', value: '#22c55e' },
-    { name: 'Blue', value: '#3b82f6' },
-    { name: 'Indigo', value: '#6366f1' },
-    { name: 'Purple', value: '#a855f7' },
-    { name: 'Pink', value: '#ec4899' }
+  /** Presentation data kept out of the form UI but round-tripped on save. */
+  private loadedGradient: string | null = null;
+  private loadedMetrics: ProjectMetric[] = [];
+
+  readonly categoryOptions = [
+    'Clothing',
+    'Beauty',
+    'Jewelry',
+    'Furniture',
+    'Dashboard',
+    'Web3',
+    'Sports',
+    'Tech Accessories',
+    'Backend',
+    'Other'
   ];
+  readonly typeOptions = ['Team', 'Freelance', 'Self'];
+  readonly statusOptions = ['In Progress', 'Completed', 'Deployed'];
 
   readonly projectForm = this.fb.nonNullable.group({
-    name: ['', [Validators.required]],
-    description: ['', [Validators.required]],
-    color: ['#3b82f6', [Validators.required]],
-    teamIds: [[] as string[]]
+    title: ['', [Validators.required, Validators.maxLength(100)]],
+    description: ['', [Validators.required, Validators.maxLength(500)]],
+    technologies: [''],
+    liveUrl: [''],
+    githubUrl: [''],
+    imageUrl: [''],
+    order: [0, [Validators.min(0), Validators.max(9999)]],
+    featured: [false],
+    isActive: [true],
+    category: [''],
+    client: [''],
+    type: [''],
+    database: [''],
+    status: [''],
+    badges: ['']
   });
 
   ngOnInit(): void {
-    this.projectId = this.route.snapshot.paramMap.get('id');
-    if (this.projectId) {
-      this.isEditMode.set(true);
+    const idParam = this.route.snapshot.paramMap.get('id');
+    if (this.isEditMode && idParam) {
+      this.projectId = Number(idParam);
       this.loadProject(this.projectId);
     }
   }
 
-  private loadProject(id: string): void {
-    const projects = this.projectService.projects();
-    const project = projects.find(p => p.id === id);
-
-    if (project) {
-      this.populateForm(project);
-      return;
-    }
-
-    this.isLoading.set(true);
-    this.projectService.loadProjects().subscribe({
-      next: loadedProjects => {
-        this.isLoading.set(false);
-        const loadedProject = loadedProjects.find(item => item.id === id);
-        if (loadedProject) {
-          this.populateForm(loadedProject);
-        } else {
-          this.errorMessage.set('This project could not be found.');
-        }
-      },
-      error: err => {
-        this.isLoading.set(false);
-        this.errorMessage.set(err.error?.message || 'Failed to load project. Please try again.');
-      }
-    });
-  }
-
-  private populateForm(project: { name: string; description: string; color: string; teamIds: string[] }): void {
-    this.projectForm.patchValue({
-      name: project.name,
-      description: project.description,
-      color: project.color,
-      teamIds: project.teamIds
-    });
+  invalid(control: string): boolean {
+    const field = this.projectForm.get(control);
+    return !!field && field.invalid && field.touched;
   }
 
   onSubmit(): void {
@@ -215,25 +229,111 @@ export class ProjectFormComponent implements OnInit {
     this.isLoading.set(true);
     this.errorMessage.set(null);
 
-    const projectData = this.projectForm.getRawValue();
+    const value = this.projectForm.getRawValue();
+    const payload: ProjectPayload = {
+      title: value.title.trim(),
+      description: value.description.trim(),
+      technologies: value.technologies
+        .split(',')
+        .map(item => item.trim())
+        .filter(Boolean),
+      liveUrl: value.liveUrl.trim() || null,
+      githubUrl: value.githubUrl.trim() || null,
+      imageUrl: value.imageUrl.trim() || null,
+      order: value.order,
+      featured: value.featured,
+      isActive: value.isActive,
+      category: value.category.trim() || null,
+      client: value.client.trim() || null,
+      type: value.type || null,
+      database: value.database.trim() || null,
+      status: value.status || null,
+      badges: value.badges
+        .split(',')
+        .map(item => item.trim())
+        .filter(Boolean),
+      gradient: this.loadedGradient,
+      metrics: this.loadedMetrics
+    };
 
-    const request = this.isEditMode() && this.projectId
-      ? this.projectService.updateProject(this.projectId, projectData)
-      : this.projectService.createProject(projectData);
+    const request: Observable<unknown> =
+      this.isEditMode && this.projectId !== null
+        ? this.projectService.updateProject(this.projectId, payload)
+        : this.projectService.createProject(payload);
 
     request.subscribe({
       next: () => {
         this.isLoading.set(false);
         this.router.navigate(['/projects']);
       },
-      error: (err) => {
+      error: err => {
         this.isLoading.set(false);
-        this.errorMessage.set(err.error?.message || 'Failed to save project. Please try again.');
+        this.errorMessage.set(err?.error?.message ?? 'Failed to save the project. Please try again.');
       }
     });
   }
 
   cancel(): void {
     this.router.navigate(['/projects']);
+  }
+
+  private loadProject(id: number): void {
+    const cached = this.projectService.projects().find(project => project.id === id);
+    if (cached) {
+      this.populateForm(cached);
+      return;
+    }
+
+    this.isLoading.set(true);
+    this.projectService.getProject(id).subscribe({
+      next: project => {
+        this.isLoading.set(false);
+        this.populateForm(project);
+      },
+      error: err => {
+        this.isLoading.set(false);
+        this.errorMessage.set(err?.error?.message ?? 'Failed to load the project.');
+      }
+    });
+  }
+
+  private populateForm(project: {
+    title: string;
+    description: string;
+    technologies: string[];
+    liveUrl: string | null;
+    githubUrl: string | null;
+    imageUrl: string | null;
+    order: number;
+    featured: boolean;
+    isActive: boolean;
+    category?: string | null;
+    client?: string | null;
+    type?: string | null;
+    database?: string | null;
+    status?: string | null;
+    badges?: string[];
+    gradient?: string | null;
+    metrics?: ProjectMetric[];
+  }): void {
+    this.loadedGradient = project.gradient ?? null;
+    this.loadedMetrics = project.metrics ?? [];
+    this.projectForm.patchValue({
+      title: project.title,
+      description: project.description,
+      technologies: project.technologies.join(', '),
+      liveUrl: project.liveUrl ?? '',
+      githubUrl: project.githubUrl ?? '',
+      imageUrl: project.imageUrl ?? '',
+      order: project.order,
+      featured: project.featured,
+      isActive: project.isActive,
+      category: project.category ?? '',
+      client: project.client ?? '',
+      type: project.type ?? '',
+      database: project.database ?? '',
+      status: project.status ?? '',
+      badges: (project.badges ?? []).join(', ')
+    });
   }
 }

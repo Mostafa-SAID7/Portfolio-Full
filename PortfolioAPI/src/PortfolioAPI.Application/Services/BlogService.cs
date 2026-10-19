@@ -41,7 +41,7 @@ namespace PortfolioAPI.Application.Services
 
         public async Task<IEnumerable<BlogPost>> GetPublishedBlogPostsAsync()
         {
-            return await _unitOfWork.BlogPosts.FindAsync(b => b.IsPublished);
+            return await _unitOfWork.BlogPosts.FindAsync(b => b.Published);
         }
 
         public async Task<BlogPost> CreateBlogPostAsync(BlogPost blogPost)

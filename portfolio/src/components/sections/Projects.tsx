@@ -1,15 +1,17 @@
 import { Link } from "@tanstack/react-router";
 import { Reveal } from "@/components/ui/Reveal";
 import { Code2, ExternalLink, Rocket } from "lucide-react";
-import { projects } from "@/data";
 import { SmartImage } from "@/components/ui/SmartImage";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { useI18n } from "@/lib/i18n";
 import { useLocalizedContent } from "@/lib/localize";
+import { usePortfolioProjects } from "@/lib/content";
 
 export function Projects() {
   const { tr } = useI18n();
   const { projectTitle, projectDescription, category, projectType } = useLocalizedContent();
+  // Live content from the PortfolioAPI (local fallback while it loads/offline).
+  const projects = usePortfolioProjects();
   // Grab the first 3 projects as featured for the homepage
   const featuredWorks = projects.slice(0, 3);
 

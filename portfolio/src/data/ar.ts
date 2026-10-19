@@ -98,6 +98,7 @@ export const categoryAr: Record<string, string> = {
   Sports: "رياضة",
   "Tech Accessories": "إكسسوارات تقنية",
   Backend: "خدمات خلفية",
+  Other: "أخرى",
 };
 
 export const projectTypeAr: Record<string, string> = {

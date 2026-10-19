@@ -35,7 +35,7 @@ namespace PortfolioAPI.Application.Services
 
         public async Task<IEnumerable<Testimonial>> GetVisibleTestimonialsAsync()
         {
-            return await _unitOfWork.Testimonials.FindAsync(t => t.IsVisible);
+            return await _unitOfWork.Testimonials.FindAsync(t => t.IsActive);
         }
 
         public async Task<Testimonial> CreateTestimonialAsync(Testimonial testimonial)

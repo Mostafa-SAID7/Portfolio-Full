@@ -35,7 +35,7 @@ namespace PortfolioAPI.Application.Services
 
         public async Task<IEnumerable<Experience>> GetCurrentExperiencesAsync()
         {
-            return await _unitOfWork.Experiences.FindAsync(e => e.IsCurrentPosition);
+            return await _unitOfWork.Experiences.FindAsync(e => e.Current);
         }
 
         public async Task<Experience> CreateExperienceAsync(Experience experience)

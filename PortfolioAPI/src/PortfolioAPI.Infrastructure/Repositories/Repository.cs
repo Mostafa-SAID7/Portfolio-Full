@@ -32,6 +32,11 @@ namespace PortfolioAPI.Infrastructure.Repositories
             return await _dbSet.Where(predicate).ToListAsync();
         }
 
+        public async Task<T?> FirstOrDefaultAsync(Expression<Func<T, bool>> predicate)
+        {
+            return await _dbSet.FirstOrDefaultAsync(predicate);
+        }
+
         public async Task<T> AddAsync(T entity)
         {
             if (entity == null)
@@ -42,6 +47,21 @@ namespace PortfolioAPI.Infrastructure.Repositories
             return entry.Entity;
         }
 
+        public async Task<IEnumerable<T>> AddRangeAsync(IEnumerable<T> entities)
+        {
+            if (entities == null)
+                throw new ArgumentNullException(nameof(entities));
+
+            var list = entities.ToList();
+            foreach (var entity in list)
+            {
+                entity.CreatedAt = DateTime.UtcNow;
+            }
+
+            await _dbSet.AddRangeAsync(list);
+            return list;
+        }
+
         public async Task UpdateAsync(T entity)
         {
             if (entity == null)
@@ -49,6 +69,21 @@ namespace PortfolioAPI.Infrastructure.Repositories
 
             entity.UpdatedAt = DateTime.UtcNow;
             _dbSet.Update(entity);
+            await Task.CompletedTask;
+        }
+
+        public async Task UpdateRangeAsync(IEnumerable<T> entities)
+        {
+            if (entities == null)
+                throw new ArgumentNullException(nameof(entities));
+
+            foreach (var entity in entities)
+            {
+                entity.UpdatedAt = DateTime.UtcNow;
+            }
+
+            _dbSet.UpdateRange(entities);
+            await Task.CompletedTask;
         }
 
         public async Task DeleteAsync(T entity)
@@ -57,6 +92,30 @@ namespace PortfolioAPI.Infrastructure.Repositories
                 throw new ArgumentNullException(nameof(entity));
 
             _dbSet.Remove(entity);
+            await Task.CompletedTask;
+        }
+
+        public async Task DeleteRangeAsync(IEnumerable<T> entities)
+        {
+            if (entities == null)
+                throw new ArgumentNullException(nameof(entities));
+
+            _dbSet.RemoveRange(entities);
+            await Task.CompletedTask;
+        }
+
+        public async Task DeleteByIdAsync(int id)
+        {
+            var entity = await _dbSet.FindAsync(id);
+            if (entity != null)
+            {
+                _dbSet.Remove(entity);
+            }
+        }
+
+        public async Task<bool> SaveChangesAsync()
+        {
+            return await _context.SaveChangesAsync() > 0;
         }
 
         public async Task<bool> ExistsAsync(int id)

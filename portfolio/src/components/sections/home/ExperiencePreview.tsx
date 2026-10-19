@@ -14,7 +14,8 @@ import {
 } from "lucide-react";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { useI18n } from "@/lib/i18n";
-import { credentials, credentialTabs, type CredentialTab } from "@/data";
+import { credentialTabs, type CredentialTab } from "@/data";
+import { usePortfolioCredentials } from "@/lib/content";
 
 const tabIcons: Record<CredentialTab, typeof Building2> = {
   work: Building2,
@@ -30,8 +31,9 @@ export function ExperiencePreview() {
   const [openId, setOpenId] = useState<string | null>(null);
   const { tr, lang } = useI18n();
   const reduce = useReducedMotion();
+  const credentials = usePortfolioCredentials();
 
-  const items = useMemo(() => credentials.filter((c) => c.tab === activeTab), [activeTab]);
+  const items = useMemo(() => credentials.filter((c) => c.tab === activeTab), [credentials, activeTab]);
   const ActiveIcon = tabIcons[activeTab];
 
   const listVariants = {

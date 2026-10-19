@@ -13,6 +13,7 @@ namespace PortfolioAPI.Core.Interfaces
         IRepository<Contact> Contacts { get; }
         IRepository<Testimonial> Testimonials { get; }
         IRepository<ProjectImage> ProjectImages { get; }
+        IRepository<Credential> Credentials { get; }
 
         Task<int> SaveChangesAsync();
         Task BeginTransactionAsync();

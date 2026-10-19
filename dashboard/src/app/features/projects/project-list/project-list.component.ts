@@ -1,93 +1,129 @@
-// src/app/features/projects/project-list/project-list.component.ts
-import { Component, computed, inject, OnInit } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ProjectService } from '../../../core/services/project.service';
-import { Project } from '../../../core/models/project.model';
-import { AuthService } from '../../../core/services/auth.service';
+import { resolvePortfolioImage } from '../../../core/portfolio-origin';
 
 @Component({
   selector: 'app-project-list',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, FormsModule],
   template: `
     <div class="space-y-6">
-      <div class="flex justify-between items-center">
-        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Projects</h1>
-        <a
-          routerLink="/projects/new"
-          class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-        >
-          + New Project
-        </a>
+      <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+        <div>
+          <p class="eyebrow mb-2">Showcase</p>
+          <h2 class="font-display text-3xl font-semibold tracking-[-0.05em] text-ink">Projects</h2>
+          <p class="mt-2 text-sm text-soft">{{ projectCount() }} projects served by the Portfolio API.</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <input
+            type="search"
+            [(ngModel)]="query"
+            placeholder="Search projects..."
+            aria-label="Search projects"
+            class="input max-w-[220px] py-2.5"
+          />
+          <a routerLink="/projects/new" class="btn-primary shrink-0"><span class="text-lg leading-none">+</span> New</a>
+        </div>
       </div>
 
-          @if (loading()) {
-        <div class="flex items-center justify-center py-12" role="status" aria-live="polite">
-          <svg class="animate-spin h-12 w-12 text-blue-600" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          <span class="sr-only">Loading projects...</span>
+      @if (service.loading()) {
+        <div class="card flex min-h-[280px] items-center justify-center">
+          <div class="spinner" role="status" aria-label="Loading projects"></div>
         </div>
-          } @else if (visibleProjects().length === 0) {
-        <div class="text-center py-12">
-          <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-          <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">No projects</h3>
-          <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Get started by creating a new project.</p>
-          <div class="mt-6">
-            <a
-              routerLink="/projects/new"
-              class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              + New Project
-            </a>
-          </div>
+      } @else if (service.error()) {
+        <div class="card empty-state">
+          <p class="text-sm font-semibold text-ink">Failed to load projects</p>
+          <p class="max-w-md text-sm text-soft">{{ service.error() }}</p>
+          <button type="button" class="btn-ghost mt-2" (click)="load()">Retry</button>
+        </div>
+      } @else if (filteredProjects().length === 0) {
+        <div class="card empty-state">
+          @if (query) {
+            <p class="text-sm text-muted">No projects match “{{ query }}”.</p>
+            <button type="button" class="btn-ghost mt-2" (click)="query = ''">Clear search</button>
+          } @else {
+            <p class="text-sm text-muted">No projects yet. Create the first one for your portfolio.</p>
+            <a routerLink="/projects/new" class="btn-primary mt-2">New project</a>
+          }
         </div>
       } @else {
-        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          @for (project of visibleProjects(); track project.id) {
-            <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow">
-              <div class="p-6">
-                <div class="flex items-center justify-between mb-4">
-                  <div class="w-4 h-4 rounded-full flex-shrink-0" [style.background-color]="project.color"></div>
-                  <div class="flex gap-2">
-                    <button
-                      [routerLink]="['/projects', project.id, 'edit']"
-                      class="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded p-1"
-                      [attr.aria-label]="'Edit ' + project.name"
-                      type="button"
-                    >
-                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </button>
-                    <button
-                      (click)="deleteProject(project.id, project.name)"
-                      class="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 focus:outline-none focus:ring-2 focus:ring-red-500 rounded p-1"
-                      [attr.aria-label]="'Delete ' + project.name"
-                      type="button"
-                    >
-                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          @for (project of filteredProjects(); track project.id) {
+            <article class="card-raised flex flex-col overflow-hidden p-0">
+              <!-- Cover: API-owned image over the project gradient; the letter
+                   tile shows through while loading or when the image fails. -->
+              <a
+                [routerLink]="['/projects', project.id]"
+                class="relative block h-40 shrink-0 overflow-hidden bg-line/[0.06]"
+                [style.background]="project.gradient || undefined"
+              >
+                <span class="absolute inset-0 flex items-center justify-center font-display text-4xl font-bold text-ink/10">
+                  {{ project.title.charAt(0) }}
+                </span>
+                @if (coverUrl(project.imageUrl); as src) {
+                  <img
+                    [src]="src"
+                    [alt]="project.title + ' cover'"
+                    loading="lazy"
+                    class="relative h-full w-full object-cover"
+                    (error)="onCoverError($event)"
+                  />
+                }
+              </a>
+
+              <div class="flex flex-1 flex-col p-5">
+                <div class="mb-3 flex flex-wrap items-center gap-1.5">
+                  @if (project.featured) { <span class="badge-warning">Featured</span> }
+                  @if (project.category) { <span class="badge-accent">{{ project.category }}</span> }
+                  @if (project.type) { <span class="badge-muted">{{ project.type }}</span> }
+                  @if (project.status) { <span class="badge-muted">{{ project.status }}</span> }
+                  @for (badge of project.badges; track badge) { <span class="badge-muted">{{ badge }}</span> }
+                </div>
+
+                <div class="mb-2 flex items-start justify-between gap-3">
+                  <a [routerLink]="['/projects', project.id]" class="block min-w-0">
+                    <h3 class="truncate font-display text-lg font-semibold tracking-[-0.02em] text-ink transition hover:text-accent-text">{{ project.title }}</h3>
+                    @if (project.client) {
+                      <p class="mt-0.5 truncate text-xs text-muted">Client · {{ project.client }}</p>
+                    }
+                  </a>
+                  <div class="flex shrink-0 gap-1">
+                    <a [routerLink]="['/projects', project.id, 'edit']" class="icon-btn" [attr.aria-label]="'Edit ' + project.title" title="Edit">
+                      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5m-1.414-9.414a2 2 0 1 1 2.828 2.828L11.828 15H9v-2.828l8.586-8.586Z"/></svg>
+                    </a>
+                    <button type="button" class="icon-btn hover:border-danger/40 hover:text-danger" (click)="remove(project.id, project.title)" [attr.aria-label]="'Delete ' + project.title" title="Delete">
+                      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0 1 16.138 21H7.862a2 2 0 0 1-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v3M4 7h16"/></svg>
                     </button>
                   </div>
                 </div>
-                <a [routerLink]="['/projects', project.id]" class="block focus:outline-none focus:ring-2 focus:ring-blue-500 rounded">
-                  <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">{{ project.name }}</h3>
-                  <p class="text-sm text-gray-600 dark:text-gray-400 line-clamp-3">{{ project.description }}</p>
-                </a>
-                <div class="mt-4 flex items-center text-sm text-gray-500 dark:text-gray-400">
-                  <svg class="mr-1.5 h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  {{ project.createdAt | date:'MMM d, y' }}
+
+                <p class="line-clamp-3 text-sm leading-6 text-soft">{{ project.description }}</p>
+
+                @if (project.technologies.length) {
+                  <div class="mt-3 flex flex-wrap gap-1.5">
+                    @for (tech of project.technologies.slice(0, 3); track tech) {
+                      <span class="badge-muted">{{ tech }}</span>
+                    }
+                  </div>
+                }
+
+                <div class="mt-auto flex items-center justify-between pt-4 text-xs text-muted">
+                  <span>{{ project.createdAt | date: 'MMM d, y' }}</span>
+                  @if (project.liveUrl) {
+                    <a [href]="project.liveUrl" target="_blank" rel="noopener" class="font-semibold text-accent-text hover:underline">
+                      Live ↗
+                    </a>
+                  } @else if (project.githubUrl) {
+                    <a [href]="project.githubUrl" target="_blank" rel="noopener" class="font-semibold text-accent-text hover:underline">
+                      Repository ↗
+                    </a>
+                  }
                 </div>
               </div>
-            </div>
+            </article>
           }
         </div>
       }
@@ -95,26 +131,47 @@ import { AuthService } from '../../../core/services/auth.service';
   `
 })
 export class ProjectListComponent implements OnInit {
-  private readonly projectService = inject(ProjectService);
-  private readonly authService = inject(AuthService);
+  readonly service = inject(ProjectService);
 
-  readonly projects = this.projectService.projects;
-  readonly loading = this.projectService.loading;
-  readonly visibleProjects = computed(() => this.authService.isDemoSession() ? this.demoProjects : this.projects());
+  query = '';
 
-  private readonly demoProjects: Project[] = [
-    { id: 'brand-refresh', name: 'Brand refresh', description: 'A sharper identity for the next chapter.', color: '#ff6b35', createdAt: new Date(), updatedAt: new Date(), ownerId: 'demo', teamIds: [] },
-    { id: 'mobile-flows', name: 'Mobile flows', description: 'Make every tap feel effortless.', color: '#9b8cff', createdAt: new Date(), updatedAt: new Date(), ownerId: 'demo', teamIds: [] },
-    { id: 'launch-week', name: 'Launch week', description: 'Everything we need to ship with confidence.', color: '#7ee2c0', createdAt: new Date(), updatedAt: new Date(), ownerId: 'demo', teamIds: [] }
-  ];
+  readonly projectCount = computed(() => this.service.projects().length);
+  readonly filteredProjects = computed(() => {
+    const needle = this.query.trim().toLowerCase();
+    const projects = [...this.service.projects()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    if (!needle) return projects;
+    return projects.filter(
+      project =>
+        project.title.toLowerCase().includes(needle) ||
+        project.description.toLowerCase().includes(needle) ||
+        project.technologies.join(' ').toLowerCase().includes(needle) ||
+        (project.client ?? '').toLowerCase().includes(needle) ||
+        (project.category ?? '').toLowerCase().includes(needle)
+    );
+  });
 
-  ngOnInit(): void {
-    this.projectService.loadProjects().subscribe({ error: () => undefined });
+  /** Stored image → loadable URL (covers live in the portfolio's public folder). */
+  coverUrl(imageUrl: string | null): string | null {
+    return resolvePortfolioImage(imageUrl);
   }
 
-  deleteProject(id: string, name: string): void {
-    if (confirm(`Are you sure you want to delete "${name}"? This will also delete all associated tasks.`)) {
-      this.projectService.deleteProject(id).subscribe();
-    }
+  /** Hide a broken cover so the gradient + letter fallback shows through. */
+  onCoverError(event: Event): void {
+    (event.currentTarget as HTMLImageElement).style.display = 'none';
+  }
+
+  ngOnInit(): void {
+    this.load();
+  }
+
+  load(): void {
+    this.service.loadProjects().subscribe({ error: () => undefined });
+  }
+
+  remove(id: number, title: string): void {
+    if (!confirm(`Delete "${title}"? This removes it from the public portfolio.`)) return;
+    this.service.deleteProject(id).subscribe({
+      error: err => alert(err?.error?.message ?? 'Failed to delete the project.')
+    });
   }
 }

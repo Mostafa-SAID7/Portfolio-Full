@@ -1,0 +1,36 @@
+# ---- .NET -------------------------------------------------------------
+[Bb]in/
+[Oo]bj/
+publish/
+*.user
+*.suo
+.vs/
+
+# Local/secrets configuration — never commit these.
+# appsettings.Development.json carries the local connection string;
+# appsettings.Production.json (if used) carries production secrets.
+appsettings.Development.json
+appsettings.Production.json
+!appsettings.Production.json.example
+
+# ---- Node / frontends -------------------------------------------------
+node_modules/
+dist/
+.angular/
+*.tsbuildinfo
+
+# ---- Vercel / Nitro build output --------------------------------------
+.vercel/
+.nitro/
+.output/
+.tanstack/
+
+# ---- Environment files (frontend secrets live in Vercel's dashboard) ---
+.env
+.env.*
+!.env.example
+
+# ---- Misc -------------------------------------------------------------
+*.log
+.DS_Store
+Thumbs.db

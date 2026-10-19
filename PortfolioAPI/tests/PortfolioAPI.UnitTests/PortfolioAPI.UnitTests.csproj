@@ -23,6 +23,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\PortfolioAPI.Application\PortfolioAPI.Application.csproj" />
     <ProjectReference Include="..\..\src\PortfolioAPI.Core\PortfolioAPI.Core.csproj" />
+    <ProjectReference Include="..\..\src\PortfolioAPI.Infrastructure\PortfolioAPI.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\PortfolioAPI\PortfolioAPI.csproj" />
   </ItemGroup>
 
 </Project>

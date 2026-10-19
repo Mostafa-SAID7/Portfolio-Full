@@ -15,7 +15,6 @@ namespace PortfolioAPI.IntegrationTests
             _contactFaker = new Faker<Contact>()
                 .RuleFor(c => c.Name, f => f.Name.FullName())
                 .RuleFor(c => c.Email, f => f.Internet.Email())
-                .RuleFor(c => c.Phone, f => f.Phone.PhoneNumber())
                 .RuleFor(c => c.Subject, f => f.Lorem.Sentence(5))
                 .RuleFor(c => c.Message, f => f.Lorem.Paragraphs(2));
         }

@@ -40,7 +40,7 @@ namespace PortfolioAPI.Application.Services
 
         public async Task<IEnumerable<Skill>> GetVisibleSkillsAsync()
         {
-            return await _unitOfWork.Skills.FindAsync(s => s.IsVisible);
+            return await _unitOfWork.Skills.FindAsync(s => s.IsActive);
         }
 
         public async Task<Skill> CreateSkillAsync(Skill skill)

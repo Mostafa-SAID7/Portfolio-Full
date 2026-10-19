@@ -1,10 +1,10 @@
 {
- "name":"taskflow-starter",
-"version":"0.1.0",
-  "description": "Taskflow Starter Angular Application",
+  "name": "portfolio-dashboard",
+  "version": "1.0.0",
+  "description": "Admin dashboard for the Portfolio API (projects, content, messages, stats).",
   "author": "Mostafa Said",
-
   "license": "MIT",
+  "private": true,
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
@@ -24,10 +24,8 @@
       }
     ]
   },
-  "private": true,
   "dependencies": {
     "@angular/animations": "^20.0.0",
-    "@angular/cdk": "^20.0.0",
     "@angular/common": "^20.3.0",
     "@angular/compiler": "^20.3.0",
     "@angular/core": "^20.3.0",
@@ -53,5 +51,11 @@
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",
     "typescript": "~5.9.2"
+  },
+  "allowScripts": {
+    "esbuild@0.28.1": true,
+    "lmdb@3.4.2": true,
+    "msgpackr-extract@3.0.4": true,
+    "@parcel/watcher@2.6.0": true
   }
 }

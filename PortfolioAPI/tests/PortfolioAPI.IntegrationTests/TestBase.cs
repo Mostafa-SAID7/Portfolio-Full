@@ -2,6 +2,7 @@ using System.Net.Http.Headers;
 using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Configurations;
 using DotNet.Testcontainers.Containers;
+using Testcontainers.MsSql;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -21,7 +22,7 @@ namespace PortfolioAPI.IntegrationTests
 {
     public class TestBase : IAsyncLifetime
     {
-        private readonly MsSqlTestcontainer _dbContainer;
+        private readonly MsSqlContainer _dbContainer;
         protected readonly WebApplicationFactory<Program> _factory;
         protected readonly HttpClient _client;
         protected readonly IServiceScope _scope;
@@ -29,12 +30,9 @@ namespace PortfolioAPI.IntegrationTests
 
         public TestBase()
         {
-            // Configure SQL Server test container
-            _dbContainer = new TestcontainersBuilder<MsSqlTestcontainer>()
-                .WithDatabase(new MsSqlTestcontainerConfiguration
-                {
-                    Password = "Strong_password_123!"
-                })
+            // Configure SQL Server test container (Testcontainers v3 API)
+            _dbContainer = new MsSqlBuilder()
+                .WithPassword("Strong_password_123!")
                 .WithImage("mcr.microsoft.com/mssql/server:2022-latest")
                 .WithCleanUp(true)
                 .Build();
@@ -56,7 +54,7 @@ namespace PortfolioAPI.IntegrationTests
                         // Add test database context
                         services.AddDbContext<PortfolioDbContext>(options =>
                         {
-                            options.UseSqlServer(_dbContainer.ConnectionString);
+                            options.UseSqlServer(_dbContainer.GetConnectionString());
                         });
 
                         // Replace services with test implementations if needed
@@ -67,7 +65,7 @@ namespace PortfolioAPI.IntegrationTests
                     builder.UseConfiguration(new ConfigurationBuilder()
                         .AddInMemoryCollection(new Dictionary<string, string?>
                         {
-                            ["ConnectionStrings:DefaultConnection"] = _dbContainer.ConnectionString,
+                            ["ConnectionStrings:DefaultConnection"] = _dbContainer.GetConnectionString(),
                             ["EmailSettings:SmtpServer"] = "localhost",
                             ["EmailSettings:SmtpPort"] = "1025",
                             ["EmailSettings:Username"] = "test@example.com",

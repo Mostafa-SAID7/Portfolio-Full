@@ -20,94 +20,39 @@ namespace PortfolioAPI.Controllers
         public async Task<ActionResult<IEnumerable<SkillDto>>> GetAllSkills()
         {
             var skills = await _skillService.GetAllSkillsAsync();
-            var skillDtos = skills.Select(s => new SkillDto
-            {
-                Id = s.Id,
-                Name = s.Name,
-                Category = s.Category,
-                ProficiencyLevel = s.ProficiencyLevel,
-                IconUrl = s.IconUrl,
-                IsVisible = s.IsVisible,
-                CreatedAt = s.CreatedAt,
-                UpdatedAt = s.UpdatedAt
-            });
-            return Ok(skillDtos);
+            return Ok(skills.OrderBy(s => s.Order).ThenBy(s => s.Name).Select(Map));
         }
 
         [HttpGet("{id}")]
         public async Task<ActionResult<SkillDto>> GetSkillById(int id)
         {
             var skill = await _skillService.GetSkillByIdAsync(id);
-            var skillDto = new SkillDto
-            {
-                Id = skill.Id,
-                Name = skill.Name,
-                Category = skill.Category,
-                ProficiencyLevel = skill.ProficiencyLevel,
-                IconUrl = skill.IconUrl,
-                IsVisible = skill.IsVisible,
-                CreatedAt = skill.CreatedAt,
-                UpdatedAt = skill.UpdatedAt
-            };
-            return Ok(skillDto);
+            return Ok(Map(skill));
         }
 
         [HttpGet("category/{category}")]
         public async Task<ActionResult<IEnumerable<SkillDto>>> GetSkillsByCategory(string category)
         {
             var skills = await _skillService.GetSkillsByCategoryAsync(category);
-            var skillDtos = skills.Select(s => new SkillDto
-            {
-                Id = s.Id,
-                Name = s.Name,
-                Category = s.Category,
-                ProficiencyLevel = s.ProficiencyLevel,
-                IconUrl = s.IconUrl,
-                IsVisible = s.IsVisible,
-                CreatedAt = s.CreatedAt,
-                UpdatedAt = s.UpdatedAt
-            });
-            return Ok(skillDtos);
+            return Ok(skills.OrderBy(s => s.Order).Select(Map));
         }
 
         [HttpGet("visible")]
         public async Task<ActionResult<IEnumerable<SkillDto>>> GetVisibleSkills()
         {
             var skills = await _skillService.GetVisibleSkillsAsync();
-            var skillDtos = skills.Select(s => new SkillDto
-            {
-                Id = s.Id,
-                Name = s.Name,
-                Category = s.Category,
-                ProficiencyLevel = s.ProficiencyLevel,
-                IconUrl = s.IconUrl,
-                IsVisible = s.IsVisible,
-                CreatedAt = s.CreatedAt,
-                UpdatedAt = s.UpdatedAt
-            });
-            return Ok(skillDtos);
+            return Ok(skills.OrderBy(s => s.Order).Select(Map));
         }
 
         [HttpPost]
-        public async Task<ActionResult<SkillDto>> CreateSkill(Skill skill)
+        public async Task<ActionResult<SkillDto>> CreateSkill([FromBody] Skill skill)
         {
             var createdSkill = await _skillService.CreateSkillAsync(skill);
-            var skillDto = new SkillDto
-            {
-                Id = createdSkill.Id,
-                Name = createdSkill.Name,
-                Category = createdSkill.Category,
-                ProficiencyLevel = createdSkill.ProficiencyLevel,
-                IconUrl = createdSkill.IconUrl,
-                IsVisible = createdSkill.IsVisible,
-                CreatedAt = createdSkill.CreatedAt,
-                UpdatedAt = createdSkill.UpdatedAt
-            };
-            return CreatedAtAction(nameof(GetSkillById), new { id = skillDto.Id }, skillDto);
+            return CreatedAtAction(nameof(GetSkillById), new { id = createdSkill.Id }, Map(createdSkill));
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateSkill(int id, Skill skill)
+        public async Task<IActionResult> UpdateSkill(int id, [FromBody] Skill skill)
         {
             if (id != skill.Id)
             {
@@ -124,5 +69,19 @@ namespace PortfolioAPI.Controllers
             await _skillService.DeleteSkillAsync(id);
             return NoContent();
         }
+
+        private static SkillDto Map(Skill s) => new()
+        {
+            Id = s.Id,
+            Name = s.Name,
+            Category = s.Category,
+            Proficiency = s.Proficiency,
+            IconUrl = s.IconUrl,
+            Description = s.Description,
+            Order = s.Order,
+            IsActive = s.IsActive,
+            CreatedAt = s.CreatedAt,
+            UpdatedAt = s.UpdatedAt
+        };
     }
 }

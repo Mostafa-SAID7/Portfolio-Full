@@ -2,7 +2,8 @@ import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { AnimatePresence, m as motion, useReducedMotion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
-import { credentials, type CredentialTab } from "@/data";
+import { type CredentialTab } from "@/data";
+import { usePortfolioCredentials } from "@/lib/content";
 import { useI18n } from "@/lib/i18n";
 import { EASE } from "@/lib/motion";
 import { CareerTabs } from "./CareerTabs";
@@ -16,8 +17,9 @@ export function CareerTimeline() {
   const [openId, setOpenId] = useState<string | null>(null);
   const { tr } = useI18n();
   const reduce = !!useReducedMotion();
+  const credentials = usePortfolioCredentials();
 
-  const items = useMemo(() => credentials.filter((c) => c.tab === activeTab), [activeTab]);
+  const items = useMemo(() => credentials.filter((c) => c.tab === activeTab), [credentials, activeTab]);
   const ActiveIcon = tabIcons[activeTab];
 
   return (

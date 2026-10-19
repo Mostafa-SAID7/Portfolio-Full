@@ -1,97 +1,86 @@
-// src/app/core/services/project.service.ts
-import { Injectable, signal, computed, inject } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, of, tap, throwError } from 'rxjs';
-import { Project, CreateProjectDto } from '../models/project.model';
-import { AuthService } from './auth.service';
+import { Observable, catchError, of, tap, throwError } from 'rxjs';
+import { Project, ProjectPayload } from '../models/project.model';
 import { API_URL } from '../api.config';
+
+const ENDPOINT = `${API_URL}/Projects`;
 
 @Injectable({ providedIn: 'root' })
 export class ProjectService {
   private readonly http = inject(HttpClient);
-  private readonly authService = inject(AuthService);
 
   private readonly projectsSignal = signal<Project[]>([]);
-  private readonly selectedProjectIdSignal = signal<string | null>(null);
-  private readonly loadingSignal = signal<boolean>(false);
+  private readonly loadingSignal = signal(false);
   private readonly errorSignal = signal<string | null>(null);
 
   readonly projects = this.projectsSignal.asReadonly();
-  readonly selectedProjectId = this.selectedProjectIdSignal.asReadonly();
   readonly loading = this.loadingSignal.asReadonly();
   readonly error = this.errorSignal.asReadonly();
 
-  readonly selectedProject = computed(() => {
-    const id = this.selectedProjectIdSignal();
-    return id ? this.projectsSignal().find(p => p.id === id) : null;
-  });
+  readonly featured = computed(() => this.projectsSignal().filter(project => project.featured));
 
   loadProjects(): Observable<Project[]> {
     this.loadingSignal.set(true);
     this.errorSignal.set(null);
 
-    if (this.authService.isDemoSession()) {
-      this.projectsSignal.set([]);
-      this.loadingSignal.set(false);
-      return of([]);
-    }
-
-    return this.http.get<Project[]>(`${API_URL}/projects`).pipe(
-      tap({
-        next: projects => {
-          this.projectsSignal.set(projects);
-          this.loadingSignal.set(false);
-        },
-        error: err => {
-          this.errorSignal.set(err.message || 'Failed to load projects');
-          this.loadingSignal.set(false);
-        }
+    return this.http.get<Project[]>(ENDPOINT).pipe(
+      tap(projects => {
+        this.projectsSignal.set(projects ?? []);
+        this.loadingSignal.set(false);
+      }),
+      catchError(err => {
+        this.errorSignal.set(this.message(err, 'Failed to load projects.'));
+        this.loadingSignal.set(false);
+        return throwError(() => err);
       })
     );
   }
 
-  createProject(dto: CreateProjectDto): Observable<Project> {
-    if (this.authService.isDemoSession()) {
-      return throwError(() => new Error('The demo workspace is read-only.'));
-    }
-
-    return this.http.post<Project>(`${API_URL}/projects`, dto).pipe(
-      tap(project => {
-        this.projectsSignal.update(projects => [...projects, project]);
-      })
+  getProject(id: number): Observable<Project> {
+    return this.http.get<Project>(`${ENDPOINT}/${id}`).pipe(
+      catchError(err => throwError(() => err))
     );
   }
 
-  updateProject(id: string, updates: Partial<CreateProjectDto>): Observable<Project> {
-    if (this.authService.isDemoSession()) {
-      return throwError(() => new Error('The demo workspace is read-only.'));
-    }
-
-    return this.http.patch<Project>(`${API_URL}/projects/${id}`, updates).pipe(
-      tap(updated => {
-        this.projectsSignal.update(projects =>
-          projects.map(p => p.id === id ? updated : p)
-        );
-      })
+  createProject(payload: ProjectPayload): Observable<Project> {
+    return this.http.post<Project>(ENDPOINT, payload).pipe(
+      tap(project => this.projectsSignal.update(list => [project, ...list])),
+      catchError(err => throwError(() => err))
     );
   }
 
-  deleteProject(id: string): Observable<void> {
-    if (this.authService.isDemoSession()) {
-      return throwError(() => new Error('The demo workspace is read-only.'));
-    }
-
-    return this.http.delete<void>(`${API_URL}/projects/${id}`).pipe(
-      tap(() => {
-        this.projectsSignal.update(projects => projects.filter(p => p.id !== id));
-        if (this.selectedProjectIdSignal() === id) {
-          this.selectedProjectIdSignal.set(null);
-        }
-      })
+  /** Backend update endpoint is PUT and expects the full entity. */
+  updateProject(id: number, payload: ProjectPayload): Observable<void> {
+    return this.http.put<void>(`${ENDPOINT}/${id}`, { ...payload, id }).pipe(
+      tap(() => this.patchLocal(id, payload)),
+      catchError(err => throwError(() => err))
     );
   }
 
-  selectProject(id: string | null): void {
-    this.selectedProjectIdSignal.set(id);
+  deleteProject(id: number): Observable<void> {
+    return this.http.delete<void>(`${ENDPOINT}/${id}`).pipe(
+      tap(() => this.projectsSignal.update(list => list.filter(project => project.id !== id))),
+      catchError(err => throwError(() => err))
+    );
+  }
+
+  /** Refresh a single entry after a PUT (the API returns 204 No Content). */
+  refreshProject(id: number): void {
+    this.getProject(id).subscribe({
+      next: updated => this.patchLocal(id, updated),
+      error: () => undefined
+    });
+  }
+
+  private patchLocal(id: number, changes: Partial<Project>): void {
+    this.projectsSignal.update(list =>
+      list.map(project => (project.id === id ? { ...project, ...changes, id } : project))
+    );
+  }
+
+  private message(err: any, fallback: string): string {
+    if (typeof err?.error === 'string' && err.error.trim()) return err.error;
+    return err?.error?.message ?? err?.message ?? fallback;
   }
 }

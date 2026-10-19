@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using PortfolioAPI.Core.Common;
 using PortfolioAPI.Core.DTOs;
 
 namespace PortfolioAPI.Core.Interfaces.Services

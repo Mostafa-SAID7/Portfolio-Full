@@ -3,6 +3,7 @@ using System.Net;
 using Bogus;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using PortfolioAPI.Core.Entities;
 using PortfolioAPI.Infrastructure.Data;
 using Xunit;
@@ -20,25 +21,22 @@ namespace PortfolioAPI.IntegrationTests
             _projectFaker = new Faker<Project>()
                 .RuleFor(p => p.Title, f => f.Lorem.Sentence(3))
                 .RuleFor(p => p.Description, f => f.Lorem.Paragraphs(2))
-                .RuleFor(p => p.Technologies, f => string.Join(", ", f.Make(3, () => f.Hacker.Ingredient())))
-                .RuleFor(p => p.ProjectUrl, f => f.Internet.Url())
-                .RuleFor(p => p.RepositoryUrl, f => f.Internet.Url())
+                .RuleFor(p => p.Technologies, f => f.Make(3, () => f.Hacker.Noun()))
+                .RuleFor(p => p.LiveUrl, f => f.Internet.Url())
+                .RuleFor(p => p.GithubUrl, f => f.Internet.Url())
                 .RuleFor(p => p.ImageUrl, f => f.Image.PicsumUrl())
-                .RuleFor(p => p.IsFeatured, f => f.Random.Bool())
-                .RuleFor(p => p.StartDate, f => f.Date.Past(2))
-                .RuleFor(p => p.EndDate, f => f.Date.Future());
+                .RuleFor(p => p.Featured, f => f.Random.Bool());
 
             _skillFaker = new Faker<Skill>()
-                .RuleFor(s => s.Name, f => f.Hacker.Ingredient())
+                .RuleFor(s => s.Name, f => f.Hacker.Noun())
                 .RuleFor(s => s.Category, f => f.PickRandom("Frontend", "Backend", "Database", "DevOps"))
-                .RuleFor(s => s.ProficiencyLevel, f => f.Random.Int(1, 100))
+                .RuleFor(s => s.Proficiency, f => f.Random.Int(1, 100))
                 .RuleFor(s => s.IconUrl, f => f.Image.PicsumUrl(32, 32))
-                .RuleFor(s => s.IsVisible, f => f.Random.Bool());
+                .RuleFor(s => s.IsActive, f => f.Random.Bool());
 
             _contactFaker = new Faker<Contact>()
                 .RuleFor(c => c.Name, f => f.Name.FullName())
                 .RuleFor(c => c.Email, f => f.Internet.Email())
-                .RuleFor(c => c.Phone, f => f.Phone.PhoneNumber())
                 .RuleFor(c => c.Subject, f => f.Lorem.Sentence(5))
                 .RuleFor(c => c.Message, f => f.Lorem.Paragraphs(2))
                 .RuleFor(c => c.IsRead, f => false);
@@ -230,7 +228,7 @@ namespace PortfolioAPI.IntegrationTests
 
             // Assert
             project.CreatedAt.Should().Be(originalCreatedAt);
-            project.UpdatedAt.Should().BeAfter(originalUpdatedAt);
+            project.UpdatedAt.Should().BeAfter(originalUpdatedAt!.Value);
         }
 
         [Fact]
@@ -249,8 +247,8 @@ namespace PortfolioAPI.IntegrationTests
             // Act & Assert - Query operations should be fast (basic performance check)
             var watch = System.Diagnostics.Stopwatch.StartNew();
 
-            var featuredProjects = await _dbContext.Projects.Where(p => p.IsFeatured).ToListAsync();
-            var visibleSkills = await _dbContext.Skills.Where(s => s.IsVisible).ToListAsync();
+            var featuredProjects = await _dbContext.Projects.Where(p => p.Featured).ToListAsync();
+            var visibleSkills = await _dbContext.Skills.Where(s => s.IsActive).ToListAsync();
             var unreadContacts = await _dbContext.Contacts.Where(c => !c.IsRead).ToListAsync();
 
             watch.Stop();

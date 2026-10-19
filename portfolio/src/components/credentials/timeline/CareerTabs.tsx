@@ -1,5 +1,6 @@
 import { m as motion } from "framer-motion";
-import { credentials, credentialTabs, type CredentialTab } from "@/data";
+import { credentialTabs, type CredentialTab } from "@/data";
+import { usePortfolioCredentials } from "@/lib/content";
 import { useI18n } from "@/lib/i18n";
 import { tabIcons } from "./tabIcons";
 
@@ -12,6 +13,7 @@ interface CareerTabsProps {
 /** Tab bar switching between work, projects, education and certifications. */
 export function CareerTabs({ activeTab, reduce, onSelect }: CareerTabsProps) {
   const { tr } = useI18n();
+  const credentials = usePortfolioCredentials();
 
   return (
     <div

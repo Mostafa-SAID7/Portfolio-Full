@@ -1,4 +1,3 @@
-// src/app/app.routes.ts
 import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth.guard';
 
@@ -15,7 +14,8 @@ export const routes: Routes = [
   {
     path: 'dashboard',
     canActivate: [authGuard],
-    loadComponent: () => import('./features/dashboard/dashboard.component').then(m => m.DashboardComponent)
+    loadComponent: () =>
+      import('./features/dashboard/dashboard.component').then(m => m.DashboardComponent)
   },
   {
     path: 'projects',
@@ -23,9 +23,14 @@ export const routes: Routes = [
     loadChildren: () => import('./features/projects/projects.routes').then(m => m.PROJECT_ROUTES)
   },
   {
-    path: 'tasks',
+    path: 'messages',
     canActivate: [authGuard],
-    loadChildren: () => import('./features/tasks/tasks.routes').then(m => m.TASK_ROUTES)
+    loadComponent: () => import('./features/messages/messages.component').then(m => m.MessagesComponent)
+  },
+  {
+    path: 'content',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/content/content.component').then(m => m.ContentComponent)
   },
   {
     path: '**',

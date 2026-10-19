@@ -1,5 +1,6 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
-import { projects, projectFilters, type Project } from "@/data";
+import { projectFilters, type Project } from "@/data";
+import { usePortfolioProjects } from "@/lib/content";
 import type { ProjectView } from "@/components/projects/types";
 
 export const PROJECT_SORTS = [
@@ -51,6 +52,9 @@ export function useProjectsExplorer() {
   const [view, setView] = useState<ProjectView>("grid");
   const [currentPage, setCurrentPage] = useState(1);
 
+  // Live content from the PortfolioAPI (local fallback while it loads/offline).
+  const projects = usePortfolioProjects();
+
   const deferredQuery = useDeferredValue(searchQuery);
   const isFiltering = deferredQuery !== searchQuery;
   const perPage = PER_PAGE[view];
@@ -61,14 +65,14 @@ export function useProjectsExplorer() {
       map[project.category] = (map[project.category] ?? 0) + 1;
     }
     return map;
-  }, []);
+  }, [projects]);
 
   const filtered = useMemo(() => {
     const byCategory = filter === "All" ? projects : projects.filter((p) => p.category === filter);
     const query = deferredQuery.trim().toLowerCase();
     const searched = query ? byCategory.filter((p) => matchesQuery(p, query)) : byCategory;
     return sortProjects(searched, sort);
-  }, [filter, deferredQuery, sort]);
+  }, [projects, filter, deferredQuery, sort]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
 

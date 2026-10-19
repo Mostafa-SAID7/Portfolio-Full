@@ -20,48 +20,14 @@ namespace PortfolioAPI.Controllers
         public async Task<ActionResult<IEnumerable<BlogPostDto>>> GetAllBlogPosts()
         {
             var blogPosts = await _blogService.GetAllBlogPostsAsync();
-            var blogPostDtos = blogPosts.Select(b => new BlogPostDto
-            {
-                Id = b.Id,
-                Title = b.Title,
-                Slug = b.Slug,
-                Content = b.Content,
-                Excerpt = b.Excerpt,
-                Author = b.Author,
-                FeaturedImageUrl = b.FeaturedImageUrl,
-                Tags = b.Tags,
-                IsPublished = b.IsPublished,
-                PublishedAt = b.PublishedAt,
-                ReadTimeMinutes = b.ReadTimeMinutes,
-                ViewCount = b.ViewCount,
-                CreatedAt = b.CreatedAt,
-                UpdatedAt = b.UpdatedAt
-            });
-            return Ok(blogPostDtos);
+            return Ok(blogPosts.OrderByDescending(b => b.PublishedAt).Select(Map));
         }
 
         [HttpGet("{id}")]
         public async Task<ActionResult<BlogPostDto>> GetBlogPostById(int id)
         {
             var blogPost = await _blogService.GetBlogPostByIdAsync(id);
-            var blogPostDto = new BlogPostDto
-            {
-                Id = blogPost.Id,
-                Title = blogPost.Title,
-                Slug = blogPost.Slug,
-                Content = blogPost.Content,
-                Excerpt = blogPost.Excerpt,
-                Author = blogPost.Author,
-                FeaturedImageUrl = blogPost.FeaturedImageUrl,
-                Tags = blogPost.Tags,
-                IsPublished = blogPost.IsPublished,
-                PublishedAt = blogPost.PublishedAt,
-                ReadTimeMinutes = blogPost.ReadTimeMinutes,
-                ViewCount = blogPost.ViewCount,
-                CreatedAt = blogPost.CreatedAt,
-                UpdatedAt = blogPost.UpdatedAt
-            };
-            return Ok(blogPostDto);
+            return Ok(Map(blogPost));
         }
 
         [HttpGet("slug/{slug}")]
@@ -72,76 +38,25 @@ namespace PortfolioAPI.Controllers
             {
                 return NotFound();
             }
-            var blogPostDto = new BlogPostDto
-            {
-                Id = blogPost.Id,
-                Title = blogPost.Title,
-                Slug = blogPost.Slug,
-                Content = blogPost.Content,
-                Excerpt = blogPost.Excerpt,
-                Author = blogPost.Author,
-                FeaturedImageUrl = blogPost.FeaturedImageUrl,
-                Tags = blogPost.Tags,
-                IsPublished = blogPost.IsPublished,
-                PublishedAt = blogPost.PublishedAt,
-                ReadTimeMinutes = blogPost.ReadTimeMinutes,
-                ViewCount = blogPost.ViewCount,
-                CreatedAt = blogPost.CreatedAt,
-                UpdatedAt = blogPost.UpdatedAt
-            };
-            return Ok(blogPostDto);
+            return Ok(Map(blogPost));
         }
 
         [HttpGet("published")]
         public async Task<ActionResult<IEnumerable<BlogPostDto>>> GetPublishedBlogPosts()
         {
             var blogPosts = await _blogService.GetPublishedBlogPostsAsync();
-            var blogPostDtos = blogPosts.Select(b => new BlogPostDto
-            {
-                Id = b.Id,
-                Title = b.Title,
-                Slug = b.Slug,
-                Content = b.Content,
-                Excerpt = b.Excerpt,
-                Author = b.Author,
-                FeaturedImageUrl = b.FeaturedImageUrl,
-                Tags = b.Tags,
-                IsPublished = b.IsPublished,
-                PublishedAt = b.PublishedAt,
-                ReadTimeMinutes = b.ReadTimeMinutes,
-                ViewCount = b.ViewCount,
-                CreatedAt = b.CreatedAt,
-                UpdatedAt = b.UpdatedAt
-            });
-            return Ok(blogPostDtos);
+            return Ok(blogPosts.OrderByDescending(b => b.PublishedAt).Select(Map));
         }
 
         [HttpPost]
-        public async Task<ActionResult<BlogPostDto>> CreateBlogPost(BlogPost blogPost)
+        public async Task<ActionResult<BlogPostDto>> CreateBlogPost([FromBody] BlogPost blogPost)
         {
             var createdBlogPost = await _blogService.CreateBlogPostAsync(blogPost);
-            var blogPostDto = new BlogPostDto
-            {
-                Id = createdBlogPost.Id,
-                Title = createdBlogPost.Title,
-                Slug = createdBlogPost.Slug,
-                Content = createdBlogPost.Content,
-                Excerpt = createdBlogPost.Excerpt,
-                Author = createdBlogPost.Author,
-                FeaturedImageUrl = createdBlogPost.FeaturedImageUrl,
-                Tags = createdBlogPost.Tags,
-                IsPublished = createdBlogPost.IsPublished,
-                PublishedAt = createdBlogPost.PublishedAt,
-                ReadTimeMinutes = createdBlogPost.ReadTimeMinutes,
-                ViewCount = createdBlogPost.ViewCount,
-                CreatedAt = createdBlogPost.CreatedAt,
-                UpdatedAt = createdBlogPost.UpdatedAt
-            };
-            return CreatedAtAction(nameof(GetBlogPostById), new { id = blogPostDto.Id }, blogPostDto);
+            return CreatedAtAction(nameof(GetBlogPostById), new { id = createdBlogPost.Id }, Map(createdBlogPost));
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateBlogPost(int id, BlogPost blogPost)
+        public async Task<IActionResult> UpdateBlogPost(int id, [FromBody] BlogPost blogPost)
         {
             if (id != blogPost.Id)
             {
@@ -165,5 +80,25 @@ namespace PortfolioAPI.Controllers
             await _blogService.DeleteBlogPostAsync(id);
             return NoContent();
         }
+
+        private static BlogPostDto Map(BlogPost b) => new()
+        {
+            Id = b.Id,
+            Title = b.Title,
+            Slug = b.Slug,
+            Excerpt = b.Excerpt,
+            Content = b.Content,
+            Author = b.Author,
+            PublishedAt = b.PublishedAt,
+            Tags = b.Tags?.ToList() ?? new List<string>(),
+            FeaturedImage = b.FeaturedImage,
+            ReadingTime = b.ReadingTime,
+            Published = b.Published,
+            ViewCount = b.ViewCount,
+            MetaTitle = b.MetaTitle,
+            MetaDescription = b.MetaDescription,
+            CreatedAt = b.CreatedAt,
+            UpdatedAt = b.UpdatedAt
+        };
     }
 }
