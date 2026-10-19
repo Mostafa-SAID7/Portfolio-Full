@@ -1,23 +1,22 @@
 /**
- * Centralized content layer: the portfolio reads projects, skills and career
- * credentials from the PortfolioAPI (`/api/public/*`) — the single source of
- * truth shared with the admin dashboard — and falls back to the bundled
- * `src/data` content whenever the API is unreachable, so the site always
- * renders.
+ * Centralized content layer: the portfolio renders projects, skills and career
+ * credentials exclusively from the PortfolioAPI (`/api/public/*`) — the single
+ * source of truth shared with the admin dashboard. Dashboard CRUD (create /
+ * edit / delete / visibility) is therefore reflected here on the next fetch;
+ * the bundled `src/data` dataset can never reintroduce content that was
+ * deleted from the backend.
  *
- * The API owns all editable content, including the editorial project fields
- * (category, client, type, database, status, badges, metrics, gradient) and
- * the bilingual credentials behind the Experience page. The local dataset is
- * only a resilience fallback (and the source of the deep-link project ids and
- * case-study narratives, which stay stable regardless of the API).
+ * The local dataset is only presentation enrichment for API rows: stable
+ * deep-link ids, case-study narratives, gradients and other metadata matched
+ * by title (see `toPortfolioProject`), plus a last-resort sitemap fallback.
  *
- * Dev: fetches `http://localhost:5039/api/public/*` directly (the API allows
- * any origin via CORS, so no dev proxy is involved). Prod: same-origin
- * `/api/public/*`, or set `VITE_API_BASE_URL` to an absolute API origin.
+ * SSR resolves an absolute origin via `apiOrigin()` so server rendering reads
+ * the same live data as the browser (which stays same-origin on `/api` behind
+ * the Vercel rewrite; dev talks to the local API on :5039).
  */
 import { useQuery } from "@tanstack/react-query";
+import { apiOrigin } from "@/lib/api-origin";
 import {
-  credentials as localCredentials,
   projects as localProjects,
   skillGroups as localSkillGroups,
   type CredentialItem,
@@ -26,13 +25,11 @@ import {
 import type { Project } from "@/data";
 import type { SkillIcon } from "@/data/skills";
 
-const API_BASE = (import.meta.env["VITE_API_BASE_URL"] as string | undefined)?.replace(/\/+$/, "")
-  // Dev: talk straight to the local PortfolioAPI on :5039 — it serves
-  // `Access-Control-Allow-Origin: *`, so no dev proxy is needed.
-  // Prod: same-origin `/api/public/*`, or an absolute origin via the env var.
-  ?? (import.meta.env.DEV ? "http://localhost:5039" : "");
 const FETCH_TIMEOUT_MS = 4_000;
-const STALE_TIME_MS = 5 * 60_000;
+// Short enough that dashboard CRUD shows up quickly on an open tab (focus or
+// mount refetch once stale). Fresh page loads are always current regardless,
+// because SSR re-runs the fetch on every request.
+const STALE_TIME_MS = 60_000;
 
 /** Shape of PortfolioAPI.Core.DTOs.ProjectDto (camelCase JSON). */
 interface ApiProject {
@@ -96,7 +93,7 @@ interface ApiCredential {
 /** GET a public endpoint; `null` on any failure (API down, timeout, non-2xx). */
 async function getJson<T>(path: string): Promise<T | null> {
   try {
-    const response = await fetch(`${API_BASE}/api/public/${path}`, {
+    const response = await fetch(`${apiOrigin()}/api/public/${path}`, {
       headers: { accept: "application/json" },
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
@@ -139,7 +136,9 @@ function toPortfolioProject(dto: ApiProject): Project {
 
 export async function fetchPortfolioProjects(): Promise<Project[]> {
   const data = await getJson<ApiProject[]>("projects");
-  if (!data || data.length === 0) return localProjects;
+  // The API is the single source of truth: an unreachable API renders an
+  // empty list, never the bundled dataset (which cannot know about deletes).
+  if (!data) return [];
   return data.map(toPortfolioProject);
 }
 
@@ -167,7 +166,8 @@ function iconForCategory(category: string): SkillIcon {
 /** API skills → the portfolio's grouped skill-chip layout. */
 export async function fetchPortfolioSkillGroups(): Promise<typeof localSkillGroups> {
   const data = await getJson<ApiSkill[]>("skills");
-  if (!data || data.length === 0) return localSkillGroups;
+  // API truth only — no bundled fallback for membership (see fetchPortfolioProjects).
+  if (!data) return [];
 
   const groups = new Map<string, { icon: SkillIcon; skills: string[] }>();
   for (const skill of [...data].sort((a, b) => a.order - b.order)) {
@@ -205,7 +205,8 @@ function toCredentialItem(c: ApiCredential): CredentialItem {
 
 export async function fetchPortfolioCredentials(): Promise<CredentialItem[]> {
   const data = await getJson<ApiCredential[]>("credentials");
-  if (!data || data.length === 0) return localCredentials;
+  // API truth only — no bundled fallback for membership (see fetchPortfolioProjects).
+  if (!data) return [];
   return data.map(toCredentialItem);
 }
 
@@ -218,10 +219,9 @@ export function usePortfolioProjects(): Project[] {
   const { data } = useQuery({
     queryKey: ["content", "projects"],
     queryFn: fetchPortfolioProjects,
-    placeholderData: localProjects,
     staleTime: STALE_TIME_MS,
   });
-  return data ?? localProjects;
+  return data ?? [];
 }
 
 /** Skill groups for rendering; see {@link usePortfolioProjects}. */
@@ -229,10 +229,9 @@ export function usePortfolioSkillGroups(): typeof localSkillGroups {
   const { data } = useQuery({
     queryKey: ["content", "skill-groups"],
     queryFn: fetchPortfolioSkillGroups,
-    placeholderData: localSkillGroups,
     staleTime: STALE_TIME_MS,
   });
-  return data ?? localSkillGroups;
+  return data ?? [];
 }
 
 /** Career credentials (work / projects / education / certifications); see {@link usePortfolioProjects}. */
@@ -240,10 +239,9 @@ export function usePortfolioCredentials(): CredentialItem[] {
   const { data } = useQuery({
     queryKey: ["content", "credentials"],
     queryFn: fetchPortfolioCredentials,
-    placeholderData: localCredentials,
     staleTime: STALE_TIME_MS,
   });
-  return data ?? localCredentials;
+  return data ?? [];
 }
 
 /** Query options for route loaders that need the same cached project list. */

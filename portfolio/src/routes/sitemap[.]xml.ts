@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
-import { projects } from "@/data";
+import { projects as localProjects } from "@/data";
+import { fetchPortfolioProjects } from "@/lib/content";
 import { SITE } from "@/lib/site";
 
 /** Tiny non-cryptographic hash (FNV-1a) used only for ETag generation. */
@@ -24,6 +25,11 @@ export const Route = createFileRoute("/sitemap.xml")({
     handlers: {
       GET: async ({ request }) => {
         const baseUrl = SITE.url || new URL(request.url).origin;
+        // Mirror the live portfolio: same API list the UI renders, so
+        // dashboard deletes drop out of the sitemap too. The bundled dataset
+        // is used only when the API is unreachable (keeps crawlers fed).
+        const fromApi = await fetchPortfolioProjects();
+        const projects = fromApi.length ? fromApi : localProjects;
         const entries: SitemapEntry[] = [
           { path: "/", changefreq: "weekly", priority: "1.0" },
           { path: "/about", changefreq: "monthly", priority: "0.8" },
