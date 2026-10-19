@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using PortfolioAPI.Core.Entities;
 
 namespace PortfolioAPI.Infrastructure.Data
@@ -21,10 +22,11 @@ namespace PortfolioAPI.Infrastructure.Data
     /// </summary>
     public static class DbInitializer
     {
-        public static async Task InitializeAsync(PortfolioDbContext context)
+        public static async Task InitializeAsync(PortfolioDbContext context, IConfiguration configuration)
         {
             await EnsureSchemaAsync(context);
             await PatchSchemaAsync(context);
+            await ImportLegacyUploadsAsync(context, configuration);
 
             // Seed only a genuinely virgin database: ANY existing content (or
             // user-managed inbox rows) counts as "initialized". The old check
@@ -44,6 +46,67 @@ namespace PortfolioAPI.Infrastructure.Data
             await SeedProjects(context);
             await SeedExperiences(context);
             await SeedTestimonials(context);
+            await context.SaveChangesAsync();
+        }
+
+        /// <summary>
+        /// Imports uploads that still exist only as files in the legacy
+        /// <c>App_Data/uploads</c> folder into the database-backed store.
+        ///
+        /// The dev API and the production API share the database but not the
+        /// disk, so a cover uploaded through one deployment was invisible to
+        /// the other. Importing on startup copies those bytes into the shared
+        /// database, where every instance can serve them.
+        /// Idempotent: a file already stored in the database is skipped.
+        /// </summary>
+        private static async Task ImportLegacyUploadsAsync(PortfolioDbContext context, IConfiguration configuration)
+        {
+            string root;
+            try
+            {
+                root = Services.UploadStorage.ResolveRoot(configuration);
+            }
+            catch (Exception)
+            {
+                return; // No usable configuration for the upload folder — nothing to import.
+            }
+
+            if (!Directory.Exists(root))
+                return;
+
+            var known = await context.StoredFiles
+                .Select(f => f.FileName)
+                .ToListAsync();
+
+            foreach (var path in Directory.EnumerateFiles(root))
+            {
+                var fileName = Path.GetFileName(path);
+                if (string.IsNullOrWhiteSpace(fileName) || known.Contains(fileName))
+                    continue;
+
+                var bytes = await File.ReadAllBytesAsync(path);
+                if (bytes.Length == 0)
+                    continue;
+
+                var extension = Path.GetExtension(fileName).ToLowerInvariant();
+                context.StoredFiles.Add(new StoredFile
+                {
+                    FileName = fileName,
+                    ContentType = extension switch
+                    {
+                        ".jpg" or ".jpeg" => "image/jpeg",
+                        ".png" => "image/png",
+                        ".gif" => "image/gif",
+                        ".webp" => "image/webp",
+                        ".avif" => "image/avif",
+                        _ => "application/octet-stream"
+                    },
+                    Content = bytes,
+                    Size = bytes.LongLength,
+                    CreatedAt = File.GetLastWriteTimeUtc(path)
+                });
+            }
+
             await context.SaveChangesAsync();
         }
 
@@ -147,6 +210,21 @@ namespace PortfolioAPI.Infrastructure.Data
                     );");
             }
 
+            // Uploaded files live in the database (shared by every API
+            // instance). A legacy database that was baselined — migrations
+            // recorded as applied without DDL — would not have this table.
+            if (!await TableExistsAsync(context, "StoredFiles"))
+            {
+                await context.Database.ExecuteSqlRawAsync(@"
+                    CREATE TABLE dbo.StoredFiles (
+                        FileName nvarchar(100) NOT NULL PRIMARY KEY,
+                        ContentType nvarchar(100) NOT NULL,
+                        Content varbinary(max) NOT NULL,
+                        Size bigint NOT NULL,
+                        CreatedAt datetime2 NOT NULL
+                    );");
+            }
+
             // Remaining model drift the baseline never adds (the history table
             // is stamped as "applied" without running DDL, so these would
             // otherwise surface as "Invalid column name" 500s on legacy
@@ -164,8 +242,7 @@ namespace PortfolioAPI.Infrastructure.Data
             }
 
             if (!await TableExistsAsync(context, "ProjectImages"))
-            {
-                await context.Database.ExecuteSqlRawAsync(@"
+            {                await context.Database.ExecuteSqlRawAsync(@"
                     CREATE TABLE dbo.ProjectImages (
                         Id int IDENTITY(1,1) NOT NULL PRIMARY KEY,
                         ProjectId int NOT NULL,

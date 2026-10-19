@@ -201,16 +201,16 @@ for its API fetches, in this order:
       mutations (rate-limited login).
 - [ ] **Set `Auth:Username` / `Auth:Password`** in `appsettings.Production.json` (or the matching
       env vars) — while unset, login fails closed with `503` and no admin mutation is possible.
-- [ ] **Keep `App_Data/uploads` when redeploying the API.** Uploaded project covers are stored in
-      `App_Data/uploads` **inside the app folder** on the server (never in the publish output) and
-      are served back at `/api/files/*`. If a redeploy replaces the whole app folder, the files
-      disappear while the database still references them → the cover 404s and the portfolio falls
-      back to the gradient card. Either upload `publish/` **without deleting `App_Data`**, or point
-      `FileStorage:Path` at an absolute path outside the app folder (e.g. `D:\sites\<app>\uploads`).
-- [ ] **Upload project covers from the production dashboard** (`dashboard-portfolio-ms.vercel.app`),
-      not from a local dev dashboard: the file is written to the disk of whichever API handled the
-      request, while the database is shared. A cover uploaded through the local dev API exists only
-      on that machine → production 404s it.
+- [x] **Uploads live in the database** — project covers are stored in the `StoredFiles` table
+      (`FileStorage:Path` / `App_Data/uploads` on disk is only a legacy fallback that is imported
+      automatically at startup). The dev API and the production API share the database, so an upload
+      is immediately visible to every instance and a redeploy can no longer lose it. The public URL
+      stays relative (`/api/files/<guid>.png`) and is still served through each frontend's own
+      `/api` proxy.
+- [ ] **Upload project covers from the production dashboard** (`dashboard-portfolio-ms.vercel.app`)
+      or from the local one — with the database-backed store both write to the same place, so either
+      works. (Before this change the bytes were written to the *disk of whichever API handled the
+      request*, so a cover uploaded locally 404'd in production.)
 
 ## 7. Troubleshooting
 
@@ -225,4 +225,4 @@ for its API fetches, in this order:
 | Direct API calls blocked in browser | Mixed content (API has no TLS) or origin not in `Cors__AllowedOrigins` — use the proxy rewrite (default) or complete §4 |
 | `VERCEL_OIDC_TOKEN is not set` during build | Harmless nitro dev warning (per `portfolio/AGENTS.md`) |
 | `msdeploy` 401 `ERROR_USER_UNAUTHORIZED` | WebDeploy password in the `.pubxml` is stale — reset it in the MonsterASP panel / VS publish settings, or just upload `publish/` manually (File Manager/FTP), which is the documented flow in §1 |
-| Project cover shows the gradient card instead of the image | The cover file is missing on the server: `GET /api/files/<guid>.png` → 404. Either it was uploaded through a different deployment (dev vs production — the database is shared, the disk is not) or `App_Data/uploads` was wiped by a redeploy. Re-upload the cover from the production dashboard and keep `App_Data` when redeploying (§6). The dashboard now shows a "Cover not found — re-upload" badge instead of failing silently. |
+| Project cover shows the gradient card instead of the image | The cover file is missing on the server: `GET /api/files/<guid>.png` → 404. Uploads now live in the `StoredFiles` table (shared by every API instance) — legacy files that only exist in `App_Data/uploads` are imported at startup, so a 404 means the row was never imported (check the API log for "INSERT INTO [StoredFiles]") or the file was deleted. The dashboard shows a "Cover not found — re-upload" badge instead of failing silently. |

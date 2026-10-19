@@ -11,7 +11,6 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using PortfolioAPI.Application.Exceptions;
 using System.Text;
@@ -378,13 +377,24 @@ app.UseCors("Frontends");
 // by default. Both frontends reach this path through their own /api proxy, so
 // stored cover URLs stay relative in the database and load over HTTPS on every
 // frontend without any hardcoded API host.
-var uploadsRoot = UploadStorage.ResolveRoot(app.Configuration);
-app.UseStaticFiles(new StaticFileOptions
+//
+// The bytes come from the SHARED database, not from this machine's disk: the
+// dev API and the production API share the rows but not the disks, so a cover
+// uploaded through one deployment used to 404 on the other. Files that still
+// live only on disk (uploaded before the database-backed store) are imported
+// on the first request that asks for them.
+var filesBaseUrl = UploadStorage.PublicBase(app.Configuration);
+app.MapGet($"{filesBaseUrl}/{{fileName}}", async (string fileName, IFileStorageService storage, HttpContext context) =>
 {
-    FileProvider = new PhysicalFileProvider(uploadsRoot),
-    RequestPath = UploadStorage.PublicBase(app.Configuration),
+    var stored = await storage.GetStoredFileAsync(fileName);
+    if (stored is null)
+    {
+        return Results.NotFound();
+    }
+
     // Uploads use random (guid) filenames, so they are immutable — cache hard.
-    OnPrepareResponse = ctx => ctx.Context.Response.Headers.CacheControl = "public, max-age=31536000, immutable"
+    context.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
+    return Results.File(stored.Content, stored.ContentType);
 });
 
 // Swagger UI: /swagger  (JSON spec: /swagger/v1/swagger.json)
@@ -493,7 +503,7 @@ using (var scope = app.Services.CreateScope())
     try
     {
         var context = services.GetRequiredService<PortfolioDbContext>();
-        await DbInitializer.InitializeAsync(context);
+        await DbInitializer.InitializeAsync(context, app.Configuration);
     }
     catch (Exception ex)
     {

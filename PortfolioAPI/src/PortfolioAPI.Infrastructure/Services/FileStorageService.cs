@@ -1,4 +1,7 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using PortfolioAPI.Core.Entities;
+using PortfolioAPI.Infrastructure.Data;
 
 namespace PortfolioAPI.Infrastructure.Services
 {
@@ -48,8 +51,7 @@ namespace PortfolioAPI.Infrastructure.Services
     }
 
     public class FileStorageService : IFileStorageService
-    {
-        /// <summary>
+    {        /// <summary>
         /// Extension → content type + magic-byte sniffers. Uploads are
         /// validated against the actual bytes, so a renamed executable or an
         /// SVG carrying scripts can never be served from the API origin.
@@ -67,12 +69,14 @@ namespace PortfolioAPI.Infrastructure.Services
 
         private const long DefaultMaxFileSize = 10 * 1024 * 1024; // 10MB
 
+        private readonly PortfolioDbContext _context;
         private readonly string _storagePath;
         private readonly string _baseUrl;
         private readonly long _maxFileSize;
 
-        public FileStorageService(IConfiguration configuration)
+        public FileStorageService(PortfolioDbContext context, IConfiguration configuration)
         {
+            _context = context ?? throw new ArgumentNullException(nameof(context));
             _storagePath = UploadStorage.ResolveRoot(configuration);
             _baseUrl = UploadStorage.PublicBase(configuration);
 
@@ -129,7 +133,15 @@ namespace PortfolioAPI.Infrastructure.Services
             return await SaveValidatedAsync(documentStream, extension, sniff);
         }
 
-        /// <summary>Buffers with a hard cap, sniffs the bytes, then writes with a random name.</summary>
+        /// <summary>
+        /// Buffers with a hard cap, sniffs the bytes, then stores them in the
+        /// DATABASE under a random name.
+        ///
+        /// The bytes live next to the rows that reference them, so every API
+        /// instance sharing the database serves the same file — and a redeploy
+        /// can no longer lose an upload (the old disk folder was wiped with the
+        /// app folder).
+        /// </summary>
         private async Task<string> SaveValidatedAsync(Stream fileStream, string extension, Func<byte[], bool> sniff)
         {
             var bytes = await ReadCappedAsync(fileStream);
@@ -139,8 +151,20 @@ namespace PortfolioAPI.Infrastructure.Services
                 throw new InvalidOperationException("The file content does not match its extension.");
 
             var uniqueFileName = $"{Guid.NewGuid()}{extension}";
-            var filePath = Path.Combine(_storagePath, uniqueFileName);
-            await File.WriteAllBytesAsync(filePath, bytes);
+            var contentType = AllowedImages.TryGetValue(extension, out var allowed)
+                ? allowed.ContentType
+                : "application/octet-stream";
+
+            _context.StoredFiles.Add(new StoredFile
+            {
+                FileName = uniqueFileName,
+                ContentType = contentType,
+                Content = bytes,
+                Size = bytes.LongLength,
+                CreatedAt = DateTime.UtcNow
+            });
+            await _context.SaveChangesAsync();
+
             return $"{_baseUrl}/{uniqueFileName}";
         }
 
@@ -166,16 +190,68 @@ namespace PortfolioAPI.Infrastructure.Services
             if (string.IsNullOrWhiteSpace(fileUrl))
                 throw new ArgumentException("File URL cannot be null or empty.", nameof(fileUrl));
 
-            var fileName = Path.GetFileName(fileUrl);
-            var filePath = Path.Combine(_storagePath, fileName);
+            var stored = await GetStoredFileAsync(fileUrl);
+            if (stored is null)
+                throw new FileNotFoundException("File not found", fileUrl);
 
-            if (!File.Exists(filePath))
-                throw new FileNotFoundException("File not found", filePath);
-
-            return await Task.FromResult<Stream>(new FileStream(filePath, FileMode.Open, FileAccess.Read));
+            return new MemoryStream(stored.Content, writable: false);
         }
 
-        public Task DeleteFileAsync(string fileUrl)
+        /// <summary>
+        /// The stored file (bytes + content type) for a public URL, or null.
+        /// Falls back to the legacy disk folder and imports what it finds, so
+        /// files uploaded before the database-backed store are picked up
+        /// automatically instead of 404-ing forever.
+        /// </summary>
+        public async Task<StoredFile?> GetStoredFileAsync(string fileUrl)
+        {
+            if (string.IsNullOrWhiteSpace(fileUrl))
+                return null;
+
+            var fileName = Path.GetFileName(fileUrl);
+            if (string.IsNullOrWhiteSpace(fileName))
+                return null;
+
+            var stored = await _context.StoredFiles
+                .AsNoTracking()
+                .FirstOrDefaultAsync(f => f.FileName == fileName);
+            if (stored is not null)
+                return stored;
+
+            return await ImportLegacyFileAsync(fileName);
+        }
+
+        /// <summary>Imports a file from the legacy disk folder into the database.</summary>
+        private async Task<StoredFile?> ImportLegacyFileAsync(string fileName)
+        {
+            var filePath = Path.Combine(_storagePath, fileName);
+            if (!File.Exists(filePath))
+                return null;
+
+            var bytes = await File.ReadAllBytesAsync(filePath);
+            if (bytes.Length == 0)
+                return null;
+
+            var extension = Path.GetExtension(fileName).ToLowerInvariant();
+            var contentType = AllowedImages.TryGetValue(extension, out var allowed)
+                ? allowed.ContentType
+                : "application/octet-stream";
+
+            var stored = new StoredFile
+            {
+                FileName = fileName,
+                ContentType = contentType,
+                Content = bytes,
+                Size = bytes.LongLength,
+                CreatedAt = File.GetLastWriteTimeUtc(filePath)
+            };
+
+            _context.StoredFiles.Add(stored);
+            await _context.SaveChangesAsync();
+            return stored;
+        }
+
+        public async Task DeleteFileAsync(string fileUrl)
         {
             if (string.IsNullOrWhiteSpace(fileUrl))
                 throw new ArgumentException("File URL cannot be null or empty.", nameof(fileUrl));
@@ -183,36 +259,49 @@ namespace PortfolioAPI.Infrastructure.Services
             // Path.GetFileName strips any directory components — a traversal
             // attempt like "../../web.config" can never escape the store.
             var fileName = Path.GetFileName(fileUrl);
-            var filePath = Path.Combine(_storagePath, fileName);
 
+            var stored = await _context.StoredFiles.FirstOrDefaultAsync(f => f.FileName == fileName);
+            if (stored is not null)
+            {
+                _context.StoredFiles.Remove(stored);
+                await _context.SaveChangesAsync();
+            }
+
+            // Also drop the legacy disk copy, if one is still around.
+            var filePath = Path.Combine(_storagePath, fileName);
             if (File.Exists(filePath))
                 File.Delete(filePath);
-
-            return Task.CompletedTask;
         }
 
-        public Task<bool> FileExistsAsync(string fileUrl)
+        public async Task<bool> FileExistsAsync(string fileUrl)
         {
             if (string.IsNullOrWhiteSpace(fileUrl))
-                return Task.FromResult(false);
+                return false;
 
             var fileName = Path.GetFileName(fileUrl);
-            var filePath = Path.Combine(_storagePath, fileName);
-            return Task.FromResult(File.Exists(filePath));
+            if (await _context.StoredFiles.AnyAsync(f => f.FileName == fileName))
+                return true;
+
+            return File.Exists(Path.Combine(_storagePath, fileName));
         }
 
-        public Task<long> GetFileSizeAsync(string fileUrl)
+        public async Task<long> GetFileSizeAsync(string fileUrl)
         {
             if (string.IsNullOrWhiteSpace(fileUrl))
                 throw new ArgumentException("File URL cannot be null or empty.", nameof(fileUrl));
 
             var fileName = Path.GetFileName(fileUrl);
-            var filePath = Path.Combine(_storagePath, fileName);
+            var stored = await _context.StoredFiles
+                .AsNoTracking()
+                .FirstOrDefaultAsync(f => f.FileName == fileName);
+            if (stored is not null)
+                return stored.Size;
 
+            var filePath = Path.Combine(_storagePath, fileName);
             if (!File.Exists(filePath))
                 throw new FileNotFoundException("File not found", filePath);
 
-            return Task.FromResult(new FileInfo(filePath).Length);
+            return new FileInfo(filePath).Length;
         }
 
         private static bool IsJpeg(byte[] b) =>
@@ -257,5 +346,12 @@ namespace PortfolioAPI.Infrastructure.Services
         Task<long> GetFileSizeAsync(string fileUrl);
         Task<string> SaveImageAsync(Stream imageStream, string fileName);
         Task<string> SaveDocumentAsync(Stream documentStream, string fileName);
+
+        /// <summary>
+        /// The stored file (bytes + content type) behind a public URL, or null
+        /// when it is unknown. Used by the /api/files endpoint to serve
+        /// uploads from the shared database.
+        /// </summary>
+        Task<StoredFile?> GetStoredFileAsync(string fileUrl);
     }
 }

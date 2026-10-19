@@ -18,6 +18,7 @@ namespace PortfolioAPI.Infrastructure.Data
         public DbSet<Contact> Contacts { get; set; } = null!;
         public DbSet<Testimonial> Testimonials { get; set; } = null!;
         public DbSet<Credential> Credentials { get; set; } = null!;
+        public DbSet<StoredFile> StoredFiles { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -31,7 +32,25 @@ namespace PortfolioAPI.Infrastructure.Data
             ConfigureContact(modelBuilder);
             ConfigureTestimonial(modelBuilder);
             ConfigureCredential(modelBuilder);
+            ConfigureStoredFile(modelBuilder);
             ConfigureJoinEntities(modelBuilder);
+        }
+
+        /// <summary>
+        /// Uploaded files live in the database so every API instance (dev and
+        /// production) serves the same bytes from the shared SQL Server.
+        /// </summary>
+        private static void ConfigureStoredFile(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<StoredFile>(entity =>
+            {
+                entity.HasKey(f => f.FileName);
+                entity.Property(f => f.FileName).HasMaxLength(100);
+                entity.Property(f => f.ContentType).HasMaxLength(100).IsRequired();
+                entity.Property(f => f.Content).IsRequired();
+                entity.Property(f => f.Size).IsRequired();
+                entity.Property(f => f.CreatedAt).IsRequired();
+            });
         }
 
         private static void ConfigureCredential(ModelBuilder modelBuilder)
