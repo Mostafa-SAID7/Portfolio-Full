@@ -5,6 +5,7 @@ import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } fro
 import { filter } from 'rxjs';
 import { AuthService } from './core/services/auth.service';
 import { ContactService } from './core/services/contact.service';
+import { ApiInstanceService } from './core/services/api-instance.service';
 import { ThemeService } from './core/services/theme.service';
 import { ConfirmDialogComponent } from './shared/confirm-dialog.component';
 import { ToastComponent } from './shared/toast.component';
@@ -94,6 +95,11 @@ interface NavItem {
                 <div class="min-w-0 flex-1">
                   <p class="truncate text-sm font-semibold text-ink">{{ user.name }}</p>
                   <p class="truncate text-xs text-muted">{{ user.email }}</p>
+                  @if (apiInstance.instance(); as instance) {
+                    <p class="mt-1 truncate text-[10px] font-semibold uppercase tracking-wide text-accent-text" title="Which API instance the dashboard is talking to">
+                      API: {{ instance }}
+                    </p>
+                  }
                 </div>
                 <button type="button" (click)="logout()" class="icon-btn" aria-label="Sign out" title="Sign out">
                   <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M10 5H6.5A1.5 1.5 0 0 0 5 6.5v11A1.5 1.5 0 0 0 6.5 19H10M14 16l4-4-4-4M18 12H9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -151,6 +157,7 @@ interface NavItem {
 export class AppComponent {
   private readonly authService = inject(AuthService);
   private readonly contactService = inject(ContactService);
+  readonly apiInstance = inject(ApiInstanceService);
   private readonly themeService = inject(ThemeService);
   private readonly router = inject(Router);
   private readonly platformId = inject(PLATFORM_ID);
@@ -211,6 +218,10 @@ export class AppComponent {
   );
 
   constructor() {
+    // Show which API instance the dashboard is talking to (the dev API and the
+    // production API share the database but not the upload folder).
+    this.apiInstance.load();
+
     // Close the mobile drawer on navigation.
     this.router.events
       .pipe(filter(event => event instanceof NavigationEnd))

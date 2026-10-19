@@ -406,23 +406,28 @@ if (swaggerEnabled)
 // deployment checks and uptime monitors; 503 when the DB is unreachable).
 // Served under the versioned path (canonical, issue #24) plus the legacy
 // unversioned alias for existing monitors.
-async Task<IResult> HealthAsync(PortfolioDbContext db, ILoggerFactory loggerFactory, CancellationToken cancellationToken)
+async Task<IResult> HealthAsync(PortfolioDbContext db, IConfiguration configuration, ILoggerFactory loggerFactory, CancellationToken cancellationToken)
 {
     var now = DateTime.UtcNow;
+    // Which instance is this? The dev API and the production API share ONE
+    // database but not the upload folder, so a change made through the wrong
+    // instance is invisible on the live site. The name travels with the health
+    // payload so the dashboard can show it.
+    var instance = configuration["Api:Instance"] ?? (configuration["ASPNETCORE_ENVIRONMENT"] ?? "unknown");
     try
     {
         var canConnect = await db.Database.CanConnectAsync(cancellationToken);
         return canConnect
-            ? Results.Ok(new { status = "ok", database = "ok", time = now })
-            : Results.Json(new { status = "degraded", database = "unreachable", time = now },
+            ? Results.Ok(new { status = "ok", database = "ok", instance, time = now })
+            : Results.Json(new { status = "degraded", database = "unreachable", instance, time = now },
                 statusCode: StatusCodes.Status503ServiceUnavailable);
     }
     catch (Exception ex)
     {
-        // Never swallow silently — uptime monitors see 503, the log says why.
+        // Never swallow silently - uptime monitors see 503, the log says why.
         loggerFactory.CreateLogger("PortfolioAPI.Health")
             .LogWarning(ex, "Health probe failed: database unreachable.");
-        return Results.Json(new { status = "degraded", database = "unreachable", time = now },
+        return Results.Json(new { status = "degraded", database = "unreachable", instance, time = now },
             statusCode: StatusCodes.Status503ServiceUnavailable);
     }
 }
