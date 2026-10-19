@@ -13,12 +13,11 @@ export interface Skill {
   updatedAt: string | null;
 }
 
-/** Payload accepted by POST/PUT api/Skills (entity binding on the API). */
+/** Payload accepted by POST/PUT api/Skills (CreateSkillDto/UpdateSkillDto on the API). */
 export interface SkillPayload {
-  id?: number;
   name: string;
   category: string;
-  proficiency?: number;
+  proficiency: number;
   iconUrl?: string | null;
   description?: string | null;
   order?: number;

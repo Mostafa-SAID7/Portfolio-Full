@@ -60,7 +60,9 @@ export function resolvePortfolioImage(
   // Backend-owned uploads (`/api/files/...`) are served by the Portfolio API.
   // Reach them through the dashboard's own /api proxy (dev proxy.conf.json,
   // prod Vercel rewrite) — same-origin, HTTPS, no hardcoded API host.
-  if (imageUrl.startsWith('/api/')) return imageUrl;
+  // Scoped to /api/files so legacy logical covers (/api/Marketing-Mvc etc.)
+  // still resolve against the portfolio origin below.
+  if (imageUrl.startsWith('/api/files/')) return imageUrl;
 
   const path = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`;
   const base = stripExtension(path);

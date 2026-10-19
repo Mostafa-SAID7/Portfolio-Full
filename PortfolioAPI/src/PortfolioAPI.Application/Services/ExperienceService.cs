@@ -60,14 +60,29 @@ namespace PortfolioAPI.Application.Services
                 throw new NotFoundException($"Experience with id {experience.Id} not found.");
             }
 
-            var validationResult = await _validator.ValidateAsync(experience);
+            // Copy the incoming values ONTO the instance we just fetched instead
+            // of attaching a second entity with the same key (which threw
+            // "another instance with the same key ... is already being tracked"
+            // and surfaced as a generic HTTP 500). CreatedAt stays server-owned.
+            existingExperience.Company = experience.Company;
+            existingExperience.Position = experience.Position;
+            existingExperience.StartDate = experience.StartDate;
+            existingExperience.EndDate = experience.EndDate;
+            existingExperience.Description = experience.Description;
+            existingExperience.Technologies = experience.Technologies ?? existingExperience.Technologies;
+            existingExperience.Location = experience.Location;
+            existingExperience.Current = experience.Current;
+            existingExperience.Order = experience.Order;
+            existingExperience.IsActive = experience.IsActive;
+
+            var validationResult = await _validator.ValidateAsync(existingExperience);
             if (!validationResult.IsValid)
             {
                 throw new ValidationException(validationResult.Errors);
             }
 
-            experience.UpdatedAt = DateTime.UtcNow;
-            await _unitOfWork.Experiences.UpdateAsync(experience);
+            existingExperience.UpdatedAt = DateTime.UtcNow;
+            await _unitOfWork.Experiences.UpdateAsync(existingExperience);
             await _unitOfWork.SaveChangesAsync();
         }
 

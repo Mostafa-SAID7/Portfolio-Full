@@ -5,8 +5,11 @@ using PortfolioAPI.Infrastructure.Data;
 using PortfolioAPI.Infrastructure.Repositories;
 using PortfolioAPI.Infrastructure.Services;
 using FluentValidation;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
+using PortfolioAPI.Application.Exceptions;
+using ValidationException = PortfolioAPI.Application.Exceptions.ValidationException;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -177,15 +180,52 @@ if (swaggerEnabled)
 // Use HTTPS redirection (only when an HTTPS port is configured)
 app.UseHttpsRedirection();
 
-// Add error handling middleware
+// Error handling: known domain exceptions get a proper status + a REAL message
+// (the dashboards render `message` verbatim); everything else stays a generic
+// 500 so production never leaks stack traces. Before this mapping, a missing
+// entity or a FluentValidation failure from any service surfaced as a 500
+// "An unexpected error occurred..." — validation messages were silently lost.
 app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
 {
-    context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-    context.Response.ContentType = "application/json";
-    await context.Response.WriteAsJsonAsync(new
+    var exception = context.Features.Get<IExceptionHandlerFeature>()?.Error;
+
+    int status;
+    string message;
+    IDictionary<string, string[]>? errors = null;
+
+    switch (exception)
     {
-        message = "An unexpected error occurred while processing the request."
-    });
+        case NotFoundException notFound:
+            status = StatusCodes.Status404NotFound;
+            message = notFound.Message;
+            break;
+        case ValidationException validation:
+            status = StatusCodes.Status400BadRequest;
+            message = validation.Message;
+            errors = validation.Errors;
+            break;
+        // Unique indexes (Skills.Name, BlogPost.Slug) reject duplicates at the
+        // database level — surface them as a clear 409 instead of a generic 500.
+        case DbUpdateException { InnerException: Microsoft.Data.SqlClient.SqlException { Number: 2601 or 2627 } }:
+            status = StatusCodes.Status409Conflict;
+            message = "That name is already taken — choose a different one.";
+            break;
+        default:
+            status = StatusCodes.Status500InternalServerError;
+            message = "An unexpected error occurred while processing the request.";
+            break;
+    }
+
+    context.Response.StatusCode = status;
+    context.Response.ContentType = "application/json";
+    if (errors is null)
+    {
+        await context.Response.WriteAsJsonAsync(new { message });
+    }
+    else
+    {
+        await context.Response.WriteAsJsonAsync(new { message, errors });
+    }
 }));
 
 // Health endpoint: verifies process + database connectivity (used for

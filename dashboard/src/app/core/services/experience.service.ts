@@ -1,7 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, catchError, tap, throwError } from 'rxjs';
-import { Experience } from '../models/experience.model';
+import { Experience, ExperiencePayload } from '../models/experience.model';
 import { API_URL } from '../api.config';
 
 const ENDPOINT = `${API_URL}/Experience`;
@@ -32,6 +32,24 @@ export class ExperienceService {
         this.loadingSignal.set(false);
         return throwError(() => err);
       })
+    );
+  }
+
+  createExperience(payload: ExperiencePayload): Observable<Experience> {
+    return this.http.post<Experience>(ENDPOINT, payload).pipe(
+      tap(item => this.experienceSignal.update(list => [...list, item])),
+      catchError(err => throwError(() => err))
+    );
+  }
+
+  updateExperience(id: number, payload: ExperiencePayload): Observable<void> {
+    return this.http.put<void>(`${ENDPOINT}/${id}`, payload).pipe(
+      tap(() =>
+        this.experienceSignal.update(list =>
+          list.map(item => (item.id === id ? { ...item, ...payload } : item))
+        )
+      ),
+      catchError(err => throwError(() => err))
     );
   }
 

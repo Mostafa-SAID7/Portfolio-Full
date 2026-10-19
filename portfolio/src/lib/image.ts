@@ -56,7 +56,9 @@ export function resolveImage(path: string | undefined): ResolvedImage | null {
   }
 
   // Backend-owned upload (`/api/files/...`): resolve against the API origin.
-  if (path.startsWith("/api/")) {
+  // Scoped to /api/files specifically — legacy logical covers (/api/Marketing-Mvc etc.)
+  // are portfolio public assets and must keep their existing handling.
+  if (path.startsWith("/api/files/")) {
     return { src: `${apiOrigin()}${path}` };
   }
 

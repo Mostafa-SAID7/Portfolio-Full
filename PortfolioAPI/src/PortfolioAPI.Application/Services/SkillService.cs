@@ -65,14 +65,27 @@ namespace PortfolioAPI.Application.Services
                 throw new NotFoundException($"Skill with id {skill.Id} not found.");
             }
 
-            var validationResult = await _validator.ValidateAsync(skill);
+            // Copy the incoming values ONTO the instance we just fetched instead
+            // of attaching a second entity with the same key. Attaching a second
+            // instance is what made every update fail with "another instance with
+            // the same key value ... is already being tracked" (HTTP 500).
+            // Server-owned fields (CreatedAt) are deliberately left untouched.
+            existingSkill.Name = skill.Name;
+            existingSkill.Category = skill.Category;
+            existingSkill.Proficiency = skill.Proficiency;
+            existingSkill.IconUrl = skill.IconUrl;
+            existingSkill.Description = skill.Description;
+            existingSkill.Order = skill.Order;
+            existingSkill.IsActive = skill.IsActive;
+
+            var validationResult = await _validator.ValidateAsync(existingSkill);
             if (!validationResult.IsValid)
             {
                 throw new ValidationException(validationResult.Errors);
             }
 
-            skill.UpdatedAt = DateTime.UtcNow;
-            await _unitOfWork.Skills.UpdateAsync(skill);
+            existingSkill.UpdatedAt = DateTime.UtcNow;
+            await _unitOfWork.Skills.UpdateAsync(existingSkill);
             await _unitOfWork.SaveChangesAsync();
         }
 

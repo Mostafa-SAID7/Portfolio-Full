@@ -42,7 +42,7 @@ export class SkillService {
     );
   }
 
-  updateSkill(id: number, payload: SkillPayload & { id: number }): Observable<void> {
+  updateSkill(id: number, payload: SkillPayload): Observable<void> {
     return this.http.put<void>(`${ENDPOINT}/${id}`, payload).pipe(
       tap(() =>
         this.skillsSignal.update(list =>
@@ -54,7 +54,17 @@ export class SkillService {
   }
 
   toggleVisibility(skill: Skill): Observable<void> {
-    return this.updateSkill(skill.id, { ...skill, isActive: !skill.isActive });
+    // Send an explicit payload (never the raw model): the API binds
+    // UpdateSkillDto and ignores server-managed fields anyway.
+    return this.updateSkill(skill.id, {
+      name: skill.name,
+      category: skill.category,
+      proficiency: skill.proficiency,
+      iconUrl: skill.iconUrl,
+      description: skill.description,
+      order: skill.order,
+      isActive: !skill.isActive
+    });
   }
 
   deleteSkill(id: number): Observable<void> {

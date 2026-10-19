@@ -19,6 +19,9 @@ namespace PortfolioAPI.Application.Validators
                 .NotEmpty().WithMessage("Description is required.")
                 .MaximumLength(1000).WithMessage("Description must not exceed 1000 characters.");
 
+            RuleFor(e => e.StartDate)
+                .Must(d => d != default(DateTime)).WithMessage("Start date is required.");
+
             RuleFor(e => e.Location)
                 .MaximumLength(100).WithMessage("Location must not exceed 100 characters.");
 

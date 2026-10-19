@@ -45,19 +45,39 @@ namespace PortfolioAPI.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult<SkillDto>> CreateSkill([FromBody] Skill skill)
+        public async Task<ActionResult<SkillDto>> CreateSkill([FromBody] CreateSkillDto dto)
         {
+            var skill = new Skill
+            {
+                Name = dto.Name,
+                Category = dto.Category,
+                Proficiency = dto.Proficiency,
+                IconUrl = dto.IconUrl,
+                Description = dto.Description,
+                Order = dto.Order,
+                IsActive = dto.IsActive
+            };
+
             var createdSkill = await _skillService.CreateSkillAsync(skill);
             return CreatedAtAction(nameof(GetSkillById), new { id = createdSkill.Id }, Map(createdSkill));
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateSkill(int id, [FromBody] Skill skill)
+        public async Task<IActionResult> UpdateSkill(int id, [FromBody] UpdateSkillDto dto)
         {
-            if (id != skill.Id)
+            // DTO binding (not the raw EF entity): the route id wins and
+            // server-managed fields (createdAt/updatedAt) can never be over-posted.
+            var skill = new Skill
             {
-                return BadRequest();
-            }
+                Id = id,
+                Name = dto.Name,
+                Category = dto.Category,
+                Proficiency = dto.Proficiency,
+                IconUrl = dto.IconUrl,
+                Description = dto.Description,
+                Order = dto.Order,
+                IsActive = dto.IsActive
+            };
 
             await _skillService.UpdateSkillAsync(skill);
             return NoContent();

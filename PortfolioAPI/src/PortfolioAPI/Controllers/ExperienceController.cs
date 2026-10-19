@@ -38,23 +38,52 @@ namespace PortfolioAPI.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult<ExperienceDto>> CreateExperience([FromBody] Experience experience)
+        public async Task<ActionResult<ExperienceDto>> CreateExperience([FromBody] CreateExperienceDto dto)
         {
+            var experience = MapToEntity(dto);
             var createdExperience = await _experienceService.CreateExperienceAsync(experience);
             return CreatedAtAction(nameof(GetExperienceById), new { id = createdExperience.Id }, Map(createdExperience));
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateExperience(int id, [FromBody] Experience experience)
+        public async Task<IActionResult> UpdateExperience(int id, [FromBody] UpdateExperienceDto dto)
         {
-            if (id != experience.Id)
-            {
-                return BadRequest();
-            }
+            // DTO binding (not the raw EF entity): the route id wins and
+            // server-managed fields (createdAt/updatedAt) can never be over-posted.
+            var experience = MapToEntity(dto);
+            experience.Id = id;
 
             await _experienceService.UpdateExperienceAsync(experience);
             return NoContent();
         }
+
+        private static Experience MapToEntity(CreateExperienceDto dto) => new()
+        {
+            Company = dto.Company,
+            Position = dto.Position,
+            StartDate = dto.StartDate,
+            EndDate = dto.EndDate,
+            Description = dto.Description,
+            Technologies = dto.Technologies ?? new List<string>(),
+            Location = dto.Location,
+            Current = dto.Current,
+            Order = dto.Order,
+            IsActive = dto.IsActive
+        };
+
+        private static Experience MapToEntity(UpdateExperienceDto dto) => new()
+        {
+            Company = dto.Company,
+            Position = dto.Position,
+            StartDate = dto.StartDate,
+            EndDate = dto.EndDate,
+            Description = dto.Description,
+            Technologies = dto.Technologies ?? new List<string>(),
+            Location = dto.Location,
+            Current = dto.Current,
+            Order = dto.Order,
+            IsActive = dto.IsActive
+        };
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteExperience(int id)
