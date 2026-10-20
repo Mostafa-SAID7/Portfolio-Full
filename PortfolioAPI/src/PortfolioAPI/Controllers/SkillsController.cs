@@ -21,7 +21,7 @@ namespace PortfolioAPI.Controllers
         public async Task<ActionResult<IEnumerable<SkillDto>>> GetAllSkills()
         {
             var skills = await _skillService.GetAllSkillsAsync();
-            return Ok(skills.OrderBy(s => s.Order).ThenBy(s => s.Name).Select(EntityMappings.ToDto));
+            return Ok(skills.OrderBy(s => s.Order).ThenBy(s => s.NameEn).Select(EntityMappings.ToDto));
         }
 
         [HttpGet("{id}")]

@@ -1,17 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using PortfolioAPI.Core.DTOs;
 using PortfolioAPI.Core.Entities;
 
 namespace PortfolioAPI.Core.DTOs
 {
     /// <summary>
-    /// The single entity ⇄ DTO mapping owner for the API. Controllers
-    /// (admin surface) and PublicController (portfolio site) share these, so
-    /// a field added to an entity is mapped in exactly one place — the seven
-    /// hand-copied <c>Map()</c> helpers this replaces (six in controllers, one
-    /// in ProjectService, plus a verbatim 27-line clone in PublicController)
-    /// were the largest DRY defect in the codebase.
+    /// Centralised entity <-> DTO mapping.
     ///
     /// Mapping is explicit and null-tolerant: list properties materialize as
     /// empty lists (never null) so the JSON contract is stable.
@@ -21,8 +17,11 @@ namespace PortfolioAPI.Core.DTOs
         public static ProjectDto ToDto(Project p) => new()
         {
             Id = p.Id,
-            Title = p.Title,
-            Description = p.Description,
+            Slug = p.Slug,
+            TitleEn = p.TitleEn,
+            TitleAr = p.TitleAr,
+            DescriptionEn = p.DescriptionEn,
+            DescriptionAr = p.DescriptionAr,
             ImageUrl = p.ImageUrl,
             Technologies = p.Technologies?.ToList() ?? new List<string>(),
             GithubUrl = p.GithubUrl,
@@ -30,14 +29,22 @@ namespace PortfolioAPI.Core.DTOs
             Featured = p.Featured,
             Order = p.Order,
             IsActive = p.IsActive,
-            Category = p.Category,
-            Client = p.Client,
-            Type = p.Type,
-            Database = p.Database,
-            Status = p.Status,
-            Badges = p.Badges?.ToList() ?? new List<string>(),
-            Metrics = p.Metrics?.Select(m => new ProjectMetricDto { Label = m.Label, Value = m.Value }).ToList()
-                      ?? new List<ProjectMetricDto>(),
+            CategoryEn = p.CategoryEn,
+            CategoryAr = p.CategoryAr,
+            ClientEn = p.ClientEn,
+            ClientAr = p.ClientAr,
+            TypeEn = p.TypeEn,
+            TypeAr = p.TypeAr,
+            DatabaseEn = p.DatabaseEn,
+            DatabaseAr = p.DatabaseAr,
+            StatusEn = p.StatusEn,
+            StatusAr = p.StatusAr,
+            BadgesEn = p.BadgesEn?.ToList() ?? new List<string>(),
+            BadgesAr = p.BadgesAr?.ToList() ?? new List<string>(),
+            MetricsEn = p.MetricsEn?.Select(m => new ProjectMetricDto { LabelEn = m.LabelEn, LabelAr = m.LabelAr, Value = m.Value }).ToList()
+                          ?? new List<ProjectMetricDto>(),
+            MetricsAr = p.MetricsAr?.Select(m => new ProjectMetricDto { LabelEn = m.LabelEn, LabelAr = m.LabelAr, Value = m.Value }).ToList()
+                          ?? new List<ProjectMetricDto>(),
             Gradient = p.Gradient,
             CreatedAt = p.CreatedAt,
             UpdatedAt = p.UpdatedAt
@@ -46,11 +53,14 @@ namespace PortfolioAPI.Core.DTOs
         public static SkillDto ToDto(Skill s) => new()
         {
             Id = s.Id,
-            Name = s.Name,
-            Category = s.Category,
+            NameEn = s.NameEn,
+            NameAr = s.NameAr,
+            CategoryEn = s.CategoryEn,
+            CategoryAr = s.CategoryAr,
             Proficiency = s.Proficiency,
             IconUrl = s.IconUrl,
-            Description = s.Description,
+            DescriptionEn = s.DescriptionEn,
+            DescriptionAr = s.DescriptionAr,
             Order = s.Order,
             IsActive = s.IsActive,
             CreatedAt = s.CreatedAt,
@@ -60,13 +70,17 @@ namespace PortfolioAPI.Core.DTOs
         public static ExperienceDto ToDto(Experience e) => new()
         {
             Id = e.Id,
-            Company = e.Company,
-            Position = e.Position,
+            CompanyEn = e.CompanyEn,
+            CompanyAr = e.CompanyAr,
+            PositionEn = e.PositionEn,
+            PositionAr = e.PositionAr,
             StartDate = e.StartDate,
             EndDate = e.EndDate,
-            Description = e.Description,
+            DescriptionEn = e.DescriptionEn,
+            DescriptionAr = e.DescriptionAr,
             Technologies = e.Technologies?.ToList() ?? new List<string>(),
-            Location = e.Location,
+            LocationEn = e.LocationEn,
+            LocationAr = e.LocationAr,
             Current = e.Current,
             Order = e.Order,
             IsActive = e.IsActive,
@@ -134,32 +148,61 @@ namespace PortfolioAPI.Core.DTOs
             UpdatedAt = c.UpdatedAt
         };
 
-        // --- Payload → request-shaped entity (the route id wins) ---------------
+        // --- Payload -> request-shaped entity (the route id wins) ---------------
 
-        public static CategoryDto ToDto(Category c) => new()
-        {
-            Id = c.Id,
-            Name = c.Name,
-            Order = c.Order,
-            IsActive = c.IsActive
-        };
-
-        public static Category ToEntity(CreateCategoryDto dto, int id = 0) => new()
+        public static Project ToEntity(CreateProjectDto dto, int id = 0) => new()
         {
             Id = id,
-            Name = dto.Name?.Trim() ?? string.Empty,
+            TitleEn = dto.TitleEn?.Trim() ?? string.Empty,
+            TitleAr = dto.TitleAr?.Trim() ?? string.Empty,
+            DescriptionEn = dto.DescriptionEn?.Trim() ?? string.Empty,
+            DescriptionAr = dto.DescriptionAr?.Trim() ?? string.Empty,
+            ImageUrl = dto.ImageUrl,
+            Technologies = dto.Technologies ?? new List<string>(),
+            GithubUrl = dto.GithubUrl,
+            LiveUrl = dto.LiveUrl,
+            Featured = dto.Featured,
             Order = dto.Order,
-            IsActive = dto.IsActive
+            IsActive = dto.IsActive,
+            CategoryEn = dto.CategoryEn?.Trim() ?? string.Empty,
+            CategoryAr = dto.CategoryAr?.Trim() ?? string.Empty,
+            ClientEn = dto.ClientEn?.Trim() ?? string.Empty,
+            ClientAr = dto.ClientAr?.Trim() ?? string.Empty,
+            TypeEn = dto.TypeEn?.Trim() ?? string.Empty,
+            TypeAr = dto.TypeAr?.Trim() ?? string.Empty,
+            DatabaseEn = dto.DatabaseEn?.Trim() ?? string.Empty,
+            DatabaseAr = dto.DatabaseAr?.Trim() ?? string.Empty,
+            StatusEn = dto.StatusEn?.Trim() ?? string.Empty,
+            StatusAr = dto.StatusAr?.Trim() ?? string.Empty,
+            BadgesEn = dto.BadgesEn ?? new List<string>(),
+            BadgesAr = dto.BadgesAr ?? new List<string>(),
+            MetricsEn = dto.MetricsEn?.Select(m => new ProjectMetric
+            {
+                LabelEn = m.LabelEn?.Trim() ?? string.Empty,
+                LabelAr = m.LabelAr?.Trim() ?? string.Empty,
+                Value = m.Value?.Trim() ?? string.Empty
+            }).Where(m => m.LabelEn.Length > 0).ToList() ?? new List<ProjectMetric>(),
+            MetricsAr = dto.MetricsAr?.Select(m => new ProjectMetric
+            {
+                LabelEn = m.LabelEn?.Trim() ?? string.Empty,
+                LabelAr = m.LabelAr?.Trim() ?? string.Empty,
+                Value = m.Value?.Trim() ?? string.Empty
+            }).Where(m => m.LabelEn.Length > 0).ToList() ?? new List<ProjectMetric>(),
+            Gradient = dto.Gradient,
+            CreatedAt = DateTime.UtcNow
         };
 
         public static Skill ToEntity(CreateSkillDto dto, int id = 0) => new()
         {
             Id = id,
-            Name = dto.Name?.Trim() ?? string.Empty,
-            Category = dto.Category?.Trim() ?? string.Empty,
+            NameEn = dto.NameEn?.Trim() ?? string.Empty,
+            NameAr = dto.NameAr?.Trim() ?? string.Empty,
+            CategoryEn = dto.CategoryEn?.Trim() ?? string.Empty,
+            CategoryAr = dto.CategoryAr?.Trim() ?? string.Empty,
             Proficiency = dto.Proficiency,
             IconUrl = dto.IconUrl,
-            Description = dto.Description,
+            DescriptionEn = dto.DescriptionEn,
+            DescriptionAr = dto.DescriptionAr,
             Order = dto.Order,
             IsActive = dto.IsActive
         };
@@ -167,14 +210,50 @@ namespace PortfolioAPI.Core.DTOs
         public static Experience ToEntity(CreateExperienceDto dto, int id = 0) => new()
         {
             Id = id,
-            Company = dto.Company?.Trim() ?? string.Empty,
-            Position = dto.Position?.Trim() ?? string.Empty,
+            CompanyEn = dto.CompanyEn?.Trim() ?? string.Empty,
+            CompanyAr = dto.CompanyAr?.Trim() ?? string.Empty,
+            PositionEn = dto.PositionEn?.Trim() ?? string.Empty,
+            PositionAr = dto.PositionAr?.Trim() ?? string.Empty,
             StartDate = dto.StartDate,
             EndDate = dto.EndDate,
-            Description = dto.Description?.Trim() ?? string.Empty,
+            DescriptionEn = dto.DescriptionEn?.Trim() ?? string.Empty,
+            DescriptionAr = dto.DescriptionAr?.Trim() ?? string.Empty,
             Technologies = dto.Technologies ?? new List<string>(),
-            Location = dto.Location,
+            LocationEn = dto.LocationEn,
+            LocationAr = dto.LocationAr,
             Current = dto.Current,
+            Order = dto.Order,
+            IsActive = dto.IsActive
+        };
+
+        public static CategoryDto ToDto(Category c) => new()
+        {
+            Id = c.Id,
+            NameEn = c.NameEn,
+            NameAr = c.NameAr,
+            Order = c.Order,
+            IsActive = c.IsActive
+        };
+
+        public static Category ToEntity(CreateCategoryDto dto, int id = 0) => new()
+        {
+            Id = id,
+            NameEn = dto.NameEn?.Trim() ?? string.Empty,
+            NameAr = dto.NameAr?.Trim() ?? string.Empty,
+            Order = dto.Order,
+            IsActive = dto.IsActive
+        };
+
+        public static Testimonial ToEntity(CreateTestimonialDto dto, int id = 0) => new()
+        {
+            Id = id,
+            Name = dto.Name?.Trim() ?? string.Empty,
+            Position = dto.Position?.Trim() ?? string.Empty,
+            Company = dto.Company?.Trim() ?? string.Empty,
+            Content = dto.Content?.Trim() ?? string.Empty,
+            ImageUrl = dto.ImageUrl,
+            Rating = dto.Rating,
+            Featured = dto.Featured,
             Order = dto.Order,
             IsActive = dto.IsActive
         };
@@ -183,7 +262,7 @@ namespace PortfolioAPI.Core.DTOs
         {
             Id = id,
             Tab = dto.Tab?.Trim() ?? "work",
-            Year = dto.Year?.Trim() ?? string.Empty,
+            Year = dto.Year,
             PeriodEn = dto.PeriodEn?.Trim() ?? string.Empty,
             PeriodAr = dto.PeriodAr?.Trim() ?? string.Empty,
             TitleEn = dto.TitleEn?.Trim() ?? string.Empty,
@@ -203,21 +282,6 @@ namespace PortfolioAPI.Core.DTOs
             Featured = dto.Featured,
             Order = dto.Order,
             IsActive = dto.IsActive
-        };
-
-        public static Testimonial ToEntity(CreateTestimonialDto dto, int id = 0) => new()
-        {
-            Id = id,
-            Name = dto.Name?.Trim() ?? string.Empty,
-            Position = dto.Position?.Trim() ?? string.Empty,
-            Company = dto.Company?.Trim() ?? string.Empty,
-            Content = dto.Content?.Trim() ?? string.Empty,
-            ImageUrl = dto.ImageUrl,
-            Rating = dto.Rating,
-            Featured = dto.Featured,
-            Order = dto.Order,
-            IsActive = dto.IsActive,
-            ProjectUrl = dto.ProjectUrl
         };
     }
 }

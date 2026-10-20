@@ -26,7 +26,7 @@ namespace PortfolioAPI.Application.Services
 
         public async Task<IEnumerable<Skill>> GetSkillsByCategoryAsync(string category)
         {
-            return await UnitOfWork.Skills.FindAsync(s => s.Category == category);
+            return await UnitOfWork.Skills.FindAsync(s => s.CategoryEn == category);
         }
 
         public async Task<IEnumerable<Skill>> GetVisibleSkillsAsync()

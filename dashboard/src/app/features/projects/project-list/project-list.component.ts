@@ -2,6 +2,7 @@ import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { ProjectListStateService } from '../../../core/services/project-list-state.service';
 import { ProjectService } from '../../../core/services/project.service';
 import { Project } from '../../../core/models/project.model';
 import { isApiHostedImage, resolvePortfolioImage } from '../../../core/portfolio-origin';
@@ -25,8 +26,7 @@ const PAGE_SIZE = 9;
         <div class="flex items-center gap-3">
           <input
             type="search"
-            [(ngModel)]="query"
-            (ngModelChange)="page.set(1)"
+            [(ngModel)]="queryValue"
             placeholder="Search projects..."
             aria-label="Search projects"
             class="input max-w-[220px] py-2.5"
@@ -47,9 +47,9 @@ const PAGE_SIZE = 9;
         </div>
       } @else if (filteredProjects().length === 0) {
         <div class="card empty-state">
-          @if (query) {
-            <p class="text-sm text-muted">No projects match “{{ query }}”.</p>
-            <button type="button" class="btn-ghost mt-2" (click)="query = ''">Clear search</button>
+              @if (queryValue) {
+                <p class="text-sm text-muted">No projects match "{{ queryValue }}".</p>
+                      <button type="button" class="btn-ghost mt-2" (click)="setQuery('')">Clear search</button>
           } @else {
             <p class="text-sm text-muted">No projects yet. Create the first one for your portfolio.</p>
             <a routerLink="/projects/new" class="btn-primary mt-2">New project</a>
@@ -145,7 +145,7 @@ const PAGE_SIZE = 9;
           [totalItems]="filteredProjects().length"
           [pageSize]="pageSize"
           [page]="page()"
-          (pageChange)="page.set($event)"
+              (pageChange)="setPage($event)"
         />
       }
     </div>
@@ -154,19 +154,32 @@ const PAGE_SIZE = 9;
 export class ProjectListComponent implements OnInit {
   readonly service = inject(ProjectService);
   private readonly dialog = inject(ConfirmDialogService);
+  private readonly listState = inject(ProjectListStateService);
 
   readonly pageSize = PAGE_SIZE;
-  readonly page = signal(1);
+  readonly page = this.listState.page;
 
   /** Ids of projects whose cover image failed to load (404 on the server). */
   readonly brokenCovers = signal<Set<number>>(new Set<number>());
 
-  query = '';
+  /** Two-way binding target for the search box (the state lives in the shared service). */
+  get queryValue(): string {
+    return this.listState.query();
+  }
+  set queryValue(value: string) {
+    this.setQuery(value);
+  }
+  setQuery(query: string): void {
+    this.listState.setQuery(query);
+  }
+  setPage(page: number): void {
+    this.listState.setPage(page);
+  }
 
   readonly projectCount = computed(() => this.service.projects().length);
 
   readonly filteredProjects = computed(() => {
-    const needle = this.query.trim().toLowerCase();
+    const needle = this.listState.query().trim().toLowerCase();
     const projects = [...this.service.projects()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     if (!needle) return projects;
     return projects.filter(

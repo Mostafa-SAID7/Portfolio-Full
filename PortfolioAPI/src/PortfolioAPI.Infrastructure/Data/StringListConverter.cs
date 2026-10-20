@@ -85,11 +85,11 @@ namespace PortfolioAPI.Infrastructure.Data
         public static ValueComparer<List<ProjectMetric>?> MetricsComparer { get; } = new(
             (a, b) => MetricSequenceEqual(a, b),
             c => (c ?? new List<ProjectMetric>())
-                .Aggregate(0, (hash, m) => HashCode.Combine(hash, m == null ? string.Empty : m.Label, m == null ? string.Empty : m.Value)),
+                .Aggregate(0, (hash, m) => HashCode.Combine(hash, m == null ? string.Empty : m.LabelEn, m == null ? string.Empty : m.Value)),
             c => (c ?? new List<ProjectMetric>())
                 .Select(m => m == null
                     ? new ProjectMetric()
-                    : new ProjectMetric { Label = m.Label, Value = m.Value }).ToList());
+                    : new ProjectMetric { LabelEn = m.LabelEn, LabelAr = m.LabelAr, Value = m.Value }).ToList());
 
         private static bool MetricSequenceEqual(List<ProjectMetric>? a, List<ProjectMetric>? b)
         {
@@ -99,7 +99,8 @@ namespace PortfolioAPI.Infrastructure.Data
             if (left.Count != right.Count) return false;
             for (var i = 0; i < left.Count; i++)
             {
-                if (!string.Equals(left[i]?.Label, right[i]?.Label, StringComparison.Ordinal)
+                if (!string.Equals(left[i]?.LabelEn, right[i]?.LabelEn, StringComparison.Ordinal)
+                    || !string.Equals(left[i]?.LabelAr, right[i]?.LabelAr, StringComparison.Ordinal)
                     || !string.Equals(left[i]?.Value, right[i]?.Value, StringComparison.Ordinal))
                 {
                     return false;

@@ -55,8 +55,8 @@ namespace PortfolioAPI.Infrastructure.Repositories
         public async Task<List<string>> GetCategoryNamesAsync()
         {
             return await _dbSet
-                .Where(p => p.Category != null && p.Category != string.Empty)
-                .Select(p => p.Category!)
+                .Where(p => p.CategoryEn != null && p.CategoryEn != string.Empty)
+                .Select(p => p.CategoryEn!)
                 .Distinct()
                 .ToListAsync();
         }
@@ -66,7 +66,7 @@ namespace PortfolioAPI.Infrastructure.Repositories
         {
             var normalized = category.Trim();
             return await _dbSet.CountAsync(p =>
-                p.Category != null && p.Category.ToLower() == normalized.ToLower());
+                p.CategoryEn != null && p.CategoryEn.ToLower() == normalized.ToLower());
         }
 
         /// <summary>
@@ -80,21 +80,35 @@ namespace PortfolioAPI.Infrastructure.Repositories
             var next = newName.Trim();
 
             return await _dbSet
-                .Where(p => p.Category != null && p.Category.ToLower() == previous.ToLower())
-                .ExecuteUpdateAsync(setters => setters.SetProperty(p => p.Category, next));
+                .Where(p => p.CategoryEn != null && p.CategoryEn.ToLower() == previous.ToLower())
+                .ExecuteUpdateAsync(setters => setters.SetProperty(p => p.CategoryEn, next));
         }
 
         /// <summary>How many projects use each category (one grouped query).</summary>
         public async Task<Dictionary<string, int>> GetCategoryUsageAsync()
         {
             var rows = await _dbSet
-                .Where(p => p.Category != null && p.Category != string.Empty)
-                .GroupBy(p => p.Category!)
+                .Where(p => p.CategoryEn != null && p.CategoryEn != string.Empty)
+                .GroupBy(p => p.CategoryEn!)
                 .Select(g => new { Category = g.Key, Count = g.Count() })
                 .ToListAsync();
 
             // Case-insensitive: the admin compares the names as typed.
             return rows.ToDictionary(r => r.Category, r => r.Count, StringComparer.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// Public surface: active, non-deleted projects ordered for display.
+        /// Filtering and ordering happen in SQL (issue #33).
+        /// </summary>
+        public async Task<List<Project>> GetPublicProjectsAsync()
+        {
+            return await _dbSet
+                .AsNoTracking()
+                .Where(p => p.IsActive && !p.IsDeleted)
+                .OrderBy(p => p.Order)
+                .ThenByDescending(p => p.CreatedAt)
+                .ToListAsync();
         }
 
         /// <summary>T-SQL LIKE escaping: [, % and _ are wildcard characters.</summary>

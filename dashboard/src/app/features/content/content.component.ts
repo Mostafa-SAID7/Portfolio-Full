@@ -103,7 +103,7 @@ const EXPERIENCE_PER_PAGE = 6;
                     <button type="button" class="btn-ghost" (click)="editingCategoryId = null">Cancel</button>
                   } @else {
                     <div class="min-w-0 flex-1">
-                      <p class="truncate font-semibold text-ink">{{ category.name }}</p>
+                      <p class="truncate font-semibold text-ink">{{ category.nameEn }}</p>
                       <p class="text-xs text-muted">
                         Order {{ category.order }} ·
                         {{ category.projectCount }} project{{ category.projectCount === 1 ? '' : 's' }}
@@ -136,14 +136,14 @@ const EXPERIENCE_PER_PAGE = 6;
                       type="button"
                       class="btn-ghost"
                       (click)="toggleCategory(category)"
-                      [attr.aria-label]="(category.isActive ? 'Hide ' : 'Show ') + category.name"
+                      [attr.aria-label]="(category.isActive ? 'Hide ' : 'Show ') + category.nameEn"
                     >
                       {{ category.isActive ? 'Hide' : 'Show' }}
                     </button>
                     <button type="button" class="icon-btn" (click)="startEditingCategory(category)" aria-label="Rename category" title="Rename">
                       <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5m-1.414-9.414a1 1 0 1 1 2.828 2.828L11.828 15H9v-2.828l8.586-8.586Z"/></svg>
                     </button>
-                    <button type="button" class="icon-btn hover:border-danger/40 hover:text-danger" (click)="deleteCategory(category)" [attr.aria-label]="'Delete ' + category.name" title="Delete">
+                    <button type="button" class="icon-btn hover:border-danger/40 hover:text-danger" (click)="deleteCategory(category)" [attr.aria-label]="'Delete ' + category.nameEn" title="Delete">
                       <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 7m0 0a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V7Zm3-4h6a1 1 0 0 1 1 1v1H8V4a1 1 0 0 1 1-1Zm-1 7 4 4m0-4-4 4"/></svg>
                     </button>
                   }
@@ -517,7 +517,7 @@ export class ContentComponent implements OnInit {
     this.categoryFormError = null;
     const order = this.categoryService.categories().length;
     this.categoryService
-      .createCategory({ name, order, isActive: true })
+      .createCategory({ nameEn: name, nameAr: '', order, isActive: true })
       .subscribe({
         next: () => {
           this.newCategoryName = '';
@@ -530,7 +530,7 @@ export class ContentComponent implements OnInit {
 
   startEditingCategory(category: Category): void {
     this.editingCategoryId = category.id;
-    this.categoryDraftName = category.name;
+    this.categoryDraftName = category.nameEn;
     this.categoryFormError = null;
   }
 
@@ -543,7 +543,7 @@ export class ContentComponent implements OnInit {
 
     this.categoryFormError = null;
     this.categoryService
-      .updateCategory(category.id, { name, order: category.order, isActive: category.isActive })
+      .updateCategory(category.id, { nameEn: name, nameAr: '', order: category.order, isActive: category.isActive })
       .subscribe({
         next: () => {
           this.editingCategoryId = null;
@@ -557,7 +557,7 @@ export class ContentComponent implements OnInit {
   toggleCategory(category: Category): void {
     this.categoryFormError = null;
     this.categoryService
-      .updateCategory(category.id, { name: category.name, order: category.order, isActive: !category.isActive })
+      .updateCategory(category.id, { nameEn: category.nameEn, nameAr: category.nameAr, order: category.order, isActive: !category.isActive })
       .subscribe({
         error: err => this.reportCategoryError(err, 'Could not update the category.')
       });
@@ -579,11 +579,11 @@ export class ContentComponent implements OnInit {
     this.categoryFormError = null;
 
     this.categoryService
-      .updateCategory(category.id, { name: category.name, order: neighbour.order, isActive: category.isActive })
+      .updateCategory(category.id, { nameEn: category.nameEn, nameAr: category.nameAr, order: neighbour.order, isActive: category.isActive })
       .subscribe({
         next: () =>
           this.categoryService
-            .updateCategory(neighbour.id, { name: neighbour.name, order: category.order, isActive: neighbour.isActive })
+            .updateCategory(neighbour.id, { nameEn: neighbour.nameEn, nameAr: neighbour.nameAr, order: category.order, isActive: neighbour.isActive })
             .subscribe({
               error: err => this.reportCategoryError(err, 'Could not reorder the category.')
             }),

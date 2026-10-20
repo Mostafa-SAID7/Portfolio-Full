@@ -7,8 +7,11 @@ namespace PortfolioAPI.Core.Entities
     /// </summary>
     public class Category : BaseEntity
     {
-        /// <summary>Display name, unique across categories.</summary>
-        public string Name { get; set; } = string.Empty;
+        /// <summary>Display name (English) - the canonical, unique name.</summary>
+        public string NameEn { get; set; } = string.Empty;
+
+        /// <summary>Display name (Arabic) - shown when the site is in Arabic.</summary>
+        public string NameAr { get; set; } = string.Empty;
 
         /// <summary>Sort order for the filter chips and the admin list.</summary>
         public int Order { get; set; }
@@ -17,9 +20,10 @@ namespace PortfolioAPI.Core.Entities
         public bool IsActive { get; set; } = true;
 
         /// <summary>Applies an incoming payload onto this instance.</summary>
-        public void Apply(string name, int order, bool isActive)
+        public void Apply(string nameEn, string nameAr, int order, bool isActive)
         {
-            Name = name;
+            NameEn = nameEn;
+            NameAr = nameAr;
             Order = order;
             IsActive = isActive;
         }

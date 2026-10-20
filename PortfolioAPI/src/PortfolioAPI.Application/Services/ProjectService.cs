@@ -48,8 +48,18 @@ namespace PortfolioAPI.Application.Services
 
         public async Task<Result<IEnumerable<ProjectDto>>> GetFeaturedAsync()
         {
-            var projects = await _unitOfWork.Projects.FindAsync(p => p.Featured && p.IsActive);
+            var projects = await _unitOfWork.Projects.FindAsync(p => p.Featured && p.IsActive && !p.IsDeleted);
             return Result<IEnumerable<ProjectDto>>.Ok(projects.OrderBy(p => p.Order).Select(EntityMappings.ToDto).ToList());
+        }
+
+        /// <summary>
+        /// Public surface: active projects only, filtered and ordered in SQL
+        /// (issue #33). The admin list keeps using <see cref="GetAllAsync"/>.
+        /// </summary>
+        public async Task<Result<IEnumerable<ProjectDto>>> GetPublicProjectsAsync()
+        {
+            var projects = await _unitOfWork.Projects.GetPublicProjectsAsync();
+            return Result<IEnumerable<ProjectDto>>.Ok(projects.Select(EntityMappings.ToDto).ToList());
         }
 
         public async Task<Result<IEnumerable<ProjectDto>>> GetByTechnologyAsync(string technology)
@@ -69,14 +79,80 @@ namespace PortfolioAPI.Application.Services
             return Result<IEnumerable<ProjectDto>>.Ok(projects.OrderBy(p => p.Order).Select(EntityMappings.ToDto).ToList());
         }
 
+        /// <summary>
+        /// Builds a URL-safe slug from a title and makes it unique
+        /// ("haxel footwear" -&gt; "haxel-footwear", "haxel-footwear-2").
+        /// </summary>
+        private async Task<string> GenerateUniqueSlugAsync(string? title, int? excludeId = null)
+        {
+            var baseSlug = Slugify(title);
+            if (string.IsNullOrWhiteSpace(baseSlug))
+            {
+                baseSlug = "project";
+            }
+
+            var candidates = await _unitOfWork.Projects.GetAllAsync() ?? Enumerable.Empty<Project>();
+            var taken = candidates
+                .Where(p => excludeId == null || p.Id != excludeId)
+                .Select(p => p.Slug)
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            if (!taken.Contains(baseSlug))
+            {
+                return baseSlug;
+            }
+
+            for (var suffix = 2; suffix < 500; suffix++)
+            {
+                var candidate = $"{baseSlug}-{suffix}";
+                if (!taken.Contains(candidate))
+                {
+                    return candidate;
+                }
+            }
+
+            return $"{baseSlug}-{Guid.NewGuid().ToString("N")[..6]}";
+        }
+
+        /// <summary>Lowercase, dash-separated, ASCII-only version of a title.</summary>
+        private static string Slugify(string? title)
+        {
+            if (string.IsNullOrWhiteSpace(title))
+            {
+                return string.Empty;
+            }
+
+            var builder = new System.Text.StringBuilder(title.Length);
+            var lastWasDash = false;
+
+            foreach (var ch in title.Trim().ToLowerInvariant())
+            {
+                if ((ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9'))
+                {
+                    builder.Append(ch);
+                    lastWasDash = false;
+                }
+                else if (!lastWasDash && builder.Length > 0)
+                {
+                    builder.Append('-');
+                    lastWasDash = true;
+                }
+            }
+
+            return builder.ToString().Trim('-');
+        }
+
         public async Task<Result<ProjectDto>> CreateAsync(CreateProjectDto dto)
         {
             var project = new Project
             {
                 // Null-tolerant: an explicit JSON null must reach the validator
                 // as an empty string (→ 400) instead of NRE-ing here (→ 500).
-                Title = dto.Title?.Trim() ?? string.Empty,
-                Description = dto.Description?.Trim() ?? string.Empty,
+                TitleEn = dto.TitleEn?.Trim() ?? string.Empty,
+                TitleAr = dto.TitleAr?.Trim() ?? string.Empty,
+                DescriptionEn = dto.DescriptionEn?.Trim() ?? string.Empty,
+                DescriptionAr = dto.DescriptionAr?.Trim() ?? string.Empty,
                 ImageUrl = dto.ImageUrl,
                 Technologies = Sanitize(dto.Technologies),
                 GithubUrl = dto.GithubUrl,
@@ -84,17 +160,30 @@ namespace PortfolioAPI.Application.Services
                 Featured = dto.Featured,
                 Order = dto.Order,
                 IsActive = dto.IsActive,
-                Category = NullIfBlank(dto.Category),
-                Client = NullIfBlank(dto.Client),
-                Type = NullIfBlank(dto.Type),
-                Database = NullIfBlank(dto.Database),
-                Status = NullIfBlank(dto.Status),
-                Badges = Sanitize(dto.Badges),
-                Metrics = dto.Metrics?.Select(m => new ProjectMetric
+                CategoryEn = NullIfBlank(dto.CategoryEn),
+                CategoryAr = NullIfBlank(dto.CategoryAr),
+                ClientEn = NullIfBlank(dto.ClientEn),
+                ClientAr = NullIfBlank(dto.ClientAr),
+                TypeEn = NullIfBlank(dto.TypeEn),
+                TypeAr = NullIfBlank(dto.TypeAr),
+                DatabaseEn = NullIfBlank(dto.DatabaseEn),
+                DatabaseAr = NullIfBlank(dto.DatabaseAr),
+                StatusEn = NullIfBlank(dto.StatusEn),
+                StatusAr = NullIfBlank(dto.StatusAr),
+                BadgesEn = Sanitize(dto.BadgesEn),
+                BadgesAr = Sanitize(dto.BadgesAr),
+                MetricsEn = dto.MetricsEn?.Select(m => new ProjectMetric
                 {
-                    Label = m.Label?.Trim() ?? string.Empty,
+                    LabelEn = m.LabelEn?.Trim() ?? string.Empty,
+                    LabelAr = m.LabelAr?.Trim() ?? string.Empty,
                     Value = m.Value?.Trim() ?? string.Empty
-                }).Where(m => m.Label.Length > 0).ToList() ?? new List<ProjectMetric>(),
+                }).Where(m => m.LabelEn.Length > 0).ToList() ?? new List<ProjectMetric>(),
+                MetricsAr = dto.MetricsAr?.Select(m => new ProjectMetric
+                {
+                    LabelEn = m.LabelEn?.Trim() ?? string.Empty,
+                    LabelAr = m.LabelAr?.Trim() ?? string.Empty,
+                    Value = m.Value?.Trim() ?? string.Empty
+                }).Where(m => m.LabelEn.Length > 0).ToList() ?? new List<ProjectMetric>(),
                 Gradient = NullIfBlank(dto.Gradient),
                 CreatedAt = DateTime.UtcNow
             };
@@ -108,11 +197,16 @@ namespace PortfolioAPI.Application.Services
                 throw new ValidationException(validation.Errors);
             }
 
+            // The public link is generated once and never changes again, so
+            // renaming a project cannot break its indexed URL. It is set after
+            // the validation, so an invalid project never touches the database.
+            project.Slug = await GenerateUniqueSlugAsync(project.TitleEn);
+
             var created = await _unitOfWork.Projects.AddAsync(project);
             // A category typed in the dashboard becomes a managed category, so
             // it can be renamed/reordered/hidden later and shows up as a filter
             // chip on the public site.
-            await _categoryService.EnsureCategoryAsync(project.Category);
+            await _categoryService.EnsureCategoryAsync(project.CategoryEn);
             await _unitOfWork.SaveChangesAsync();
             return Result<ProjectDto>.Ok(EntityMappings.ToDto(created), "Project created.");
         }
@@ -125,8 +219,17 @@ namespace PortfolioAPI.Application.Services
                 return Result<ProjectDto>.NotFound($"Project with id {id} was not found.");
             }
 
-            project.Title = dto.Title?.Trim() ?? string.Empty;
-            project.Description = dto.Description?.Trim() ?? string.Empty;
+            project.TitleEn = dto.TitleEn?.Trim() ?? string.Empty;
+            project.TitleAr = dto.TitleAr?.Trim() ?? string.Empty;
+            // The slug is NOT touched by a rename - that is the whole point:
+            // the public link of a project has to stay valid. Legacy rows
+            // (created before slugs existed) get one on their first save.
+            if (string.IsNullOrWhiteSpace(project.Slug))
+            {
+                project.Slug = await GenerateUniqueSlugAsync(project.TitleEn, project.Id);
+            }
+            project.DescriptionEn = dto.DescriptionEn?.Trim() ?? string.Empty;
+            project.DescriptionAr = dto.DescriptionAr?.Trim() ?? string.Empty;
             project.ImageUrl = dto.ImageUrl;
             project.Technologies = Sanitize(dto.Technologies);
             project.GithubUrl = dto.GithubUrl;
@@ -134,17 +237,30 @@ namespace PortfolioAPI.Application.Services
             project.Featured = dto.Featured;
             project.Order = dto.Order;
             project.IsActive = dto.IsActive;
-            project.Category = NullIfBlank(dto.Category);
-            project.Client = NullIfBlank(dto.Client);
-            project.Type = NullIfBlank(dto.Type);
-            project.Database = NullIfBlank(dto.Database);
-            project.Status = NullIfBlank(dto.Status);
-            project.Badges = Sanitize(dto.Badges);
-            project.Metrics = dto.Metrics?.Select(m => new ProjectMetric
+            project.CategoryEn = NullIfBlank(dto.CategoryEn);
+            project.CategoryAr = NullIfBlank(dto.CategoryAr);
+            project.ClientEn = NullIfBlank(dto.ClientEn);
+            project.ClientAr = NullIfBlank(dto.ClientAr);
+            project.TypeEn = NullIfBlank(dto.TypeEn);
+            project.TypeAr = NullIfBlank(dto.TypeAr);
+            project.DatabaseEn = NullIfBlank(dto.DatabaseEn);
+            project.DatabaseAr = NullIfBlank(dto.DatabaseAr);
+            project.StatusEn = NullIfBlank(dto.StatusEn);
+            project.StatusAr = NullIfBlank(dto.StatusAr);
+            project.BadgesEn = Sanitize(dto.BadgesEn);
+            project.BadgesAr = Sanitize(dto.BadgesAr);
+            project.MetricsEn = dto.MetricsEn?.Select(m => new ProjectMetric
             {
-                Label = m.Label?.Trim() ?? string.Empty,
+                LabelEn = m.LabelEn?.Trim() ?? string.Empty,
+                LabelAr = m.LabelAr?.Trim() ?? string.Empty,
                 Value = m.Value?.Trim() ?? string.Empty
-            }).Where(m => m.Label.Length > 0).ToList() ?? new List<ProjectMetric>();
+            }).Where(m => m.LabelEn.Length > 0).ToList() ?? new List<ProjectMetric>();
+            project.MetricsAr = dto.MetricsAr?.Select(m => new ProjectMetric
+            {
+                LabelEn = m.LabelEn?.Trim() ?? string.Empty,
+                LabelAr = m.LabelAr?.Trim() ?? string.Empty,
+                Value = m.Value?.Trim() ?? string.Empty
+            }).Where(m => m.LabelEn.Length > 0).ToList() ?? new List<ProjectMetric>();
             project.Gradient = NullIfBlank(dto.Gradient);
             project.UpdatedAt = DateTime.UtcNow;
 
@@ -156,7 +272,7 @@ namespace PortfolioAPI.Application.Services
             }
 
             await _unitOfWork.Projects.UpdateAsync(project);
-            await _categoryService.EnsureCategoryAsync(project.Category);
+            await _categoryService.EnsureCategoryAsync(project.CategoryEn);
             await _unitOfWork.SaveChangesAsync();
             return Result<ProjectDto>.Ok(EntityMappings.ToDto(project), "Project updated.");
         }

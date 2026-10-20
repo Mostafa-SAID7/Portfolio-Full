@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.AspNetCore.RateLimiting;
 using PortfolioAPI.Core.DTOs;
 using PortfolioAPI.Core.Entities;
@@ -45,44 +46,39 @@ namespace PortfolioAPI.Controllers
 
         /// <summary>Active projects (optionally only featured), ordered for display.</summary>
         [HttpGet("projects")]
+        [OutputCache(PolicyName = "public-content")]
         public async Task<ActionResult<IEnumerable<ProjectDto>>> GetProjects([FromQuery] bool? featured)
         {
+            // The service filters IsActive/IsDeleted in SQL (issue #33) - the
+            // public surface never materializes inactive rows.
             var result = featured == true
                 ? await _projectService.GetFeaturedAsync()
-                : await _projectService.GetAllAsync();
+                : await _projectService.GetPublicProjectsAsync();
 
-            // GetAllAsync is the admin query (all projects), so the public
-            // surface filters to active ones here.
-            var projects = (result.Data ?? Enumerable.Empty<ProjectDto>())
-                .Where(p => p.IsActive)
-                .OrderBy(p => p.Order)
-                .ThenByDescending(p => p.CreatedAt);
-
-            return Ok(projects);
+            return Ok(result.Data ?? Enumerable.Empty<ProjectDto>());
         }
 
         /// <summary>Active skills, grouped-friendly (ordered). Service already filters IsActive in SQL.</summary>
         [HttpGet("skills")]
+        [OutputCache(PolicyName = "public-content")]
         public async Task<ActionResult<IEnumerable<SkillDto>>> GetSkills()
         {
             var skills = await _skillService.GetVisibleSkillsAsync();
-            return Ok(skills.OrderBy(s => s.Order).ThenBy(s => s.Name).Select(EntityMappings.ToDto));
+            return Ok(skills.OrderBy(s => s.Order).ThenBy(s => s.NameEn).Select(EntityMappings.ToDto));
         }
 
         /// <summary>Active work experience, current position first.</summary>
         [HttpGet("experience")]
+        [OutputCache(PolicyName = "public-content")]
         public async Task<ActionResult<IEnumerable<ExperienceDto>>> GetExperience()
         {
-            var experiences = await _experienceService.GetAllExperiencesAsync();
-            return Ok(experiences
-                .Where(e => e.IsActive)
-                .OrderBy(e => e.Order)
-                .ThenByDescending(e => e.StartDate)
-                .Select(EntityMappings.ToDto));
+            var experiences = await _experienceService.GetPublicExperiencesAsync();
+            return Ok(experiences.Select(EntityMappings.ToDto));
         }
 
         /// <summary>Active testimonials, featured first. Service already filters IsActive in SQL.</summary>
         [HttpGet("testimonials")]
+        [OutputCache(PolicyName = "public-content")]
         public async Task<ActionResult<IEnumerable<TestimonialDto>>> GetTestimonials()
         {
             var testimonials = await _testimonialService.GetVisibleTestimonialsAsync();
@@ -94,6 +90,7 @@ namespace PortfolioAPI.Controllers
 
         /// <summary>Active bilingual credentials (work / projects / education / certifications). Service already filters IsActive in SQL.</summary>
         [HttpGet("credentials")]
+        [OutputCache(PolicyName = "public-content")]
         public async Task<ActionResult<IEnumerable<CredentialDto>>> GetCredentials()
         {
             var credentials = await _credentialService.GetActiveCredentialsAsync();
@@ -105,6 +102,7 @@ namespace PortfolioAPI.Controllers
 
         /// <summary>Active project categories (the filter chips on the public site).</summary>
         [HttpGet("categories")]
+        [OutputCache(PolicyName = "public-content")]
         public async Task<ActionResult<IEnumerable<CategoryDto>>> GetCategories()
         {
             var categories = await _categoryService.GetPublicCategoriesAsync();

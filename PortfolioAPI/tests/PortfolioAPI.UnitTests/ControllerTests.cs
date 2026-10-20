@@ -39,8 +39,8 @@ namespace PortfolioAPI.UnitTests
             var mockService = new Mock<IProjectService>();
             var projects = new List<ProjectDto>
             {
-                new ProjectDto { Id = 1, Title = "Project 1", Description = "Description 1" },
-                new ProjectDto { Id = 2, Title = "Project 2", Description = "Description 2" }
+                new ProjectDto { Id = 1, TitleEn = "Project 1", TitleAr = "مشروع 1", DescriptionEn = "Description 1", DescriptionAr = "وصف 1" },
+                new ProjectDto { Id = 2, TitleEn = "Project 2", TitleAr = "مشروع 2", DescriptionEn = "Description 2", DescriptionAr = "وصف 2" }
             };
             mockService.Setup(s => s.GetAllAsync())
                 .ReturnsAsync(Result<IEnumerable<ProjectDto>>.Ok(projects));
@@ -62,7 +62,7 @@ namespace PortfolioAPI.UnitTests
         {
             // Arrange
             var mockService = new Mock<IProjectService>();
-            var project = new ProjectDto { Id = 1, Title = "Test Project", Description = "Test Description" };
+            var project = new ProjectDto { Id = 1, TitleEn = "Test Project", TitleAr = "مشروع اختبار", DescriptionEn = "Test Description", DescriptionAr = "وصف الاختبار" };
             mockService.Setup(s => s.GetByIdAsync(1))
                 .ReturnsAsync(Result<ProjectDto>.Ok(project));
             var controller = CreateProjectsController(mockService);
@@ -75,7 +75,7 @@ namespace PortfolioAPI.UnitTests
             objectResult.StatusCode.Should().Be(StatusCodes.Status200OK);
             var returnValue = objectResult.Value.Should().BeOfType<ProjectDto>().Subject;
             returnValue.Id.Should().Be(1);
-            returnValue.Title.Should().Be("Test Project");
+            returnValue.TitleEn.Should().Be("Test Project");
             mockService.Verify(s => s.GetByIdAsync(1), Times.Once);
         }
 
@@ -105,7 +105,7 @@ namespace PortfolioAPI.UnitTests
             var mockService = new Mock<IProjectService>();
             var projects = new List<ProjectDto>
             {
-                new ProjectDto { Id = 1, Title = "Featured Project", Featured = true }
+                new ProjectDto { Id = 1, TitleEn = "Featured Project", TitleAr = "مشروع مميز", Featured = true }
             };
             mockService.Setup(s => s.GetFeaturedAsync())
                 .ReturnsAsync(Result<IEnumerable<ProjectDto>>.Ok(projects));
@@ -129,7 +129,7 @@ namespace PortfolioAPI.UnitTests
             var mockService = new Mock<IProjectService>();
             var projects = new List<ProjectDto>
             {
-                new ProjectDto { Id = 1, Title = "Portfolio API" }
+                new ProjectDto { Id = 1, TitleEn = "Portfolio API", TitleAr = "بورتفوليو API" }
             };
             mockService.Setup(s => s.SearchAsync("portfolio"))
                 .ReturnsAsync(Result<IEnumerable<ProjectDto>>.Ok(projects));
@@ -150,8 +150,8 @@ namespace PortfolioAPI.UnitTests
         {
             // Arrange
             var mockService = new Mock<IProjectService>();
-            var dto = new CreateProjectDto { Title = "New Project", Description = "New Description" };
-            var createdProject = new ProjectDto { Id = 1, Title = "New Project", Description = "New Description" };
+            var dto = new CreateProjectDto { TitleEn = "New Project", TitleAr = "مشروع جديد", DescriptionEn = "New Description", DescriptionAr = "وصف جديد" };
+            var createdProject = new ProjectDto { Id = 1, TitleEn = "New Project", TitleAr = "مشروع جديد", DescriptionEn = "New Description", DescriptionAr = "وصف جديد" };
             mockService.Setup(s => s.CreateAsync(dto))
                 .ReturnsAsync(Result<ProjectDto>.Ok(createdProject, "Project created."));
             var controller = CreateProjectsController(mockService);
@@ -177,10 +177,10 @@ namespace PortfolioAPI.UnitTests
             // the shared 400 { message, errors } body. The controller itself
             // must let it propagate, not swallow it into a 200/500.
             var mockService = new Mock<IProjectService>();
-            var dto = new CreateProjectDto { Title = "", Description = "" };
+            var dto = new CreateProjectDto { TitleEn = "", TitleAr = "", DescriptionEn = "", DescriptionAr = "" };
             var validationException = new ValidationException(new[]
             {
-                new ValidationFailure("Title", "Title is required.")
+                new ValidationFailure("TitleEn", "Title (en) is required.")
             });
             mockService.Setup(s => s.CreateAsync(dto)).ThrowsAsync(validationException);
             var controller = CreateProjectsController(mockService);
@@ -191,8 +191,8 @@ namespace PortfolioAPI.UnitTests
             // Assert
             var assertions = await act.Should().ThrowAsync<ValidationException>();
             var exception = assertions.Which;
-            exception.Errors.Should().ContainKey("Title");
-            exception.Errors["Title"].Should().Contain("Title is required.");
+            exception.Errors.Should().ContainKey("TitleEn");
+            exception.Errors["TitleEn"].Should().Contain("Title (en) is required.");
         }
 
         [Fact]
@@ -200,8 +200,8 @@ namespace PortfolioAPI.UnitTests
         {
             // Arrange
             var mockService = new Mock<IProjectService>();
-            var dto = new UpdateProjectDto { Title = "Updated Project", Description = "Updated" };
-            var existing = new ProjectDto { Id = 1, Title = "Old Project" };
+            var dto = new UpdateProjectDto { TitleEn = "Updated Project", TitleAr = "مشروع محدث", DescriptionEn = "Updated", DescriptionAr = "محدث" };
+            var existing = new ProjectDto { Id = 1, TitleEn = "Old Project", TitleAr = "مشروع قديم", DescriptionEn = "Old Description", DescriptionAr = "وصف قديم" };
             mockService.Setup(s => s.GetByIdAsync(1))
                 .ReturnsAsync(Result<ProjectDto>.Ok(existing));
             mockService.Setup(s => s.UpdateAsync(1, dto))
@@ -221,7 +221,7 @@ namespace PortfolioAPI.UnitTests
         {
             // Arrange
             var mockService = new Mock<IProjectService>();
-            var dto = new UpdateProjectDto { Title = "Updated Project", Description = "Updated" };
+            var dto = new UpdateProjectDto { TitleEn = "Updated Project", TitleAr = "مشروع محدث", DescriptionEn = "Updated", DescriptionAr = "محدث" };
             mockService.Setup(s => s.GetByIdAsync(99))
                 .ReturnsAsync(Result<ProjectDto>.NotFound("Project with id 99 was not found."));
             mockService.Setup(s => s.UpdateAsync(99, dto))
@@ -241,7 +241,7 @@ namespace PortfolioAPI.UnitTests
         {
             // Arrange
             var mockService = new Mock<IProjectService>();
-            var existing = new ProjectDto { Id = 1, Title = "Project to Delete" };
+            var existing = new ProjectDto { Id = 1, TitleEn = "Project to Delete", TitleAr = "مشروع للحذف", DescriptionEn = "Desc", DescriptionAr = "وصف" };
             mockService.Setup(s => s.GetByIdAsync(1))
                 .ReturnsAsync(Result<ProjectDto>.Ok(existing));
             mockService.Setup(s => s.DeleteAsync(1))
@@ -279,8 +279,8 @@ namespace PortfolioAPI.UnitTests
             // Arrange — the stored cover is under /api/files (default base URL)
             var mockService = new Mock<IProjectService>();
             var mockFileStorage = new Mock<IFileStorageService>();
-            var dto = new UpdateProjectDto { Title = "Updated", Description = "Updated", ImageUrl = null };
-            var existing = new ProjectDto { Id = 1, Title = "Old", ImageUrl = "/api/files/old-cover.png" };
+            var dto = new UpdateProjectDto { TitleEn = "Updated", TitleAr = "محدث", DescriptionEn = "Updated", DescriptionAr = "محدث", ImageUrl = null };
+            var existing = new ProjectDto { Id = 1, TitleEn = "Old", TitleAr = "قديم", ImageUrl = "/api/files/old-cover.png" };
             mockService.Setup(s => s.GetByIdAsync(1))
                 .ReturnsAsync(Result<ProjectDto>.Ok(existing));
             mockService.Setup(s => s.UpdateAsync(1, dto))
@@ -306,8 +306,8 @@ namespace PortfolioAPI.UnitTests
             var mockService = new Mock<ISkillService>();
             var skills = new List<Skill>
             {
-                new Skill { Id = 1, Name = "C#", Category = "Programming" },
-                new Skill { Id = 2, Name = "JavaScript", Category = "Programming" }
+                new Skill { Id = 1, NameEn = "C#", NameAr = "سي شارب", CategoryEn = "Programming", CategoryAr = "برمجة" },
+                new Skill { Id = 2, NameEn = "JavaScript", NameAr = "جافا سكريبت", CategoryEn = "Programming", CategoryAr = "برمجة" }
             };
             mockService.Setup(s => s.GetAllSkillsAsync()).ReturnsAsync(skills);
             var controller = new SkillsController(mockService.Object);
@@ -327,7 +327,7 @@ namespace PortfolioAPI.UnitTests
         {
             // Arrange
             var mockService = new Mock<ISkillService>();
-            var skill = new Skill { Id = 1, Name = "C#", Category = "Programming", Proficiency = 90 };
+            var skill = new Skill { Id = 1, NameEn = "C#", NameAr = "سي شارب", CategoryEn = "Programming", CategoryAr = "برمجة", Proficiency = 90 };
             mockService.Setup(s => s.GetSkillByIdAsync(1)).ReturnsAsync(skill);
             var controller = new SkillsController(mockService.Object);
 
@@ -338,7 +338,7 @@ namespace PortfolioAPI.UnitTests
             var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
             var returnValue = okResult.Value.Should().BeOfType<SkillDto>().Subject;
             returnValue.Id.Should().Be(1);
-            returnValue.Name.Should().Be("C#");
+            returnValue.NameEn.Should().Be("C#");
             returnValue.Proficiency.Should().Be(90);
             mockService.Verify(s => s.GetSkillByIdAsync(1), Times.Once);
         }
@@ -350,8 +350,8 @@ namespace PortfolioAPI.UnitTests
             var mockService = new Mock<ISkillService>();
             var skills = new List<Skill>
             {
-                new Skill { Id = 1, Name = "C#", IsActive = true },
-                new Skill { Id = 2, Name = "Hidden Skill", IsActive = false }
+                new Skill { Id = 1, NameEn = "C#", NameAr = "سي شارب", IsActive = true },
+                new Skill { Id = 2, NameEn = "Hidden Skill", NameAr = "مهارة مخفية", IsActive = false }
             };
             mockService.Setup(s => s.GetVisibleSkillsAsync()).ReturnsAsync(skills.Where(s => s.IsActive));
             var controller = new SkillsController(mockService.Object);
@@ -371,8 +371,8 @@ namespace PortfolioAPI.UnitTests
         {
             // Arrange
             var mockService = new Mock<ISkillService>();
-            var dto = new CreateSkillDto { Name = "New Skill", Category = "New Category", Proficiency = 75 };
-            var createdSkill = new Skill { Id = 1, Name = "New Skill", Category = "New Category", Proficiency = 75 };
+            var dto = new CreateSkillDto { NameEn = "New Skill", NameAr = "مهارة جديدة", CategoryEn = "New Category", CategoryAr = "فئة جديدة", Proficiency = 75 };
+            var createdSkill = new Skill { Id = 1, NameEn = "New Skill", NameAr = "مهارة جديدة", CategoryEn = "New Category", CategoryAr = "فئة جديدة", Proficiency = 75 };
             mockService.Setup(s => s.CreateSkillAsync(It.IsAny<Skill>())).ReturnsAsync(createdSkill);
             var controller = new SkillsController(mockService.Object);
 
@@ -386,7 +386,7 @@ namespace PortfolioAPI.UnitTests
             var returnValue = createdResult.Value.Should().BeOfType<SkillDto>().Subject;
             returnValue.Id.Should().Be(1);
             mockService.Verify(
-                s => s.CreateSkillAsync(It.Is<Skill>(sk => sk.Name == "New Skill" && sk.Category == "New Category")),
+                s => s.CreateSkillAsync(It.Is<Skill>(sk => sk.NameEn == "New Skill" && sk.CategoryEn == "New Category")),
                 Times.Once);
         }
 
@@ -395,7 +395,7 @@ namespace PortfolioAPI.UnitTests
         {
             // Arrange — route id wins; the DTO carries no id
             var mockService = new Mock<ISkillService>();
-            var dto = new UpdateSkillDto { Name = "Updated Skill", Category = "Updated Category" };
+            var dto = new UpdateSkillDto { NameEn = "Updated Skill", NameAr = "مهارة محدثة", CategoryEn = "Updated Category", CategoryAr = "فئة محدثة" };
             mockService.Setup(s => s.UpdateSkillAsync(It.IsAny<Skill>())).Returns(Task.CompletedTask);
             var controller = new SkillsController(mockService.Object);
 
@@ -405,7 +405,7 @@ namespace PortfolioAPI.UnitTests
             // Assert
             result.Should().BeOfType<NoContentResult>();
             mockService.Verify(
-                s => s.UpdateSkillAsync(It.Is<Skill>(sk => sk.Id == 5 && sk.Name == "Updated Skill")),
+                s => s.UpdateSkillAsync(It.Is<Skill>(sk => sk.Id == 5 && sk.NameEn == "Updated Skill")),
                 Times.Once);
         }
 

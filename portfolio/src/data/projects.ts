@@ -13,6 +13,14 @@ export type ProjectCategory =
 
 export interface Project {
   id: string;
+  /**
+   * Id of the bundled catalog entry this project inherits its presentation
+   * data from (narrative, gradient, images). The route id is the API slug,
+   * so the two can differ - e.g. after a rename.
+   */
+  metaId?: string;
+  /** Numeric id of the API row (legacy "api-<id>" links resolve to it). */
+  apiId?: number;
   title: string;
   description: string;
   category: ProjectCategory;

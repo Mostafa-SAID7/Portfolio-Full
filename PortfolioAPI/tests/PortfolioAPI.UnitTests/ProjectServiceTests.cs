@@ -44,8 +44,8 @@ namespace PortfolioAPI.UnitTests
             // Arrange
             var projects = new List<Project>
             {
-                new Project { Id = 1, Title = "Second", Description = "D2", Order = 2 },
-                new Project { Id = 2, Title = "First", Description = "D1", Order = 1 }
+                new Project { Id = 1, TitleEn = "Second", TitleAr = "ثاني", DescriptionEn = "D2", DescriptionAr = "د2", Order = 2 },
+                new Project { Id = 2, TitleEn = "First", TitleAr = "أول", DescriptionEn = "D1", DescriptionAr = "د1", Order = 1 }
             };
             _unitOfWorkMock.Setup(u => u.Projects.GetAllAsync()).ReturnsAsync(projects);
 
@@ -55,7 +55,7 @@ namespace PortfolioAPI.UnitTests
             // Assert
             result.Success.Should().BeTrue();
             result.Data.Should().NotBeNull();
-            result.Data!.Select(p => p.Title).Should().Equal("First", "Second");
+            result.Data!.Select(p => p.TitleEn).Should().Equal("First", "Second");
             _unitOfWorkMock.Verify(u => u.Projects.GetAllAsync(), Times.Once);
         }
 
@@ -63,7 +63,7 @@ namespace PortfolioAPI.UnitTests
         public async Task GetByIdAsync_ShouldReturnProjectDto_WhenProjectExists()
         {
             // Arrange
-            var project = new Project { Id = 1, Title = "Test Project", Description = "Test Description" };
+            var project = new Project { Id = 1, TitleEn = "Test Project", TitleAr = "مشروع اختبار", DescriptionEn = "Test Description", DescriptionAr = "وصف الاختبار" };
             _unitOfWorkMock.Setup(u => u.Projects.GetByIdAsync(1)).ReturnsAsync(project);
 
             // Act
@@ -73,8 +73,8 @@ namespace PortfolioAPI.UnitTests
             result.Success.Should().BeTrue();
             result.Data.Should().NotBeNull();
             result.Data!.Id.Should().Be(1);
-            result.Data.Title.Should().Be("Test Project");
-            result.Data.Description.Should().Be("Test Description");
+            result.Data.TitleEn.Should().Be("Test Project");
+            result.Data.DescriptionEn.Should().Be("Test Description");
             _unitOfWorkMock.Verify(u => u.Projects.GetByIdAsync(1), Times.Once);
         }
 
@@ -98,11 +98,11 @@ namespace PortfolioAPI.UnitTests
         public async Task GetFeaturedAsync_ShouldReturnFeaturedActiveProjects_OrderedByOrder()
         {
             // Arrange
-            var featured = new Project { Id = 1, Title = "Featured", Description = "D", Featured = true, IsActive = true, Order = 1 };
+            var featured = new Project { Id = 1, TitleEn = "Featured", TitleAr = "مميز", DescriptionEn = "D", DescriptionAr = "د", Featured = true, IsActive = true, Order = 1 };
             var projects = new List<Project>
             {
-                new Project { Id = 2, Title = "Hidden", Description = "D", Featured = false, IsActive = true },
-                new Project { Id = 3, Title = "Inactive", Description = "D", Featured = true, IsActive = false },
+                new Project { Id = 2, TitleEn = "Hidden", TitleAr = "مخفي", DescriptionEn = "D", DescriptionAr = "د", Featured = false, IsActive = true },
+                new Project { Id = 3, TitleEn = "Inactive", TitleAr = "غير نشط", DescriptionEn = "D", DescriptionAr = "د", Featured = true, IsActive = false },
                 featured
             };
 
@@ -139,7 +139,7 @@ namespace PortfolioAPI.UnitTests
             // Arrange
             var projects = new List<Project>
             {
-                new Project { Id = 1, Title = "P1", Description = "D", Technologies = new List<string> { "C#" } }
+                new Project { Id = 1, TitleEn = "P1", TitleAr = "ب1", DescriptionEn = "D", DescriptionAr = "د", Technologies = new List<string> { "C#" } }
             };
             _unitOfWorkMock.Setup(u => u.Projects.GetByTechnologyAsync("C#")).ReturnsAsync(projects);
 
@@ -148,7 +148,7 @@ namespace PortfolioAPI.UnitTests
 
             // Assert
             result.Success.Should().BeTrue();
-            result.Data.Should().ContainSingle(p => p.Title == "P1");
+            result.Data.Should().ContainSingle(p => p.TitleEn == "P1");
             result.Data!.Single().Technologies.Should().Contain("C#");
             _unitOfWorkMock.Verify(u => u.Projects.GetByTechnologyAsync("C#"), Times.Once);
         }
@@ -159,7 +159,7 @@ namespace PortfolioAPI.UnitTests
             // Arrange
             var projects = new List<Project>
             {
-                new Project { Id = 1, Title = "Portfolio API", Description = "Search hit" }
+                new Project { Id = 1, TitleEn = "Portfolio API", TitleAr = "بورتفوليو API", DescriptionEn = "Search hit", DescriptionAr = "نتيجة بحث" }
             };
             _unitOfWorkMock.Setup(u => u.Projects.SearchAsync("portfolio")).ReturnsAsync(projects);
 
@@ -168,7 +168,7 @@ namespace PortfolioAPI.UnitTests
 
             // Assert
             result.Success.Should().BeTrue();
-            result.Data.Should().ContainSingle(p => p.Title == "Portfolio API");
+            result.Data.Should().ContainSingle(p => p.TitleEn == "Portfolio API");
             _unitOfWorkMock.Verify(u => u.Projects.SearchAsync("portfolio"), Times.Once);
         }
 
@@ -184,10 +184,13 @@ namespace PortfolioAPI.UnitTests
 
             var dto = new CreateProjectDto
             {
-                Title = "  New Project  ",
-                Description = "  New Description  ",
+                TitleEn = "  New Project  ",
+                TitleAr = "  مشروع جديد  ",
+                DescriptionEn = "  New Description  ",
+                DescriptionAr = "  وصف جديد  ",
                 Technologies = new List<string> { "  C#  ", "", "  React  " },
-                Category = "  Web  "
+                CategoryEn = "  Web  ",
+                CategoryAr = "  ويب  "
             };
 
             // Act
@@ -198,10 +201,10 @@ namespace PortfolioAPI.UnitTests
             result.Message.Should().Be("Project created.");
             result.Data.Should().NotBeNull();
             result.Data!.Id.Should().Be(1);
-            result.Data.Title.Should().Be("New Project");
-            result.Data.Description.Should().Be("New Description");
+            result.Data.TitleEn.Should().Be("New Project");
+            result.Data.DescriptionEn.Should().Be("New Description");
             result.Data.Technologies.Should().Equal("C#", "React");
-            result.Data.Category.Should().Be("Web");
+            result.Data.CategoryEn.Should().Be("Web");
 
             _validatorMock.Verify(v => v.ValidateAsync(It.IsAny<Project>(), It.IsAny<CancellationToken>()), Times.Once);
             _unitOfWorkMock.Verify(u => u.Projects.AddAsync(It.IsAny<Project>()), Times.Once);
@@ -220,7 +223,7 @@ namespace PortfolioAPI.UnitTests
                 .Setup(v => v.ValidateAsync(It.IsAny<Project>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new FluentValidation.Results.ValidationResult(failures));
 
-            var dto = new CreateProjectDto { Title = "", Description = "" };
+            var dto = new CreateProjectDto { TitleEn = "", TitleAr = "", DescriptionEn = "", DescriptionAr = "" };
 
             // Act
             Func<Task> act = async () => await _projectService.CreateAsync(dto);
@@ -237,7 +240,7 @@ namespace PortfolioAPI.UnitTests
         public async Task UpdateAsync_ShouldUpdateProject_WhenProjectExistsAndValidationPasses()
         {
             // Arrange
-            var existingProject = new Project { Id = 1, Title = "Old Project", Description = "Old Description" };
+            var existingProject = new Project { Id = 1, TitleEn = "Old Project", TitleAr = "مشروع قديم", DescriptionEn = "Old Description", DescriptionAr = "وصف قديم" };
             _unitOfWorkMock.Setup(u => u.Projects.GetByIdAsync(1)).ReturnsAsync(existingProject);
             _unitOfWorkMock.Setup(u => u.Projects.UpdateAsync(It.IsAny<Project>())).Returns(Task.CompletedTask);
             _unitOfWorkMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
@@ -245,10 +248,13 @@ namespace PortfolioAPI.UnitTests
 
             var dto = new UpdateProjectDto
             {
-                Title = "  Updated Project  ",
-                Description = "  Updated Description  ",
+                TitleEn = "  Updated Project  ",
+                TitleAr = "  مشروع محدث  ",
+                DescriptionEn = "  Updated Description  ",
+                DescriptionAr = "  وصف محدث  ",
                 Technologies = new List<string> { " .NET " },
-                Category = "  APIs  "
+                CategoryEn = "  APIs  ",
+                CategoryAr = "  واجهات  "
             };
 
             // Act
@@ -259,11 +265,11 @@ namespace PortfolioAPI.UnitTests
             result.Message.Should().Be("Project updated.");
             result.Data.Should().NotBeNull();
             result.Data!.Id.Should().Be(1);
-            result.Data.Title.Should().Be("Updated Project");
+            result.Data.TitleEn.Should().Be("Updated Project");
             result.Data.Technologies.Should().Equal(".NET");
-            result.Data.Category.Should().Be("APIs");
+            result.Data.CategoryEn.Should().Be("APIs");
 
-            existingProject.Title.Should().Be("Updated Project");
+            existingProject.TitleEn.Should().Be("Updated Project");
             existingProject.UpdatedAt.Should().NotBeNull();
 
             _unitOfWorkMock.Verify(u => u.Projects.GetByIdAsync(1), Times.Once);
@@ -279,7 +285,7 @@ namespace PortfolioAPI.UnitTests
             _unitOfWorkMock.Setup(u => u.Projects.GetByIdAsync(1)).ReturnsAsync((Project?)null);
 
             // Act
-            var result = await _projectService.UpdateAsync(1, new UpdateProjectDto { Title = "X", Description = "Y" });
+            var result = await _projectService.UpdateAsync(1, new UpdateProjectDto { TitleEn = "X", TitleAr = "م", DescriptionEn = "Y", DescriptionAr = "و" });
 
             // Assert
             result.Success.Should().BeFalse();
@@ -294,7 +300,7 @@ namespace PortfolioAPI.UnitTests
         public async Task UpdateAsync_ShouldThrowValidationException_WhenValidationFails()
         {
             // Arrange
-            var existingProject = new Project { Id = 1, Title = "Old", Description = "Old" };
+            var existingProject = new Project { Id = 1, TitleEn = "Old", TitleAr = "قديم", DescriptionEn = "Old", DescriptionAr = "قديم" };
             _unitOfWorkMock.Setup(u => u.Projects.GetByIdAsync(1)).ReturnsAsync(existingProject);
 
             var failures = new List<FluentValidation.Results.ValidationFailure>
@@ -307,7 +313,7 @@ namespace PortfolioAPI.UnitTests
 
             // Act
             Func<Task> act = async () => await _projectService.UpdateAsync(
-                1, new UpdateProjectDto { Title = "", Description = "Desc" });
+                1, new UpdateProjectDto { TitleEn = "", TitleAr = "", DescriptionEn = "Desc", DescriptionAr = "وصف" });
 
             // Assert
             await act.Should().ThrowAsync<ValidationException>();
@@ -319,7 +325,7 @@ namespace PortfolioAPI.UnitTests
         public async Task DeleteAsync_ShouldDeleteProject_WhenProjectExists()
         {
             // Arrange
-            var project = new Project { Id = 1, Title = "Project to Delete", Description = "D" };
+            var project = new Project { Id = 1, TitleEn = "Project to Delete", TitleAr = "مشروع للحذف", DescriptionEn = "D", DescriptionAr = "وصف" };
             _unitOfWorkMock.Setup(u => u.Projects.GetByIdAsync(1)).ReturnsAsync(project);
             _unitOfWorkMock.Setup(u => u.Projects.DeleteAsync(project)).Returns(Task.CompletedTask);
             _unitOfWorkMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
@@ -357,7 +363,7 @@ namespace PortfolioAPI.UnitTests
         public async Task ToggleFeaturedAsync_ShouldFlipFeaturedFlag_WhenProjectExists()
         {
             // Arrange
-            var project = new Project { Id = 1, Title = "P", Description = "D", Featured = false };
+            var project = new Project { Id = 1, TitleEn = "P", TitleAr = "ب", DescriptionEn = "D", DescriptionAr = "وصف", Featured = false };
             _unitOfWorkMock.Setup(u => u.Projects.GetByIdAsync(1)).ReturnsAsync(project);
             _unitOfWorkMock.Setup(u => u.Projects.UpdateAsync(It.IsAny<Project>())).Returns(Task.CompletedTask);
             _unitOfWorkMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);

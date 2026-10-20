@@ -46,6 +46,11 @@ const MAX_COVER_BYTES = 10 * 1024 * 1024; // API-side cap is 10MB.
             [attr.aria-invalid]="invalid('title')"
           />
           @if (invalid('title')) { <p class="field-error" role="alert">Title is required (max 100 characters).</p> }
+          @if (slug()) {
+            <p class="field-hint">
+              Public link: <code>/projects/{{ slug() }}</code> — generated once, it does not change when you rename the project.
+            </p>
+          }
         </div>
 
         <div>
@@ -256,6 +261,9 @@ export class ProjectFormComponent implements OnInit {
   readonly uploading = signal(false);
   readonly uploadError = signal<string | null>(null);
   readonly dragActive = signal(false);
+
+  /** Public link id of the edited project (owned by the API). */
+  readonly slug = signal('');
 
   @ViewChild('coverInput') coverInput?: ElementRef<HTMLInputElement>;
 
@@ -506,6 +514,7 @@ export class ProjectFormComponent implements OnInit {
   }
 
   private populateForm(project: {
+    slug?: string;
     title: string;
     description: string;
     technologies: string[];
@@ -526,6 +535,10 @@ export class ProjectFormComponent implements OnInit {
   }): void {
     this.loadedGradient = project.gradient ?? null;
     this.loadedMetrics = project.metrics ?? [];
+    // The public link id the API owns - shown to the admin so the address of
+    // the project is never a mystery. It is generated once and survives a
+    // rename, so the link of a project stays valid.
+    this.slug.set(project.slug ?? '');
     this.projectForm.patchValue({
       title: project.title,
       description: project.description,

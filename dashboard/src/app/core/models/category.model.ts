@@ -1,7 +1,10 @@
 /** A project category managed from the dashboard (api/v1/Categories). */
 export interface Category {
   id: number;
-  name: string;
+  /** Display name (English) - the canonical name. */
+  nameEn: string;
+  /** Display name (Arabic). */
+  nameAr: string;
   order: number;
   isActive: boolean;
   /** How many projects use this category (admin list only). */
@@ -10,7 +13,8 @@ export interface Category {
 
 /** Payload for create/update (server-managed fields are never sent). */
 export interface CategoryPayload {
-  name: string;
+  nameEn: string;
+  nameAr: string;
   order: number;
   isActive: boolean;
 }

@@ -4,11 +4,14 @@ namespace PortfolioAPI.Core.Entities
 {
     public class Skill : BaseEntity
     {
-        public string Name { get; set; } = string.Empty;
-        public string Category { get; set; } = string.Empty;
+        public string NameEn { get; set; } = string.Empty;
+        public string NameAr { get; set; } = string.Empty;
+        public string CategoryEn { get; set; } = string.Empty;
+        public string CategoryAr { get; set; } = string.Empty;
         public int Proficiency { get; set; } // 1-100
         public string? IconUrl { get; set; }
-        public string? Description { get; set; }
+        public string? DescriptionEn { get; set; }
+        public string? DescriptionAr { get; set; }
         public int Order { get; set; } = 0;
         public bool IsActive { get; set; } = true;
 
@@ -23,11 +26,14 @@ namespace PortfolioAPI.Core.Entities
         /// </summary>
         public void Apply(Skill other)
         {
-            Name = other.Name;
-            Category = other.Category;
+            NameEn = other.NameEn;
+            NameAr = other.NameAr;
+            CategoryEn = other.CategoryEn;
+            CategoryAr = other.CategoryAr;
             Proficiency = other.Proficiency;
             IconUrl = other.IconUrl;
-            Description = other.Description;
+            DescriptionEn = other.DescriptionEn;
+            DescriptionAr = other.DescriptionAr;
             Order = other.Order;
             IsActive = other.IsActive;
         }

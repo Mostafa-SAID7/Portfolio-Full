@@ -44,5 +44,12 @@ namespace PortfolioAPI.Core.Interfaces
         /// list can show the usage without an N+1 round trip).
         /// </summary>
         Task<Dictionary<string, int>> GetCategoryUsageAsync();
+
+        /// <summary>
+        /// Public surface: active, non-deleted projects ordered for display.
+        /// The filter runs in SQL so inactive rows are never materialized
+        /// (issue #33) - the admin list must keep using <see cref="IRepository{T}.GetAllAsync"/>.
+        /// </summary>
+        Task<List<Project>> GetPublicProjectsAsync();
     }
 }

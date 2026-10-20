@@ -7,33 +7,46 @@ namespace PortfolioAPI.Application.Validators
     {
         public ExperienceValidator()
         {
-            RuleFor(e => e.Company)
-                .NotEmpty().WithMessage("Company is required.")
-                .MaximumLength(100).WithMessage("Company must not exceed 100 characters.");
+            RuleFor(e => e.CompanyEn)
+                .NotEmpty().WithMessage("Company (en) is required.")
+                .MaximumLength(100).WithMessage("Company (en) must not exceed 100 characters.");
 
-            RuleFor(e => e.Position)
-                .NotEmpty().WithMessage("Position is required.")
-                .MaximumLength(100).WithMessage("Position must not exceed 100 characters.");
+            RuleFor(e => e.CompanyAr)
+                .NotEmpty().WithMessage("Company (ar) is required.")
+                .MaximumLength(100).WithMessage("Company (ar) must not exceed 100 characters.");
 
-            RuleFor(e => e.Description)
-                .NotEmpty().WithMessage("Description is required.")
-                .MaximumLength(1000).WithMessage("Description must not exceed 1000 characters.");
+            RuleFor(e => e.PositionEn)
+                .NotEmpty().WithMessage("Position (en) is required.")
+                .MaximumLength(100).WithMessage("Position (en) must not exceed 100 characters.");
+
+            RuleFor(e => e.PositionAr)
+                .NotEmpty().WithMessage("Position (ar) is required.")
+                .MaximumLength(100).WithMessage("Position (ar) must not exceed 100 characters.");
+
+            RuleFor(e => e.DescriptionEn)
+                .NotEmpty().WithMessage("Description (en) is required.")
+                .MaximumLength(1000).WithMessage("Description (en) must not exceed 1000 characters.");
+
+            RuleFor(e => e.DescriptionAr)
+                .NotEmpty().WithMessage("Description (ar) is required.")
+                .MaximumLength(1000).WithMessage("Description (ar) must not exceed 1000 characters.");
 
             RuleFor(e => e.StartDate)
                 .Must(d => d != default(DateTime)).WithMessage("Start date is required.");
 
-            RuleFor(e => e.Location)
-                .MaximumLength(100).WithMessage("Location must not exceed 100 characters.");
+            RuleFor(e => e.LocationEn)
+                .MaximumLength(100).WithMessage("Location (en) must not exceed 100 characters.");
+
+            RuleFor(e => e.LocationAr)
+                .MaximumLength(100).WithMessage("Location (ar) must not exceed 100 characters.");
 
             RuleFor(e => e.EndDate)
                 .GreaterThanOrEqualTo(e => e.StartDate)
                 .When(e => e.EndDate.HasValue)
                 .WithMessage("End date must be after the start date.");
 
-            // Current ↔ EndDate invariant (missing business rule): a role
-            // marked Current must not carry an end date, and a past role must
-            // have one — otherwise the public timeline renders contradictory
-            // entries (e.g. "Current since 2020, ended 2021").
+            // Current ↔ EndDate invariant: a role marked Current must not carry an end date,
+            // and a past role must have one.
             RuleFor(e => e.EndDate)
                 .Null()
                 .When(e => e.Current)

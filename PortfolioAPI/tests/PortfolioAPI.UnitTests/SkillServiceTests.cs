@@ -29,8 +29,8 @@ namespace PortfolioAPI.UnitTests
             // Arrange
             var skills = new List<Skill>
             {
-                new Skill { Id = 1, Name = "C#", Category = "Programming" },
-                new Skill { Id = 2, Name = "JavaScript", Category = "Programming" }
+                new Skill { Id = 1, NameEn = "C#", NameAr = "سي شارب", CategoryEn = "Programming", CategoryAr = "برمجة" },
+                new Skill { Id = 2, NameEn = "JavaScript", NameAr = "جافا سكريبت", CategoryEn = "Programming", CategoryAr = "برمجة" }
             };
             _unitOfWorkMock.Setup(u => u.Skills.GetAllAsync()).ReturnsAsync(skills);
 
@@ -46,7 +46,7 @@ namespace PortfolioAPI.UnitTests
         public async Task GetSkillByIdAsync_ShouldReturnSkill_WhenSkillExists()
         {
             // Arrange
-            var skill = new Skill { Id = 1, Name = "C#", Category = "Programming" };
+            var skill = new Skill { Id = 1, NameEn = "C#", NameAr = "سي شارب", CategoryEn = "Programming", CategoryAr = "برمجة" };
             _unitOfWorkMock.Setup(u => u.Skills.GetByIdAsync(1)).ReturnsAsync(skill);
 
             // Act
@@ -77,20 +77,20 @@ namespace PortfolioAPI.UnitTests
             // Arrange
             var skills = new List<Skill>
             {
-                new Skill { Id = 1, Name = "C#", Category = "Programming" },
-                new Skill { Id = 2, Name = "SQL", Category = "Database" },
-                new Skill { Id = 3, Name = "JavaScript", Category = "Programming" }
+                new Skill { Id = 1, NameEn = "C#", NameAr = "سي شارب", CategoryEn = "Programming", CategoryAr = "برمجة" },
+                new Skill { Id = 2, NameEn = "SQL", NameAr = "إس كيو إل", CategoryEn = "Database", CategoryAr = "قاعدة البيانات" },
+                new Skill { Id = 3, NameEn = "JavaScript", NameAr = "جافا سكريبت", CategoryEn = "Programming", CategoryAr = "برمجة" }
             };
-            _unitOfWorkMock.Setup(u => u.Skills.FindAsync(s => s.Category == "Programming"))
-                .ReturnsAsync(skills.Where(s => s.Category == "Programming"));
+            _unitOfWorkMock.Setup(u => u.Skills.FindAsync(s => s.CategoryEn == "Programming"))
+                .ReturnsAsync(skills.Where(s => s.CategoryEn == "Programming"));
 
             // Act
             var result = await _skillService.GetSkillsByCategoryAsync("Programming");
 
             // Assert
             result.Should().HaveCount(2);
-            result.Should().AllSatisfy(s => s.Category.Should().Be("Programming"));
-            _unitOfWorkMock.Verify(u => u.Skills.FindAsync(s => s.Category == "Programming"), Times.Once);
+            result.Should().AllSatisfy(s => s.CategoryEn.Should().Be("Programming"));
+            _unitOfWorkMock.Verify(u => u.Skills.FindAsync(s => s.CategoryEn == "Programming"), Times.Once);
         }
 
         [Fact]
@@ -99,8 +99,8 @@ namespace PortfolioAPI.UnitTests
             // Arrange
             var skills = new List<Skill>
             {
-                new Skill { Id = 1, Name = "C#", IsActive = true },
-                new Skill { Id = 2, Name = "Hidden Skill", IsActive = false }
+                new Skill { Id = 1, NameEn = "C#", NameAr = "سي شارب", IsActive = true },
+                new Skill { Id = 2, NameEn = "Hidden Skill", NameAr = "مهارة مخفية", IsActive = false }
             };
             _unitOfWorkMock.Setup(u => u.Skills.FindAsync(s => s.IsActive))
                 .ReturnsAsync(skills.Where(s => s.IsActive));
@@ -117,9 +117,9 @@ namespace PortfolioAPI.UnitTests
         public async Task CreateSkillAsync_ShouldCreateSkill_WhenValidationPasses()
         {
             // Arrange
-            var skill = new Skill { Name = "New Skill", Category = "New Category" };
+            var skill = new Skill { NameEn = "New Skill", NameAr = "مهارة جديدة", CategoryEn = "New Category", CategoryAr = "فئة جديدة" };
             var validationResult = new FluentValidation.Results.ValidationResult();
-            var createdSkill = new Skill { Id = 1, Name = "New Skill", Category = "New Category", CreatedAt = DateTime.UtcNow };
+            var createdSkill = new Skill { Id = 1, NameEn = "New Skill", NameAr = "مهارة جديدة", CategoryEn = "New Category", CategoryAr = "فئة جديدة", CreatedAt = DateTime.UtcNow };
 
             _validatorMock.Setup(v => v.ValidateAsync(skill, default)).ReturnsAsync(validationResult);
             _unitOfWorkMock.Setup(u => u.Skills.AddAsync(It.IsAny<Skill>())).ReturnsAsync(createdSkill);
@@ -139,10 +139,10 @@ namespace PortfolioAPI.UnitTests
         public async Task CreateSkillAsync_ShouldThrowValidationException_WhenValidationFails()
         {
             // Arrange
-            var skill = new Skill { Name = "", Category = "" };
+            var skill = new Skill { NameEn = "", NameAr = "", CategoryEn = "", CategoryAr = "" };
             var validationFailures = new List<FluentValidation.Results.ValidationFailure>
             {
-                new FluentValidation.Results.ValidationFailure("Name", "Name is required.")
+                new FluentValidation.Results.ValidationFailure("NameEn", "Name (en) is required.")
             };
             var validationResult = new FluentValidation.Results.ValidationResult(validationFailures);
 
@@ -161,8 +161,8 @@ namespace PortfolioAPI.UnitTests
         public async Task UpdateSkillAsync_ShouldUpdateSkill_WhenSkillExistsAndValidationPasses()
         {
             // Arrange
-            var skill = new Skill { Id = 1, Name = "Updated Skill", Category = "Updated Category", Proficiency = 90 };
-            var existingSkill = new Skill { Id = 1, Name = "Old Skill", Category = "Old Category" };
+            var skill = new Skill { Id = 1, NameEn = "Updated Skill", NameAr = "????? ?????", CategoryEn = "Updated Category", CategoryAr = "??? ?????", Proficiency = 90 };
+            var existingSkill = new Skill { Id = 1, NameEn = "Old Skill", NameAr = "????? ?????", CategoryEn = "Old Category", CategoryAr = "??? ?????" };
             var validationResult = new FluentValidation.Results.ValidationResult();
 
             _unitOfWorkMock.Setup(u => u.Skills.GetByIdAsync(1)).ReturnsAsync(existingSkill);
@@ -174,8 +174,8 @@ namespace PortfolioAPI.UnitTests
             await _skillService.UpdateSkillAsync(skill);
 
             // Assert — values are copied onto the fetched instance
-            existingSkill.Name.Should().Be("Updated Skill");
-            existingSkill.Category.Should().Be("Updated Category");
+            existingSkill.NameEn.Should().Be("Updated Skill");
+            existingSkill.CategoryEn.Should().Be("Updated Category");
             existingSkill.Proficiency.Should().Be(90);
             existingSkill.UpdatedAt.Should().NotBeNull();
 
@@ -189,7 +189,7 @@ namespace PortfolioAPI.UnitTests
         public async Task UpdateSkillAsync_ShouldThrowNotFoundException_WhenSkillDoesNotExist()
         {
             // Arrange
-            var skill = new Skill { Id = 1, Name = "Updated Skill" };
+            var skill = new Skill { Id = 1, NameEn = "Updated Skill", NameAr = "مهارة محدثة" };
             _unitOfWorkMock.Setup(u => u.Skills.GetByIdAsync(1)).ReturnsAsync((Skill?)null);
 
             // Act
@@ -205,7 +205,7 @@ namespace PortfolioAPI.UnitTests
         public async Task DeleteSkillAsync_ShouldDeleteSkill_WhenSkillExists()
         {
             // Arrange
-            var skill = new Skill { Id = 1, Name = "Skill to Delete" };
+            var skill = new Skill { Id = 1, NameEn = "Skill to Delete", NameAr = "????? ?????" };
             _unitOfWorkMock.Setup(u => u.Skills.GetByIdAsync(1)).ReturnsAsync(skill);
             _unitOfWorkMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
 

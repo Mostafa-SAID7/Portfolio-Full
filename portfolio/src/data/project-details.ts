@@ -675,7 +675,9 @@ const detailOverrides: Record<string, Override> = {
 /* ------------------------------------------------------------------ */
 
 export function getProjectDetail(project: Project): ProjectDetailContent {
-  const override = detailOverrides[project.id] ?? {};
+  // The narrative overrides are keyed by the bundled catalog id - the route
+  // id is the API slug, so the catalog id is used when it is known.
+  const override = detailOverrides[project.metaId ?? project.id] ?? {};
 
   const architecture = project.tech
     .map((tech) => techNotes[tech])

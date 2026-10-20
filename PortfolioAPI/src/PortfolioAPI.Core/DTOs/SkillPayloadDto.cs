@@ -3,14 +3,17 @@ namespace PortfolioAPI.Core.DTOs
     /// <summary>Payload accepted when creating a skill (POST api/Skills).</summary>
     public class CreateSkillDto
     {
-        public string Name { get; set; } = string.Empty;
-        public string Category { get; set; } = string.Empty;
+        public string NameEn { get; set; } = string.Empty;
+        public string NameAr { get; set; } = string.Empty;
+        public string CategoryEn { get; set; } = string.Empty;
+        public string CategoryAr { get; set; } = string.Empty;
 
         /// <summary>0-100.</summary>
         public int Proficiency { get; set; }
 
         public string? IconUrl { get; set; }
-        public string? Description { get; set; }
+        public string? DescriptionEn { get; set; }
+        public string? DescriptionAr { get; set; }
         public int Order { get; set; }
         public bool IsActive { get; set; } = true;
     }

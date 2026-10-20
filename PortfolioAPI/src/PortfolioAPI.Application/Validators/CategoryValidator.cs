@@ -7,9 +7,13 @@ namespace PortfolioAPI.Application.Validators
     {
         public CategoryValidator()
         {
-            RuleFor(c => c.Name)
-                .NotEmpty().WithMessage("Category name is required.")
-                .MaximumLength(100).WithMessage("Category name must not exceed 100 characters.");
+            RuleFor(c => c.NameEn)
+                .NotEmpty().WithMessage("Category name (en) is required.")
+                .MaximumLength(100).WithMessage("Category name (en) must not exceed 100 characters.");
+
+            RuleFor(c => c.NameAr)
+                .NotEmpty().WithMessage("Category name (ar) is required.")
+                .MaximumLength(100).WithMessage("Category name (ar) must not exceed 100 characters.");
         }
     }
 }

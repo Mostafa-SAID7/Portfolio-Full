@@ -4,7 +4,6 @@ import { PageSkeleton } from "@/components/ui/Skeletons";
 import { PageShell } from "@/components/layout/PageShell";
 import { PageIntro } from "@/components/ui/PageIntro";
 import { Contact } from "@/components/sections/Contact";
-import { LottieIcon } from "@/components/ui/LottieIcon";
 import { pageSeo, pageTitle } from "@/lib/seo";
 import { useI18n } from "@/lib/i18n";
 
@@ -55,15 +54,6 @@ function ContactPage() {
         title={tr("contact.page.title")}
         description={tr("contact.page.desc")}
       />
-
-      <div className="mb-2 flex justify-center">
-        <LottieIcon
-          src="/lottie/contact-mail.lottie"
-          activateOn="interaction"
-          className="size-40 sm:size-52"
-          fallback={<Mail className="size-16 text-primary/60" />}
-        />
-      </div>
 
       <section className="section-y-sm">
         <div className="grid gap-6 sm:grid-cols-3">

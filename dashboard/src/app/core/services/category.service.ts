@@ -35,7 +35,7 @@ export class CategoryService {
       tap(categories => {
         const list = categories ?? [];
         this.categoriesSignal.set(list);
-        this.names.set(list.filter(c => c.isActive).map(c => c.name));
+        this.names.set(list.filter(c => c.isActive).map(c => c.nameEn));
         this.loadingSignal.set(false);
       }),
       catchError(err => {
@@ -50,7 +50,7 @@ export class CategoryService {
     return this.http.post<Category>(ENDPOINT, payload).pipe(
       tap(category => {
         this.categoriesSignal.update(list => [...list, category].sort(byOrder));
-        this.names.set(this.categoriesSignal().filter(c => c.isActive).map(c => c.name));
+        this.names.set(this.categoriesSignal().filter(c => c.isActive).map(c => c.nameEn));
       }),
       catchError(err => throwError(() => err))
     );
@@ -62,7 +62,7 @@ export class CategoryService {
         this.categoriesSignal.update(list =>
           list.map(category => (category.id === id ? { ...category, ...payload } : category)).sort(byOrder)
         );
-        this.names.set(this.categoriesSignal().filter(c => c.isActive).map(c => c.name));
+        this.names.set(this.categoriesSignal().filter(c => c.isActive).map(c => c.nameEn));
       }),
       catchError(err => throwError(() => err))
     );
@@ -72,7 +72,7 @@ export class CategoryService {
     return this.http.delete<void>(`${ENDPOINT}/${id}`).pipe(
       tap(() => {
         this.categoriesSignal.update(list => list.filter(category => category.id !== id));
-        this.names.set(this.categoriesSignal().filter(c => c.isActive).map(c => c.name));
+        this.names.set(this.categoriesSignal().filter(c => c.isActive).map(c => c.nameEn));
       }),
       catchError(err => throwError(() => err))
     );
@@ -80,5 +80,5 @@ export class CategoryService {
 }
 
 function byOrder(a: Category, b: Category): number {
-  return a.order - b.order || a.name.localeCompare(b.name);
+  return a.order - b.order || a.nameEn.localeCompare(b.nameEn);
 }

@@ -33,7 +33,7 @@ namespace PortfolioAPI.UnitTests
         public async Task GetByIdAsync_ShouldReturnEntity_WhenEntityExists()
         {
             // Arrange
-            var project = new Project { Id = 1, Title = "Test Project", Description = "Test Description" };
+            var project = new Project { Id = 1, TitleEn = "Test Project", TitleAr = "مشروع اختبار", DescriptionEn = "Test Description", DescriptionAr = "وصف اختبار" };
             await _context.Projects.AddAsync(project);
             await _context.SaveChangesAsync();
 
@@ -61,8 +61,8 @@ namespace PortfolioAPI.UnitTests
             // Arrange
             var projects = new List<Project>
             {
-                new Project { Id = 1, Title = "Project 1", Description = "Description 1" },
-                new Project { Id = 2, Title = "Project 2", Description = "Description 2" }
+                new Project { Id = 1, TitleEn = "Project 1", TitleAr = "مشروع 1", DescriptionEn = "Description 1", DescriptionAr = "وصف 1" },
+                new Project { Id = 2, TitleEn = "Project 2", TitleAr = "مشروع 2", DescriptionEn = "Description 2", DescriptionAr = "وصف 2" }
             };
             await _context.Projects.AddRangeAsync(projects);
             await _context.SaveChangesAsync();
@@ -81,8 +81,8 @@ namespace PortfolioAPI.UnitTests
             // Arrange
             var projects = new List<Project>
             {
-                new Project { Id = 1, Title = "Featured Project", Featured = true },
-                new Project { Id = 2, Title = "Regular Project", Featured = false }
+                new Project { Id = 1, TitleEn = "Featured Project", TitleAr = "مشروع مميز", Featured = true },
+                new Project { Id = 2, TitleEn = "Regular Project", TitleAr = "مشروع عادي", Featured = false }
             };
             await _context.Projects.AddRangeAsync(projects);
             await _context.SaveChangesAsync();
@@ -99,7 +99,7 @@ namespace PortfolioAPI.UnitTests
         public async Task AddAsync_ShouldAddEntity()
         {
             // Arrange
-            var project = new Project { Title = "New Project", Description = "New Description" };
+            var project = new Project { TitleEn = "New Project", TitleAr = "مشروع جديد", DescriptionEn = "New Description", DescriptionAr = "وصف جديد" };
 
             // Act
             var result = await _repository.AddAsync(project);
@@ -108,7 +108,7 @@ namespace PortfolioAPI.UnitTests
 
             // Assert
             result.Should().NotBeNull();
-            result.Title.Should().Be("New Project");
+            result.TitleEn.Should().Be("New Project");
             result.CreatedAt.Should().NotBe(default);
             _context.Projects.Should().Contain(result);
         }
@@ -127,11 +127,12 @@ namespace PortfolioAPI.UnitTests
         public async Task UpdateAsync_ShouldUpdateEntity()
         {
             // Arrange
-            var project = new Project { Id = 1, Title = "Original Title", Description = "Original Description" };
+            var project = new Project { Id = 1, TitleEn = "Original Title", TitleAr = "عنوان أصلي", DescriptionEn = "Original Description", DescriptionAr = "وصف أصلي" };
             await _context.Projects.AddAsync(project);
             await _context.SaveChangesAsync();
 
-            project.Title = "Updated Title";
+            project.TitleEn = "Updated Title";
+            project.TitleAr = "عنوان محدث";
 
             // Act
             await _repository.UpdateAsync(project);
@@ -139,7 +140,8 @@ namespace PortfolioAPI.UnitTests
             // Assert
             var updatedProject = await _context.Projects.FindAsync(1);
             updatedProject.Should().NotBeNull();
-            updatedProject!.Title.Should().Be("Updated Title");
+            updatedProject!.TitleEn.Should().Be("Updated Title");
+            updatedProject.TitleAr.Should().Be("عنوان محدث");
             updatedProject.UpdatedAt.Should().NotBeNull();
         }
 
@@ -157,7 +159,7 @@ namespace PortfolioAPI.UnitTests
         public async Task DeleteAsync_ShouldRemoveEntity()
         {
             // Arrange
-            var project = new Project { Id = 1, Title = "Project to Delete", Description = "Description" };
+            var project = new Project { Id = 1, TitleEn = "Project to Delete", TitleAr = "مشروع للحذف", DescriptionEn = "Description", DescriptionAr = "وصف" };
             await _context.Projects.AddAsync(project);
             await _context.SaveChangesAsync();
 
@@ -184,7 +186,7 @@ namespace PortfolioAPI.UnitTests
         public async Task ExistsAsync_ShouldReturnTrue_WhenEntityExists()
         {
             // Arrange
-            var project = new Project { Id = 1, Title = "Existing Project", Description = "Description" };
+            var project = new Project { Id = 1, TitleEn = "Existing Project", TitleAr = "مشروع موجود", DescriptionEn = "Description", DescriptionAr = "وصف" };
             await _context.Projects.AddAsync(project);
             await _context.SaveChangesAsync();
 
@@ -211,9 +213,9 @@ namespace PortfolioAPI.UnitTests
             // Arrange
             var projects = new List<Project>
             {
-                new Project { Id = 1, Title = "Project 1", Description = "Description 1" },
-                new Project { Id = 2, Title = "Project 2", Description = "Description 2" },
-                new Project { Id = 3, Title = "Project 3", Description = "Description 3" }
+                new Project { Id = 1, TitleEn = "Project 1", TitleAr = "مشروع 1", DescriptionEn = "Description 1", DescriptionAr = "وصف 1" },
+                new Project { Id = 2, TitleEn = "Project 2", TitleAr = "مشروع 2", DescriptionEn = "Description 2", DescriptionAr = "وصف 2" },
+                new Project { Id = 3, TitleEn = "Project 3", TitleAr = "مشروع 3", DescriptionEn = "Description 3", DescriptionAr = "وصف 3" }
             };
             await _context.Projects.AddRangeAsync(projects);
             await _context.SaveChangesAsync();
@@ -231,9 +233,9 @@ namespace PortfolioAPI.UnitTests
             // Arrange
             var projects = new List<Project>
             {
-                new Project { Id = 1, Title = "Featured 1", Featured = true },
-                new Project { Id = 2, Title = "Regular 1", Featured = false },
-                new Project { Id = 3, Title = "Featured 2", Featured = true }
+                new Project { Id = 1, TitleEn = "Featured 1", TitleAr = "مميز 1", Featured = true },
+                new Project { Id = 2, TitleEn = "Regular 1", TitleAr = "عادي 1", Featured = false },
+                new Project { Id = 3, TitleEn = "Featured 2", TitleAr = "مميز 2", Featured = true }
             };
             await _context.Projects.AddRangeAsync(projects);
             await _context.SaveChangesAsync();
@@ -252,7 +254,7 @@ namespace PortfolioAPI.UnitTests
             var projects = new List<Project>();
             for (int i = 1; i <= 10; i++)
             {
-                projects.Add(new Project { Id = i, Title = $"Project {i}", Description = $"Description {i}" });
+                projects.Add(new Project { Id = i, TitleEn = $"Project {i}", TitleAr = $"مشروع {i}", DescriptionEn = $"Description {i}", DescriptionAr = $"وصف {i}" });
             }
             await _context.Projects.AddRangeAsync(projects);
             await _context.SaveChangesAsync();
@@ -273,7 +275,7 @@ namespace PortfolioAPI.UnitTests
             var projects = new List<Project>();
             for (int i = 1; i <= 10; i++)
             {
-                projects.Add(new Project { Id = i, Title = $"Project {i}", Description = $"Description {i}", Featured = i % 2 == 0 });
+                projects.Add(new Project { Id = i, TitleEn = $"Project {i}", TitleAr = $"مشروع {i}", DescriptionEn = $"Description {i}", DescriptionAr = $"وصف {i}", Featured = i % 2 == 0 });
             }
             await _context.Projects.AddRangeAsync(projects);
             await _context.SaveChangesAsync();
@@ -292,9 +294,9 @@ namespace PortfolioAPI.UnitTests
             // Arrange
             var projects = new List<Project>
             {
-                new Project { Id = 1, Title = "Project 1", Featured = false },
-                new Project { Id = 2, Title = "Project 2", Featured = true },
-                new Project { Id = 3, Title = "Project 3", Featured = true }
+                new Project { Id = 1, TitleEn = "Project 1", TitleAr = "مشروع 1", Featured = false },
+                new Project { Id = 2, TitleEn = "Project 2", TitleAr = "مشروع 2", Featured = true },
+                new Project { Id = 3, TitleEn = "Project 3", TitleAr = "مشروع 3", Featured = true }
             };
             await _context.Projects.AddRangeAsync(projects);
             await _context.SaveChangesAsync();
@@ -313,8 +315,8 @@ namespace PortfolioAPI.UnitTests
             // Arrange
             var projects = new List<Project>
             {
-                new Project { Id = 1, Title = "Project 1", Featured = false },
-                new Project { Id = 2, Title = "Project 2", Featured = true }
+                new Project { Id = 1, TitleEn = "Project 1", TitleAr = "مشروع 1", Featured = false },
+                new Project { Id = 2, TitleEn = "Project 2", TitleAr = "مشروع 2", Featured = true }
             };
             await _context.Projects.AddRangeAsync(projects);
             await _context.SaveChangesAsync();
@@ -332,8 +334,8 @@ namespace PortfolioAPI.UnitTests
             // Arrange
             var projects = new List<Project>
             {
-                new Project { Id = 1, Title = "Project 1", Featured = false },
-                new Project { Id = 2, Title = "Project 2", Featured = false }
+                new Project { Id = 1, TitleEn = "Project 1", TitleAr = "مشروع 1", Featured = false },
+                new Project { Id = 2, TitleEn = "Project 2", TitleAr = "مشروع 2", Featured = false }
             };
             await _context.Projects.AddRangeAsync(projects);
             await _context.SaveChangesAsync();

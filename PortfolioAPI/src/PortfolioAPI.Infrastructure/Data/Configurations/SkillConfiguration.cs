@@ -10,11 +10,19 @@ namespace PortfolioAPI.Infrastructure.Data.Configurations
         {
             builder.HasKey(s => s.Id);
 
-            builder.Property(s => s.Name)
+            builder.Property(s => s.NameEn)
                 .IsRequired()
                 .HasMaxLength(50);
 
-            builder.Property(s => s.Category)
+            builder.Property(s => s.NameAr)
+                .IsRequired()
+                .HasMaxLength(50);
+
+            builder.Property(s => s.CategoryEn)
+                .IsRequired()
+                .HasMaxLength(100);
+
+            builder.Property(s => s.CategoryAr)
                 .IsRequired()
                 .HasMaxLength(100);
 
@@ -28,7 +36,10 @@ namespace PortfolioAPI.Infrastructure.Data.Configurations
             builder.Property(s => s.IconUrl)
                 .HasMaxLength(500);
 
-            builder.Property(s => s.Description)
+            builder.Property(s => s.DescriptionEn)
+                .HasMaxLength(500);
+
+            builder.Property(s => s.DescriptionAr)
                 .HasMaxLength(500);
 
             builder.Property(s => s.Order)
@@ -37,10 +48,10 @@ namespace PortfolioAPI.Infrastructure.Data.Configurations
             builder.Property(s => s.IsActive)
                 .HasDefaultValue(true);
 
-            builder.HasIndex(s => s.Name)
+            builder.HasIndex(s => s.NameEn)
                 .IsUnique();
 
-            builder.HasIndex(s => s.Category);
+            builder.HasIndex(s => s.CategoryEn);
 
             builder.HasIndex(s => s.IsActive);
         }

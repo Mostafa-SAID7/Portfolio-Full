@@ -30,7 +30,7 @@ namespace PortfolioAPI.Application.Services
             var categories = await UnitOfWork.Categories.GetAllAsync();
             return categories
                 .OrderBy(c => c.Order)
-                .ThenBy(c => c.Name, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(c => c.NameEn, StringComparer.OrdinalIgnoreCase)
                 .ToList();
         }
 
@@ -48,21 +48,21 @@ namespace PortfolioAPI.Application.Services
             // must stay visible - dropping them would silently remove a filter
             // chip and hide projects from the public site.
             var known = new HashSet<string>(
-                managed.Select(c => c.Name),
+                managed.Select(c => c.NameEn),
                 StringComparer.OrdinalIgnoreCase);
 
             var extra = usage.Keys
                 .Where(name => !known.Contains(name))
                 .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
-                .Select(name => new Category { Name = name, IsActive = true, Order = int.MaxValue });
+                .Select(name => new Category { NameEn = name, IsActive = true, Order = int.MaxValue });
 
             // Only categories that are actually in use become filter chips -
             // an empty chip would filter the list down to nothing.
             return managed
                 .Concat(extra)
-                .Where(c => usage.ContainsKey(c.Name))
+                .Where(c => usage.ContainsKey(c.NameEn))
                 .OrderBy(c => c.Order)
-                .ThenBy(c => c.Name, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(c => c.NameEn, StringComparer.OrdinalIgnoreCase)
                 .ToList();
         }
 
@@ -73,51 +73,54 @@ namespace PortfolioAPI.Application.Services
 
         public async Task<Category> CreateCategoryAsync(Category category)
         {
-            var name = category.Name.Trim();
-            if (await NameExistsAsync(name, excludeId: null))
+            var nameEn = category.NameEn.Trim();
+            var nameAr = category.NameAr.Trim();
+            if (await NameExistsAsync(nameEn, excludeId: null))
             {
-                throw new ValidationException($"A category named '{name}' already exists.");
+                throw new ValidationException($"A category named '{nameEn}' already exists.");
             }
 
-            category.Name = name;
+            category.NameEn = nameEn;
+            category.NameAr = nameAr;
             return await CreateValidatedAsync(category);
         }
 
         public async Task UpdateCategoryAsync(Category category)
         {
             var existing = await GetRequiredAsync(category.Id);
-            var name = category.Name.Trim();
+            var nameEn = category.NameEn.Trim();
+            var nameAr = category.NameAr.Trim();
 
-            if (await NameExistsAsync(name, excludeId: existing.Id))
+            if (await NameExistsAsync(nameEn, excludeId: existing.Id))
             {
-                throw new ValidationException($"A category named '{name}' already exists.");
+                throw new ValidationException($"A category named '{nameEn}' already exists.");
             }
 
-            var previousName = existing.Name;
+            var previousName = existing.NameEn;
 
             // Hiding a category that projects still use would silently drop
             // those projects out of the public filter chips - refuse it.
             if (existing.IsActive && !category.IsActive)
             {
-                var used = await CountProjectsUsingAsync(existing.Name);
+                var used = await CountProjectsUsingAsync(existing.NameEn);
                 if (used > 0)
                 {
                     throw new ValidationException(
-                        $"'{existing.Name}' is still used by {used} project{(used == 1 ? "" : "s")} - " +
+                        $"'{existing.NameEn}' is still used by {used} project{(used == 1 ? "" : "s")} - " +
                         "reassign them before hiding it.");
                 }
             }
 
             await UpdateTrackedAsync(existing.Id, current =>
             {
-                current.Apply(category.Name, category.Order, category.IsActive);
+                current.Apply(nameEn, nameAr, category.Order, category.IsActive);
             });
 
             // Keep the projects in sync: a renamed category must not leave
             // projects pointing at a name that no longer exists.
-            if (!string.Equals(previousName, name, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(previousName, nameEn, StringComparison.OrdinalIgnoreCase))
             {
-                await RenameProjectsAsync(previousName, name);
+                await RenameProjectsAsync(previousName, nameEn);
             }
         }
 
@@ -125,11 +128,11 @@ namespace PortfolioAPI.Application.Services
         {
             var category = await GetRequiredAsync(id);
 
-            var used = await CountProjectsUsingAsync(category.Name);
+            var used = await CountProjectsUsingAsync(category.NameEn);
             if (used > 0)
             {
                 throw new ValidationException(
-                    $"'{category.Name}' is still used by {used} project{(used == 1 ? "" : "s")} - " +
+                    $"'{category.NameEn}' is still used by {used} project{(used == 1 ? "" : "s")} - " +
                     "rename or reassign them before deleting it.");
             }
 
@@ -151,7 +154,8 @@ namespace PortfolioAPI.Application.Services
 
             var category = new Category
             {
-                Name = trimmed,
+                NameEn = trimmed,
+                NameAr = string.Empty,
                 IsActive = true,
                 Order = await NextOrderAsync()
             };
@@ -163,7 +167,7 @@ namespace PortfolioAPI.Application.Services
         private async Task<bool> NameExistsAsync(string name, int? excludeId)
         {
             var matches = await UnitOfWork.Categories.FindAsync(
-                c => c.Name.ToLower() == name.ToLower());
+                c => c.NameEn.ToLower() == name.ToLower());
 
             return matches.Any(c => excludeId == null || c.Id != excludeId);
         }

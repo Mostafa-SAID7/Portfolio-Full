@@ -4,7 +4,10 @@ namespace PortfolioAPI.Core.DTOs
     public class CategoryDto
     {
         public int Id { get; set; }
-        public string Name { get; set; } = string.Empty;
+        /// <summary>Display name (English) - the canonical name.</summary>
+        public string NameEn { get; set; } = string.Empty;
+        /// <summary>Display name (Arabic).</summary>
+        public string NameAr { get; set; } = string.Empty;
         public int Order { get; set; }
         public bool IsActive { get; set; }
 
@@ -15,7 +18,8 @@ namespace PortfolioAPI.Core.DTOs
     /// <summary>Payload accepted when creating a category (POST api/Categories).</summary>
     public class CreateCategoryDto
     {
-        public string Name { get; set; } = string.Empty;
+        public string NameEn { get; set; } = string.Empty;
+        public string NameAr { get; set; } = string.Empty;
         public int Order { get; set; }
         public bool IsActive { get; set; } = true;
     }

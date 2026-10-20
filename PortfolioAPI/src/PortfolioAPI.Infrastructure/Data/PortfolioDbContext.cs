@@ -42,10 +42,11 @@ namespace PortfolioAPI.Infrastructure.Data
             modelBuilder.Entity<Category>(entity =>
             {
                 entity.HasKey(c => c.Id);
-                entity.Property(c => c.Name).IsRequired().HasMaxLength(100);
+                entity.Property(c => c.NameEn).IsRequired().HasMaxLength(100);
+                entity.Property(c => c.NameAr).IsRequired().HasMaxLength(100);
                 entity.Property(c => c.Order).IsRequired();
                 entity.Property(c => c.IsActive).IsRequired();
-                entity.HasIndex(c => c.Name).IsUnique();
+                entity.HasIndex(c => c.NameEn).IsUnique();
             });
         }
 
@@ -134,18 +135,30 @@ namespace PortfolioAPI.Infrastructure.Data
             {
                 entity.HasKey(e => e.Id);
 
-                entity.Property(e => e.Company)
+                entity.Property(e => e.CompanyEn)
                     .IsRequired()
                     .HasMaxLength(100);
 
-                entity.Property(e => e.Position)
+                entity.Property(e => e.CompanyAr)
+                    .IsRequired()
+                    .HasMaxLength(100);
+
+                entity.Property(e => e.PositionEn)
+                    .IsRequired()
+                    .HasMaxLength(100);
+
+                entity.Property(e => e.PositionAr)
                     .IsRequired()
                     .HasMaxLength(100);
 
                 entity.Property(e => e.StartDate)
                     .IsRequired();
 
-                entity.Property(e => e.Description)
+                entity.Property(e => e.DescriptionEn)
+                    .IsRequired()
+                    .HasMaxLength(1000);
+
+                entity.Property(e => e.DescriptionAr)
                     .IsRequired()
                     .HasMaxLength(1000);
 
@@ -153,7 +166,10 @@ namespace PortfolioAPI.Infrastructure.Data
                     .HasMaxLength(500)
                     .HasConversion(StringListConverter.CommaSeparated, StringListConverter.ListComparer);
 
-                entity.Property(e => e.Location)
+                entity.Property(e => e.LocationEn)
+                    .HasMaxLength(100);
+
+                entity.Property(e => e.LocationAr)
                     .HasMaxLength(100);
 
                 entity.Property(e => e.Current)
@@ -165,7 +181,7 @@ namespace PortfolioAPI.Infrastructure.Data
                 entity.Property(e => e.IsActive)
                     .HasDefaultValue(true);
 
-                entity.HasIndex(e => e.Company);
+                entity.HasIndex(e => e.CompanyEn);
                 entity.HasIndex(e => e.Current);
             });
         }

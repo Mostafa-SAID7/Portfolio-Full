@@ -8,6 +8,7 @@ using PortfolioAPI.Auth;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
@@ -77,6 +78,20 @@ if (swaggerEnabled)
 
 // Add controllers
 builder.Services.AddControllers();
+
+// Output caching for the public, read-only content endpoints (issue #32).
+// Public portfolio content changes only when the dashboard saves, so a
+// short TTL keeps SQL out of the hot path without any invalidation plumbing:
+// a dashboard edit becomes visible at most one TTL later. Admin routes are
+// never cached (the attribute is applied per action on PublicController).
+builder.Services.AddOutputCache(options =>
+{
+    options.AddPolicy("public-content", policy =>
+        policy
+            .Expire(TimeSpan.FromSeconds(30))
+            .SetVaryByQuery("featured")
+            .Tag("public"));
+});
 
 // CORS: Development allows any origin (local Vite/Angular dev servers);
 // every other environment only accepts the origins configured in
@@ -371,6 +386,30 @@ app.Use(async (context, next) =>
 
 // Compress JSON responses (gzip) — must sit before the endpoints write.
 app.UseResponseCompression();
+
+// Output cache (public content only - see AddOutputCache above). Must run
+// before the endpoints so cached responses skip the action entirely.
+app.UseOutputCache();
+
+// Cache-Control for the public content endpoints (issue #32). The output cache
+// middleware keeps SQL out of the hot path; these headers let browsers and the
+// Vercel edge reuse the response for the same TTL. Only anonymous GETs under
+// the public prefix are affected - admin routes, auth and mutations never
+// match, so they stay uncached.
+app.Use(async (context, next) =>
+{
+    var path = context.Request.Path.Value ?? string.Empty;
+    var isPublicContent =
+        path.StartsWith("/api/v1/public/", StringComparison.OrdinalIgnoreCase) ||
+        path.StartsWith("/api/public/", StringComparison.OrdinalIgnoreCase);
+
+    if (isPublicContent && HttpMethods.IsGet(context.Request.Method))
+    {
+        context.Response.Headers.CacheControl = "public, max-age=30, stale-while-revalidate=60";
+    }
+
+    await next();
+});
 
 // Use CORS (policy name set up above)
 app.UseCors("Frontends");

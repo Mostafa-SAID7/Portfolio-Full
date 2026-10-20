@@ -19,8 +19,10 @@ namespace PortfolioAPI.IntegrationTests
         public DatabaseIntegrationTests()
         {
             _projectFaker = new Faker<Project>()
-                .RuleFor(p => p.Title, f => f.Lorem.Sentence(3))
-                .RuleFor(p => p.Description, f => f.Lorem.Paragraphs(2))
+                .RuleFor(p => p.TitleEn, f => f.Lorem.Sentence(3))
+                .RuleFor(p => p.TitleAr, f => f.Lorem.Sentence(3))
+                .RuleFor(p => p.DescriptionEn, f => f.Lorem.Paragraphs(2))
+                .RuleFor(p => p.DescriptionAr, f => f.Lorem.Paragraphs(2))
                 .RuleFor(p => p.Technologies, f => f.Make(3, () => f.Hacker.Noun()))
                 .RuleFor(p => p.LiveUrl, f => f.Internet.Url())
                 .RuleFor(p => p.GithubUrl, f => f.Internet.Url())
@@ -28,8 +30,10 @@ namespace PortfolioAPI.IntegrationTests
                 .RuleFor(p => p.Featured, f => f.Random.Bool());
 
             _skillFaker = new Faker<Skill>()
-                .RuleFor(s => s.Name, f => f.Hacker.Noun())
-                .RuleFor(s => s.Category, f => f.PickRandom("Frontend", "Backend", "Database", "DevOps"))
+                .RuleFor(s => s.NameEn, f => f.Hacker.Noun())
+                .RuleFor(s => s.NameAr, f => f.Hacker.Noun())
+                .RuleFor(s => s.CategoryEn, f => f.PickRandom("Frontend", "Backend", "Database", "DevOps"))
+                .RuleFor(s => s.CategoryAr, f => f.PickRandom("الواجهة الأمامية", "الخلفية", "قاعدة البيانات", "ديف أوبس"))
                 .RuleFor(s => s.Proficiency, f => f.Random.Int(1, 100))
                 .RuleFor(s => s.IconUrl, f => f.Image.PicsumUrl(32, 32))
                 .RuleFor(s => s.IsActive, f => f.Random.Bool());
@@ -47,10 +51,10 @@ namespace PortfolioAPI.IntegrationTests
         {
             // Arrange
             var project1 = _projectFaker.Generate();
-            project1.Title = "Unique Project Title";
+            project1.TitleEn = "Unique Project Title";
 
             var project2 = _projectFaker.Generate();
-            project2.Title = "Unique Project Title"; // Same title
+            project2.TitleEn = "Unique Project Title"; // Same title
 
             // Act & Assert
             await _dbContext.Projects.AddAsync(project1);
@@ -68,7 +72,7 @@ namespace PortfolioAPI.IntegrationTests
         {
             // Arrange
             var project = _projectFaker.Generate();
-            project.Description = null!;
+            project.DescriptionEn = null!;
 
             // Act & Assert
             await _dbContext.Projects.AddAsync(project);
@@ -81,10 +85,10 @@ namespace PortfolioAPI.IntegrationTests
         {
             // Arrange
             var skill1 = _skillFaker.Generate();
-            skill1.Name = "Unique Skill Name";
+            skill1.NameEn = "Unique Skill Name";
 
             var skill2 = _skillFaker.Generate();
-            skill2.Name = "Unique Skill Name"; // Same name
+            skill2.NameEn = "Unique Skill Name"; // Same name
 
             // Act & Assert
             await _dbContext.Skills.AddAsync(skill1);
@@ -130,7 +134,7 @@ namespace PortfolioAPI.IntegrationTests
             // Arrange
             var validProject = _projectFaker.Generate();
             var invalidProject = _projectFaker.Generate();
-            invalidProject.Title = null!; // This will cause a constraint violation
+            invalidProject.TitleEn = null!; // This will cause a constraint violation
 
             // Act & Assert
             using var transaction = await _dbContext.Database.BeginTransactionAsync();
@@ -223,7 +227,7 @@ namespace PortfolioAPI.IntegrationTests
             await Task.Delay(100); // Ensure timestamp difference
 
             // Act
-            project.Description = "Updated Description";
+            project.DescriptionEn = "Updated Description";
             await _dbContext.SaveChangesAsync();
 
             // Assert
@@ -276,7 +280,7 @@ namespace PortfolioAPI.IntegrationTests
                 using var scope = _factory.Services.CreateScope();
                 var dbContext1 = scope.ServiceProvider.GetRequiredService<PortfolioDbContext>();
                 var proj1 = await dbContext1.Projects.FindAsync(project.Id);
-                proj1!.Title = "Updated by Task 1";
+                proj1!.TitleEn = "Updated by Task 1";
                 await dbContext1.SaveChangesAsync();
             });
 
@@ -286,7 +290,7 @@ namespace PortfolioAPI.IntegrationTests
                 using var scope = _factory.Services.CreateScope();
                 var dbContext2 = scope.ServiceProvider.GetRequiredService<PortfolioDbContext>();
                 var proj2 = await dbContext2.Projects.FindAsync(project.Id);
-                proj2!.Title = "Updated by Task 2";
+                proj2!.TitleEn = "Updated by Task 2";
                 await dbContext2.SaveChangesAsync();
             });
 
@@ -296,7 +300,7 @@ namespace PortfolioAPI.IntegrationTests
             // Assert - One of the updates should succeed
             var finalProject = await _dbContext.Projects.FindAsync(project.Id);
             finalProject.Should().NotBeNull();
-            finalProject!.Title.Should().BeOneOf("Updated by Task 1", "Updated by Task 2");
+            finalProject!.TitleEn.Should().BeOneOf("Updated by Task 1", "Updated by Task 2");
         }
 
         [Fact]

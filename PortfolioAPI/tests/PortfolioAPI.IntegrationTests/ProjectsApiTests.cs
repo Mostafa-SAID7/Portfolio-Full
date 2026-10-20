@@ -14,8 +14,10 @@ namespace PortfolioAPI.IntegrationTests
         public ProjectsApiTests()
         {
             _projectFaker = new Faker<Project>()
-                .RuleFor(p => p.Title, f => f.Lorem.Sentence(3))
-                .RuleFor(p => p.Description, f => f.Lorem.Paragraphs(2))
+                .RuleFor(p => p.TitleEn, f => f.Lorem.Sentence(3))
+                .RuleFor(p => p.TitleAr, f => f.Lorem.Sentence(3))
+                .RuleFor(p => p.DescriptionEn, f => f.Lorem.Paragraphs(2))
+                .RuleFor(p => p.DescriptionAr, f => f.Lorem.Paragraphs(2))
                 .RuleFor(p => p.Technologies, f => f.Make(3, () => f.Hacker.Noun()))
                 .RuleFor(p => p.LiveUrl, f => f.Internet.Url())
                 .RuleFor(p => p.GithubUrl, f => f.Internet.Url())
@@ -53,8 +55,8 @@ namespace PortfolioAPI.IntegrationTests
             projects.Should().AllSatisfy(p =>
             {
                 p.Id.Should().BeGreaterThan(0);
-                p.Title.Should().NotBeNullOrEmpty();
-                p.Description.Should().NotBeNullOrEmpty();
+                p.TitleEn.Should().NotBeNullOrEmpty();
+                p.DescriptionEn.Should().NotBeNullOrEmpty();
                 p.CreatedAt.Should().NotBe(default);
                 p.UpdatedAt.Should().NotBe(default);
             });
@@ -76,8 +78,8 @@ namespace PortfolioAPI.IntegrationTests
             var project = await DeserializeResponseAsync<ProjectDto>(response);
             project.Should().NotBeNull();
             project!.Id.Should().Be(testProject.Id);
-            project.Title.Should().Be(testProject.Title);
-            project.Description.Should().Be(testProject.Description);
+            project.TitleEn.Should().Be(testProject.TitleEn);
+            project.DescriptionEn.Should().Be(testProject.DescriptionEn);
         }
 
         [Fact]
@@ -127,8 +129,8 @@ namespace PortfolioAPI.IntegrationTests
             response.StatusCode.Should().Be(HttpStatusCode.Created);
             var createdProject = await DeserializeResponseAsync<ProjectDto>(response);
             createdProject.Should().NotBeNull();
-            createdProject!.Title.Should().Be(newProject.Title);
-            createdProject.Description.Should().Be(newProject.Description);
+            createdProject!.TitleEn.Should().Be(newProject.TitleEn);
+            createdProject.DescriptionEn.Should().Be(newProject.DescriptionEn);
             createdProject.Id.Should().BeGreaterThan(0);
             createdProject.CreatedAt.Should().NotBe(default);
             createdProject.UpdatedAt.Should().NotBe(default);
@@ -136,7 +138,7 @@ namespace PortfolioAPI.IntegrationTests
             // Verify in database
             var dbProject = await _dbContext.Projects.FindAsync(createdProject.Id);
             dbProject.Should().NotBeNull();
-            dbProject!.Title.Should().Be(newProject.Title);
+            dbProject!.TitleEn.Should().Be(newProject.TitleEn);
         }
 
         [Fact]
@@ -144,7 +146,7 @@ namespace PortfolioAPI.IntegrationTests
         {
             // Arrange
             var invalidProject = _projectFaker.Generate();
-            invalidProject.Title = string.Empty;
+            invalidProject.TitleEn = string.Empty;
 
             // Act
             var response = await PostAsync("api/projects", invalidProject);
@@ -158,7 +160,7 @@ namespace PortfolioAPI.IntegrationTests
         {
             // Arrange
             var invalidProject = _projectFaker.Generate();
-            invalidProject.Title = new string('A', 101); // Max length is 100
+            invalidProject.TitleEn = new string('A', 101); // Max length is 100
 
             // Act
             var response = await PostAsync("api/projects", invalidProject);
@@ -172,7 +174,7 @@ namespace PortfolioAPI.IntegrationTests
         {
             // Arrange
             var invalidProject = _projectFaker.Generate();
-            invalidProject.Description = string.Empty;
+            invalidProject.DescriptionEn = string.Empty;
 
             // Act
             var response = await PostAsync("api/projects", invalidProject);
@@ -186,7 +188,7 @@ namespace PortfolioAPI.IntegrationTests
         {
             // Arrange
             var invalidProject = _projectFaker.Generate();
-            invalidProject.Description = new string('A', 501); // Max length is 500
+            invalidProject.DescriptionEn = new string('A', 501); // Max length is 500
 
             // Act
             var response = await PostAsync("api/projects", invalidProject);
@@ -243,8 +245,8 @@ namespace PortfolioAPI.IntegrationTests
             // Verify in database
             var dbProject = await _dbContext.Projects.FindAsync(existingProject.Id);
             dbProject.Should().NotBeNull();
-            dbProject!.Title.Should().Be(updatedProject.Title);
-            dbProject.Description.Should().Be(updatedProject.Description);
+            dbProject!.TitleEn.Should().Be(updatedProject.TitleEn);
+            dbProject.DescriptionEn.Should().Be(updatedProject.DescriptionEn);
             dbProject.UpdatedAt.Should().BeAfter(dbProject.CreatedAt);
         }
 
@@ -334,8 +336,8 @@ namespace PortfolioAPI.IntegrationTests
             var verifyResponse = await GetAsync($"api/projects/{createdProject.Id}");
             verifyResponse.StatusCode.Should().Be(HttpStatusCode.OK);
             var verifiedProject = await DeserializeResponseAsync<ProjectDto>(verifyResponse);
-            verifiedProject!.Title.Should().Be(updatedProject.Title);
-            verifiedProject.Description.Should().Be(updatedProject.Description);
+            verifiedProject!.TitleEn.Should().Be(updatedProject.TitleEn);
+            verifiedProject.DescriptionEn.Should().Be(updatedProject.DescriptionEn);
 
             // Delete the project
             var deleteResponse = await DeleteAsync($"api/projects/{createdProject.Id}");

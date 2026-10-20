@@ -42,7 +42,12 @@ namespace PortfolioAPI.Infrastructure.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
-                    b.Property<string>("Name")
+                    b.Property<string>("NameAr")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("NameEn")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
@@ -55,7 +60,7 @@ namespace PortfolioAPI.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Name")
+                    b.HasIndex("NameEn")
                         .IsUnique();
 
                     b.ToTable("Categories");
@@ -262,7 +267,12 @@ namespace PortfolioAPI.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("Company")
+                    b.Property<string>("CompanyAr")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("CompanyEn")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
@@ -278,7 +288,12 @@ namespace PortfolioAPI.Infrastructure.Migrations
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("Description")
+                    b.Property<string>("DescriptionAr")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("DescriptionEn")
                         .IsRequired()
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
@@ -294,7 +309,11 @@ namespace PortfolioAPI.Infrastructure.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
-                    b.Property<string>("Location")
+                    b.Property<string>("LocationAr")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("LocationEn")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
@@ -303,7 +322,12 @@ namespace PortfolioAPI.Infrastructure.Migrations
                         .HasColumnType("int")
                         .HasDefaultValue(0);
 
-                    b.Property<string>("Position")
+                    b.Property<string>("PositionAr")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("PositionEn")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
@@ -321,7 +345,7 @@ namespace PortfolioAPI.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Company");
+                    b.HasIndex("CompanyEn");
 
                     b.HasIndex("Current");
 
@@ -401,6 +425,11 @@ namespace PortfolioAPI.Infrastructure.Migrations
                         .HasColumnType("int")
                         .HasDefaultValue(0);
 
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<string>("Status")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
@@ -429,6 +458,11 @@ namespace PortfolioAPI.Infrastructure.Migrations
                     b.HasIndex("Featured");
 
                     b.HasIndex("IsActive");
+
+                    b.HasIndex("Slug")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Projects_Slug")
+                        .HasFilter("[Slug] <> ''");
 
                     b.HasIndex("Title");
 
@@ -492,7 +526,12 @@ namespace PortfolioAPI.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("Category")
+                    b.Property<string>("CategoryAr")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("CategoryEn")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
@@ -503,7 +542,11 @@ namespace PortfolioAPI.Infrastructure.Migrations
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("Description")
+                    b.Property<string>("DescriptionAr")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("DescriptionEn")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
@@ -519,7 +562,12 @@ namespace PortfolioAPI.Infrastructure.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
-                    b.Property<string>("Name")
+                    b.Property<string>("NameAr")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("NameEn")
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
@@ -537,11 +585,11 @@ namespace PortfolioAPI.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Category");
+                    b.HasIndex("CategoryEn");
 
                     b.HasIndex("IsActive");
 
-                    b.HasIndex("Name")
+                    b.HasIndex("NameEn")
                         .IsUnique();
 
                     b.ToTable("Skills");

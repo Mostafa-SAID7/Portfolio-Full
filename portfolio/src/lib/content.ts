@@ -39,6 +39,8 @@ const STALE_TIME_MS = 60_000;
 /** Shape of PortfolioAPI.Core.DTOs.ProjectDto (camelCase JSON). */
 interface ApiProject {
   id: number;
+  /** Stable URL identifier owned by the API (never changes on a rename). */
+  slug: string | null;
   title: string;
   description: string;
   imageUrl: string | null;
@@ -128,7 +130,15 @@ function toPortfolioProject(dto: ApiProject): Project {
   const meta = localProjects.find((p) => normalize(p.title) === normalize(dto.title));
 
   const draft = {
-    id: meta?.id ?? `api-${dto.id}`,
+    // The route id is the slug the API owns: it is generated once and never
+    // changed by a rename, so a project keeps its public link (and every
+    // indexed URL keeps working). Rows created before slugs existed fall
+    // back to "api-<id>".
+    id: dto.slug || `api-${dto.id}`,
+    /** Id of the bundled catalog entry (presentation data only). */
+    metaId: meta?.id,
+    /** Numeric id of the API row (used to resolve legacy "api-<id>" links). */
+    apiId: dto.id,
     title: dto.title,
     description: dto.description,
     category: dto.category ?? meta?.category ?? "Other",
@@ -158,6 +168,43 @@ export async function fetchPortfolioProjects(): Promise<Project[]> {
   // empty list, never the bundled dataset (which cannot know about deletes).
   if (!data) return [];
   return data.map(toPortfolioProject);
+}
+
+/**
+ * Resolves a public project link to a project of the API list.
+ *
+ * The canonical id is the slug the API owns (stable across renames). Links
+ * that were published before that existed are still resolved, so no indexed
+ * or shared URL breaks:
+ *   1. "haxel-footwear"  -> the slug (canonical)
+ *   2. "api-17"          -> the previous "api-<id>" fallback
+ *   3. "under-armour"    -> the bundled catalog id, matched by title
+ */
+export function resolvePortfolioProject(
+  list: Project[],
+  rawId: string,
+): Project | undefined {
+  const id = decodeURIComponent(rawId);
+
+  const direct = list.find((p) => p.id === id);
+  if (direct) return direct;
+
+  const legacyApiId = /^api-(\d+)$/.exec(id);
+  if (legacyApiId) {
+    const numericId = Number(legacyApiId[1]);
+    const byApiId = list.find((p) => p.apiId === numericId);
+    if (byApiId) return byApiId;
+  }
+
+  const bundled = localProjects.find((p) => p.id === id);
+  if (bundled) {
+    const byTitle = list.find(
+      (p) => normalize(p.title) === normalize(bundled.title),
+    );
+    if (byTitle) return byTitle;
+  }
+
+  return undefined;
 }
 
 /** Category title → icon key (the UI owns the actual icon components). */

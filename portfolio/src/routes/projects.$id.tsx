@@ -1,7 +1,11 @@
-import { createFileRoute, notFound } from "@tanstack/react-router";
+import { createFileRoute, Link, notFound, redirect } from "@tanstack/react-router";
 import { m as motion } from "framer-motion";
 import { ArrowLeft } from "lucide-react";
-import { portfolioProjectsQuery, usePortfolioProjects } from "@/lib/content";
+import {
+  portfolioProjectsQuery,
+  resolvePortfolioProject,
+  usePortfolioProjects,
+} from "@/lib/content";
 import { getProjectDetail, getRelatedProjects } from "@/data/project-details";
 import { PageShell } from "@/components/layout/PageShell";
 import { CtaLink } from "@/components/ui/CtaLink";
@@ -35,8 +39,14 @@ export const Route = createFileRoute("/projects/$id")({
     // unreachable API, which yields an empty list) throws notFound() — the
     // bundled src/data catalog is never consulted as a lookup fallback.
     const list = await context.queryClient.ensureQueryData(portfolioProjectsQuery);
-    const project = list.find((p) => p.id === params.id);
+    const project = resolvePortfolioProject(list, params.id);
     if (!project) throw notFound();
+    // Links that were published before the API owned the slug still resolve,
+    // but they are redirected to the canonical link so every indexed URL
+    // ends up (and stays) on one address.
+    if (project.id !== params.id) {
+      throw redirect({ to: "/projects/$id", params: { id: project.id } });
+    }
     return { project };
   },
   head: ({ params, loaderData }) => {
@@ -83,6 +93,10 @@ export const Route = createFileRoute("/projects/$id")({
 
 function ProjectNotFound() {
   const { tr } = useI18n();
+  // A dead link (e.g. a project that was renamed before the API owned the
+  // slug) must not be a dead end: offer the live projects of the API.
+  const projects = usePortfolioProjects();
+
   return (
     <PageShell contained={false}>
       <div className="flex flex-1 flex-col items-center justify-center py-32 text-center">
@@ -91,6 +105,27 @@ function ProjectNotFound() {
           <ArrowLeft className="size-4 rtl:rotate-180" />
           {tr("project.notFound.back")}
         </CtaLink>
+
+        {projects.length > 0 && (
+          <div className="mt-10 w-full max-w-2xl text-left">
+            <p className="mb-4 text-center text-sm text-soft">
+              These projects are live right now:
+            </p>
+            <ul className="grid gap-2 sm:grid-cols-2">
+              {projects.slice(0, 8).map((item) => (
+                <li key={item.id}>
+                  <Link
+                    to="/projects/$id"
+                    params={{ id: item.id }}
+                    className="block rounded-xl border border-line/10 px-4 py-3 text-sm text-ink transition hover:border-accent/40 hover:text-accent"
+                  >
+                    {item.title}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
     </PageShell>
   );

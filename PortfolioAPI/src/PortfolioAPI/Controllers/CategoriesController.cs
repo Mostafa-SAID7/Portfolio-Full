@@ -36,7 +36,7 @@ namespace PortfolioAPI.Controllers
             return Ok(categories.Select(category =>
             {
                 var dto = EntityMappings.ToDto(category);
-                dto.ProjectCount = usage.TryGetValue(category.Name, out var count) ? count : 0;
+                dto.ProjectCount = usage.TryGetValue(category.NameEn, out var count) ? count : 0;
                 return dto;
             }));
         }

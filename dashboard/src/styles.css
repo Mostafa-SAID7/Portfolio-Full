@@ -177,6 +177,12 @@ a {
   .field-error {
     @apply mt-2 text-xs font-medium text-danger;
   }
+  .field-hint {
+    @apply mt-2 text-xs text-soft;
+  }
+  .field-hint code {
+    @apply rounded bg-line/[0.06] px-1.5 py-0.5 font-mono text-[11px] text-ink;
+  }
 
   /* ---------------- Badges / pills ---------------- */
   .badge {

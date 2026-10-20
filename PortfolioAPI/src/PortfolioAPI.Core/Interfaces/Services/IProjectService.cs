@@ -10,6 +10,8 @@ namespace PortfolioAPI.Core.Interfaces.Services
         Task<Result<ProjectDto>> GetByIdAsync(int id);
         Task<Result<IEnumerable<ProjectDto>>> GetAllAsync();
         Task<Result<IEnumerable<ProjectDto>>> GetFeaturedAsync();
+        /// <summary>Public surface: active projects only, filtered in SQL (issue #33).</summary>
+        Task<Result<IEnumerable<ProjectDto>>> GetPublicProjectsAsync();
         Task<Result<IEnumerable<ProjectDto>>> GetByTechnologyAsync(string technology);
         Task<Result<IEnumerable<ProjectDto>>> SearchAsync(string searchTerm);
         Task<Result<ProjectDto>> CreateAsync(CreateProjectDto dto);

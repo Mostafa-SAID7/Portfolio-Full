@@ -14,8 +14,10 @@ namespace PortfolioAPI.IntegrationTests
         public SkillsApiTests()
         {
             _skillFaker = new Faker<Skill>()
-                .RuleFor(s => s.Name, f => f.Hacker.Noun())
-                .RuleFor(s => s.Category, f => f.PickRandom("Frontend", "Backend", "Database", "DevOps", "Mobile", "Cloud"))
+                .RuleFor(s => s.NameEn, f => f.Hacker.Noun())
+                .RuleFor(s => s.NameAr, f => f.Hacker.Noun())
+                .RuleFor(s => s.CategoryEn, f => f.PickRandom("Frontend", "Backend", "Database", "DevOps", "Mobile", "Cloud"))
+                .RuleFor(s => s.CategoryAr, f => f.PickRandom("الواجهة الأمامية", "الخلفية", "قاعدة البيانات", "ديف أوبس", "الجوال", "السحابة"))
                 .RuleFor(s => s.Proficiency, f => f.Random.Int(1, 100))
                 .RuleFor(s => s.IconUrl, f => f.Image.PicsumUrl(32, 32))
                 .RuleFor(s => s.IsActive, f => f.Random.Bool());
@@ -51,7 +53,7 @@ namespace PortfolioAPI.IntegrationTests
             skills.Should().AllSatisfy(s =>
             {
                 s.Id.Should().BeGreaterThan(0);
-                s.Name.Should().NotBeNullOrEmpty();
+                s.NameEn.Should().NotBeNullOrEmpty();
                 s.Proficiency.Should().BeInRange(1, 100);
                 s.CreatedAt.Should().NotBe(default);
                 s.UpdatedAt.Should().NotBe(default);
@@ -74,8 +76,8 @@ namespace PortfolioAPI.IntegrationTests
             var skill = await DeserializeResponseAsync<SkillDto>(response);
             skill.Should().NotBeNull();
             skill!.Id.Should().Be(testSkill.Id);
-            skill.Name.Should().Be(testSkill.Name);
-            skill.Category.Should().Be(testSkill.Category);
+            skill.NameEn.Should().Be(testSkill.NameEn);
+            skill.CategoryEn.Should().Be(testSkill.CategoryEn);
             skill.Proficiency.Should().Be(testSkill.Proficiency);
         }
 
@@ -95,10 +97,10 @@ namespace PortfolioAPI.IntegrationTests
             // Arrange
             var category = "Frontend";
             var frontendSkills = _skillFaker.Generate(3);
-            frontendSkills.ForEach(s => s.Category = category);
+            frontendSkills.ForEach(s => s.CategoryEn = category);
 
             var backendSkills = _skillFaker.Generate(2);
-            backendSkills.ForEach(s => s.Category = "Backend");
+            backendSkills.ForEach(s => s.CategoryEn = "Backend");
 
             await _dbContext.Skills.AddRangeAsync(frontendSkills);
             await _dbContext.Skills.AddRangeAsync(backendSkills);
@@ -111,7 +113,7 @@ namespace PortfolioAPI.IntegrationTests
             response.StatusCode.Should().Be(HttpStatusCode.OK);
             var skills = await DeserializeResponseAsync<IEnumerable<SkillDto>>(response);
             skills.Should().HaveCount(3);
-            skills.Should().AllSatisfy(s => s.Category.Should().Be(category));
+            skills.Should().AllSatisfy(s => s.CategoryEn.Should().Be(category));
         }
 
         [Fact]
@@ -163,8 +165,8 @@ namespace PortfolioAPI.IntegrationTests
             response.StatusCode.Should().Be(HttpStatusCode.Created);
             var createdSkill = await DeserializeResponseAsync<SkillDto>(response);
             createdSkill.Should().NotBeNull();
-            createdSkill!.Name.Should().Be(newSkill.Name);
-            createdSkill.Category.Should().Be(newSkill.Category);
+            createdSkill!.NameEn.Should().Be(newSkill.NameEn);
+            createdSkill.CategoryEn.Should().Be(newSkill.CategoryEn);
             createdSkill.Proficiency.Should().Be(newSkill.Proficiency);
             createdSkill.IsActive.Should().Be(newSkill.IsActive);
             createdSkill.Id.Should().BeGreaterThan(0);
@@ -174,7 +176,7 @@ namespace PortfolioAPI.IntegrationTests
             // Verify in database
             var dbSkill = await _dbContext.Skills.FindAsync(createdSkill.Id);
             dbSkill.Should().NotBeNull();
-            dbSkill!.Name.Should().Be(newSkill.Name);
+            dbSkill!.NameEn.Should().Be(newSkill.NameEn);
         }
 
         [Fact]
@@ -182,7 +184,7 @@ namespace PortfolioAPI.IntegrationTests
         {
             // Arrange
             var invalidSkill = _skillFaker.Generate();
-            invalidSkill.Name = string.Empty;
+            invalidSkill.NameEn = string.Empty;
 
             // Act
             var response = await PostAsync("api/skills", invalidSkill);
@@ -196,7 +198,7 @@ namespace PortfolioAPI.IntegrationTests
         {
             // Arrange
             var invalidSkill = _skillFaker.Generate();
-            invalidSkill.Name = new string('A', 51); // Max length is 50
+            invalidSkill.NameEn = new string('A', 51); // Max length is 50
 
             // Act
             var response = await PostAsync("api/skills", invalidSkill);
@@ -210,7 +212,7 @@ namespace PortfolioAPI.IntegrationTests
         {
             // Arrange
             var invalidSkill = _skillFaker.Generate();
-            invalidSkill.Category = new string('A', 101); // Max length is 100
+            invalidSkill.CategoryEn = new string('A', 101); // Max length is 100
 
             // Act
             var response = await PostAsync("api/skills", invalidSkill);
@@ -267,8 +269,8 @@ namespace PortfolioAPI.IntegrationTests
             // Verify in database
             var dbSkill = await _dbContext.Skills.FindAsync(existingSkill.Id);
             dbSkill.Should().NotBeNull();
-            dbSkill!.Name.Should().Be(updatedSkill.Name);
-            dbSkill.Category.Should().Be(updatedSkill.Category);
+            dbSkill!.NameEn.Should().Be(updatedSkill.NameEn);
+            dbSkill.CategoryEn.Should().Be(updatedSkill.CategoryEn);
             dbSkill.Proficiency.Should().Be(updatedSkill.Proficiency);
             dbSkill.UpdatedAt.Should().BeAfter(dbSkill.CreatedAt);
         }
@@ -359,8 +361,8 @@ namespace PortfolioAPI.IntegrationTests
             var verifyResponse = await GetAsync($"api/skills/{createdSkill.Id}");
             verifyResponse.StatusCode.Should().Be(HttpStatusCode.OK);
             var verifiedSkill = await DeserializeResponseAsync<SkillDto>(verifyResponse);
-            verifiedSkill!.Name.Should().Be(updatedSkill.Name);
-            verifiedSkill.Category.Should().Be(updatedSkill.Category);
+            verifiedSkill!.NameEn.Should().Be(updatedSkill.NameEn);
+            verifiedSkill.CategoryEn.Should().Be(updatedSkill.CategoryEn);
 
             // Delete the skill
             var deleteResponse = await DeleteAsync($"api/skills/{createdSkill.Id}");
@@ -396,8 +398,10 @@ namespace PortfolioAPI.IntegrationTests
                 var updatedSkill = new Skill
                 {
                     Id = skill.Id,
-                    Name = skill.Name,
-                    Category = skill.Category,
+                    NameEn = skill.NameEn,
+                    NameAr = skill.NameAr,
+                    CategoryEn = skill.CategoryEn,
+                    CategoryAr = skill.CategoryAr,
                     Proficiency = skill.Proficiency,
                     IconUrl = skill.IconUrl,
                     IsActive = true
