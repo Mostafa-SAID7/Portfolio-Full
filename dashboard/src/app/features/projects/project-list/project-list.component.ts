@@ -1,20 +1,29 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { ProjectListStateService } from '../../../core/services/project-list-state.service';
 import { ProjectService } from '../../../core/services/project.service';
 import { Project } from '../../../core/models/project.model';
 import { isApiHostedImage, resolvePortfolioImage } from '../../../core/portfolio-origin';
 import { ConfirmDialogService } from '../../../shared/confirm-dialog.component';
 import { PaginatorComponent } from '../../../shared/paginator.component';
+import { EmptyStateComponent } from '../../../shared/empty-state.component';
+import { ErrorStateComponent } from '../../../shared/error-state.component';
 
 const PAGE_SIZE = 9;
 
 @Component({
   selector: 'app-project-list',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, PaginatorComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    RouterLink,
+    PaginatorComponent,
+    EmptyStateComponent,
+    ErrorStateComponent,
+  ],
   template: `
     <div class="space-y-6">
       <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
@@ -40,21 +49,30 @@ const PAGE_SIZE = 9;
           <div class="spinner" role="status" aria-label="Loading projects"></div>
         </div>
       } @else if (service.error()) {
-        <div class="card empty-state">
-          <p class="text-sm font-semibold text-ink">Failed to load projects</p>
-          <p class="max-w-md text-sm text-soft">{{ service.error() }}</p>
-          <button type="button" class="btn-ghost mt-2" (click)="load()">Retry</button>
-        </div>
+        <app-error-state
+          title="Failed to load projects"
+          [error]="service.error()"
+          retryLabel="Retry loading"
+          (retry)="load()"
+        ></app-error-state>
       } @else if (filteredProjects().length === 0) {
-        <div class="card empty-state">
-              @if (queryValue) {
-                <p class="text-sm text-muted">No projects match "{{ queryValue }}".</p>
-                      <button type="button" class="btn-ghost mt-2" (click)="setQuery('')">Clear search</button>
-          } @else {
-            <p class="text-sm text-muted">No projects yet. Create the first one for your portfolio.</p>
-            <a routerLink="/projects/new" class="btn-primary mt-2">New project</a>
-          }
-        </div>
+        @if (queryValue) {
+          <app-empty-state
+            icon="search"
+            title="No matching projects"
+            [description]="'No projects match \\'' + queryValue + '\\'. Try adjusting your search keywords.'"
+            actionLabel="Clear search"
+            (action)="setQuery('')"
+          ></app-empty-state>
+        } @else {
+          <app-empty-state
+            icon="folder"
+            title="No projects yet"
+            description="Your portfolio has no projects listed yet. Create the first one to showcase your work."
+            actionLabel="New project"
+            (action)="createProject()"
+          ></app-empty-state>
+        }
       } @else {
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           @for (project of paginatedProjects(); track project.id) {
@@ -155,6 +173,11 @@ export class ProjectListComponent implements OnInit {
   readonly service = inject(ProjectService);
   private readonly dialog = inject(ConfirmDialogService);
   private readonly listState = inject(ProjectListStateService);
+  private readonly router = inject(Router);
+
+  createProject(): void {
+    this.router.navigate(['/projects/new']);
+  }
 
   readonly pageSize = PAGE_SIZE;
   readonly page = this.listState.page;

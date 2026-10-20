@@ -93,6 +93,29 @@ const t: Dict = {
   "project.notFound.title": { en: "Project Not Found", ar: "المشروع غير موجود" },
   "project.notFound.back": { en: "Back to Projects", ar: "العودة للمشاريع" },
 
+  "error.boundary.eyebrow": { en: "Application Exception", ar: "استثناء في التطبيق" },
+  "error.boundary.title": { en: "Something went wrong", ar: "حدث خطأ غير متوقع" },
+  "error.boundary.subtitle": {
+    en: "An unexpected error occurred while loading this view. You can retry the operation or return to the home screen.",
+    ar: "حدث خطأ غير متوقع أثناء تحميل هذا العرض. يمكنك المحاولة مجددًا أو العودة إلى الشاشة الرئيسية.",
+  },
+  "error.boundary.retry": { en: "Try again", ar: "إعادة المحاولة" },
+  "error.boundary.home": { en: "Return Home", ar: "الصفحة الرئيسية" },
+  "error.boundary.projects": { en: "Explore Projects", ar: "استعراض المشاريع" },
+  "error.boundary.details": { en: "Technical Details", ar: "التفاصيل التقنية" },
+  "error.boundary.copy": { en: "Copy details", ar: "نسخ التفاصيل" },
+  "error.boundary.copied": { en: "Copied!", ar: "تم النسخ!" },
+
+  "empty.general.title": { en: "No items found", ar: "لم يتم العثور على عناصر" },
+  "empty.general.desc": { en: "There is nothing to display here yet.", ar: "لا يوجد شيء لعرضه هنا حتى الآن." },
+  "empty.projects.title": { en: "No projects found", ar: "لم يتم العثور على مشاريع" },
+  "empty.projects.desc": {
+    en: "No projects match your current filters or search term. Try resetting your filters.",
+    ar: "لا توجد مشاريع تطابق الفلاتر أو عبارة البحث الحالية. جرّب إعادة ضبط الفلاتر.",
+  },
+  "empty.projects.clear": { en: "Reset all filters", ar: "إعادة ضبط الفلاتر" },
+
+
   "contact.title": { en: "Let's Build Something", ar: "لنبنِ شيئاً معاً" },
   "contact.subtitle": {
     en: "Have a marketplace idea or a system that needs to scale? Drop a line.",

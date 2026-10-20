@@ -69,40 +69,10 @@ function ArabicFonts() {
   return null;
 }
 
+import { AppErrorBoundary } from "@/components/ui/AppErrorBoundary";
+
 function ErrorComponent({ error, reset }: { error: unknown; reset: () => void }) {
-  // Use error-capture's describeError to properly format error details
-  const errorMessage = describeError(error);
-  console.error(errorMessage);
-  const router = useRouter();
-
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="type-h3 text-foreground">This page didn't load</h1>
-        <p className="mt-2 type-body-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
-        </p>
-        <div className="mt-6 flex flex-wrap justify-center gap-2">
-          <button
-            onClick={() => {
-              router.invalidate();
-              reset();
-            }}
-            className="btn-accent"
-          >
-            Try again
-          </button>
-
-          <a
-            href="/"
-            className="inline-flex items-center justify-center pill-step rounded-xl border border-border type-body-sm text-foreground"
-          >
-            Go home
-          </a>
-        </div>
-      </div>
-    </div>
-  );
+  return <AppErrorBoundary error={error} reset={reset} />;
 }
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({

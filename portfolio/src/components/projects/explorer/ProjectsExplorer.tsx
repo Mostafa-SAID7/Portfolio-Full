@@ -78,7 +78,12 @@ export function ProjectsExplorer() {
             />
           </>
         ) : (
-          <EmptyState message={tr("projects.index.empty")} />
+          <EmptyState
+            title={tr("empty.projects.title")}
+            message={tr("empty.projects.desc")}
+            actionLabel={explorer.hasActiveFilters ? tr("empty.projects.clear") : undefined}
+            onAction={explorer.hasActiveFilters ? explorer.reset : undefined}
+          />
         )}
       </div>
     </section>

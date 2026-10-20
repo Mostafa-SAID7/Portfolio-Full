@@ -135,12 +135,7 @@ function toPortfolioProject(dto: ApiProject): Project {
     client: dto.clientEn ?? dto.clientAr ?? undefined,
     database: dto.databaseEn ?? dto.databaseAr ?? undefined,
     status: ((dto.statusEn ?? dto.statusAr) as Project["status"]) ?? undefined,
-    badges:
-      dto.badgesEn?.length
-        ? dto.badgesEn
-        : dto.featured
-          ? ["Featured"]
-          : undefined,
+    badges: dto.badgesEn?.length ? dto.badgesEn : dto.featured ? ["Featured"] : undefined,
     github: dto.githubUrl ?? undefined,
     image: dto.imageUrl ?? PLACEHOLDER_COVER,
     metrics: dto.metricsEn?.length

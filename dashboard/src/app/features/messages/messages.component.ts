@@ -5,13 +5,21 @@ import { ContactService } from '../../core/services/contact.service';
 import { ContactMessage } from '../../core/models/contact.model';
 import { ConfirmDialogService } from '../../shared/confirm-dialog.component';
 import { PaginatorComponent } from '../../shared/paginator.component';
+import { EmptyStateComponent } from '../../shared/empty-state.component';
+import { ErrorStateComponent } from '../../shared/error-state.component';
 
 const PAGE_SIZE = 8;
 
 @Component({
   selector: 'app-messages',
   standalone: true,
-  imports: [CommonModule, FormsModule, PaginatorComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    PaginatorComponent,
+    EmptyStateComponent,
+    ErrorStateComponent,
+  ],
   template: `
     <div class="space-y-6">
       <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
@@ -41,18 +49,18 @@ const PAGE_SIZE = 8;
           <div class="spinner" role="status" aria-label="Loading messages"></div>
         </div>
       } @else if (service.error()) {
-        <div class="card empty-state">
-          <p class="text-sm font-semibold text-ink">Failed to load messages</p>
-          <p class="max-w-md text-sm text-soft">{{ service.error() }}</p>
-          <button type="button" class="btn-ghost mt-2" (click)="load()">Retry</button>
-        </div>
+        <app-error-state
+          title="Failed to load messages"
+          [error]="service.error()"
+          retryLabel="Retry loading"
+          (retry)="load()"
+        ></app-error-state>
       } @else if (visibleMessages().length === 0) {
-        <div class="card empty-state">
-          <p class="text-sm text-muted">
-            @if (filter === 'unread') { No unread messages — you are all caught up. }
-            @else { No messages yet. Visitors' contact-form submissions appear here. }
-          </p>
-        </div>
+        <app-empty-state
+          icon="message"
+          [title]="filter === 'unread' ? 'All caught up' : 'No messages yet'"
+          [description]="filter === 'unread' ? 'No unread messages in your inbox.' : 'Visitor contact forms submitted from your portfolio will appear here.'"
+        ></app-empty-state>
       } @else {
         <div class="space-y-3">
           @for (message of paginatedMessages(); track message.id) {

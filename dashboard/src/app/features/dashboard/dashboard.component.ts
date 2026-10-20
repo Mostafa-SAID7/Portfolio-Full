@@ -1,17 +1,19 @@
 import { Component, computed, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { ProjectService } from '../../core/services/project.service';
 import { SkillService } from '../../core/services/skill.service';
 import { ExperienceService } from '../../core/services/experience.service';
 import { ContactService } from '../../core/services/contact.service';
 import { AuthService } from '../../core/services/auth.service';
+import { EmptyStateComponent } from '../../shared/empty-state.component';
+import { ErrorStateComponent } from '../../shared/error-state.component';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, EmptyStateComponent, ErrorStateComponent],
   template: `
     <div class="space-y-7">
       <!-- Header -->
@@ -39,11 +41,12 @@ import { AuthService } from '../../core/services/auth.service';
           <div class="spinner" role="status" aria-label="Loading dashboard"></div>
         </div>
       } @else if (loadError()) {
-        <div class="card empty-state">
-          <p class="text-sm font-semibold text-ink">Could not reach the Portfolio API</p>
-          <p class="max-w-md text-sm leading-6 text-soft">{{ loadError() }}</p>
-          <button type="button" (click)="reload()" class="btn-ghost mt-2">Retry</button>
-        </div>
+        <app-error-state
+          title="Could not reach the Portfolio API"
+          [error]="loadError()"
+          retryLabel="Retry loading"
+          (retry)="reload()"
+        ></app-error-state>
       } @else {
         <!-- Stat cards -->
         <section class="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Portfolio statistics">
@@ -125,8 +128,12 @@ import { AuthService } from '../../core/services/auth.service';
               </a>
             </div>
             @if (recentMessages().length === 0) {
-              <div class="empty-state border-0">
-                <p class="text-sm text-muted">No messages yet. Visitor contact forms land here.</p>
+              <div class="p-6">
+                <app-empty-state
+                  icon="message"
+                  title="No messages yet"
+                  description="Visitor contact forms submitted from your portfolio will appear here."
+                ></app-empty-state>
               </div>
             } @else {
               <div class="divide-y divide-line/10">
@@ -158,9 +165,14 @@ import { AuthService } from '../../core/services/auth.service';
               </a>
             </div>
             @if (recentProjects().length === 0) {
-              <div class="empty-state border-0">
-                <p class="text-sm text-muted">No projects yet — create your first one.</p>
-                <a routerLink="/projects/new" class="btn-primary mt-2">New project</a>
+              <div class="p-6">
+                <app-empty-state
+                  icon="folder"
+                  title="No projects yet"
+                  description="Add your first project to populate the showcase."
+                  actionLabel="New project"
+                  (action)="createNewProject()"
+                ></app-empty-state>
               </div>
             } @else {
               <div class="divide-y divide-line/10">
@@ -193,6 +205,11 @@ export class DashboardComponent implements OnInit {
   private readonly contactService = inject(ContactService);
   private readonly authService = inject(AuthService);
   private readonly sanitizer = inject(DomSanitizer);
+  private readonly router = inject(Router);
+
+  createNewProject(): void {
+    this.router.navigate(['/projects/new']);
+  }
 
   /** Angular's default sanitizer strips <svg> from innerHTML — mark the hardcoded icon strings trusted. */
   private trust(icon: string): SafeHtml {

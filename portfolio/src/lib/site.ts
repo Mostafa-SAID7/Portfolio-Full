@@ -10,7 +10,7 @@ export const SITE = {
   url:
     (import.meta.env["VITE_SITE_URL"] as string | undefined)?.replace(/\/$/, "") ??
     "https://portfolio-market.vercel.app",
-  twitter: "@Lovable",
+  twitter: "@MostafaSaid",
 } as const;
 
 /** Build an absolute URL when an origin is configured, else keep it relative. */
