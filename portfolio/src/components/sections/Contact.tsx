@@ -50,10 +50,7 @@ export function Contact({ showHeading = true }: { showHeading?: boolean } = {}) 
 
         <LottieAside src="/lottie/contact-side.lottie">
           <Reveal>
-            <form
-              onSubmit={handleSubmit(onSubmit)}
-              className="surface-card space-y-5 p-6 sm:p-8"
-            >
+            <form onSubmit={handleSubmit(onSubmit)} className="surface-card space-y-5 p-6 sm:p-8">
               <div>
                 <label
                   htmlFor="contact-name"

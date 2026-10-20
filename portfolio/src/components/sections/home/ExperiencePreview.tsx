@@ -33,7 +33,10 @@ export function ExperiencePreview() {
   const reduce = useReducedMotion();
   const credentials = usePortfolioCredentials();
 
-  const items = useMemo(() => credentials.filter((c) => c.tab === activeTab), [credentials, activeTab]);
+  const items = useMemo(
+    () => credentials.filter((c) => c.tab === activeTab),
+    [credentials, activeTab],
+  );
   const ActiveIcon = tabIcons[activeTab];
 
   const listVariants = {
@@ -55,10 +58,7 @@ export function ExperiencePreview() {
       };
 
   return (
-    <section
-      id="events"
-      className="section-shell section-y"
-    >
+    <section id="events" className="section-shell section-y">
       <div className="container-narrow">
         <SectionHeading title={tr("events.title")} description={tr("events.desc")} />
 

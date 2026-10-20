@@ -1,12 +1,6 @@
 /** UI-agnostic icon key; the presentation layer maps it to an icon component. */
 export type SkillIcon =
-  | "frontend"
-  | "backend"
-  | "database"
-  | "architecture"
-  | "realtime"
-  | "devops"
-  | "security";
+  "frontend" | "backend" | "database" | "architecture" | "realtime" | "devops" | "security";
 
 export interface SkillGroup {
   title: string;

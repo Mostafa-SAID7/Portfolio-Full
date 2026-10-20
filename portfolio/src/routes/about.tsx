@@ -45,10 +45,7 @@ function AboutPage() {
         <LottieAside src="/lottie/about-side.lottie" size="max-w-md">
           <div className="grid grid-cols-2 gap-4">
             {STATS.map((stat) => (
-              <div
-                key={stat.key}
-                className="surface-card p-6 text-center"
-              >
+              <div key={stat.key} className="surface-card p-6 text-center">
                 <div dir="ltr" className="type-h2 text-card-foreground">
                   {stat.value}
                 </div>
@@ -63,10 +60,7 @@ function AboutPage() {
         <SectionHeading title={tr("about.page.approach")} />
         <div className="grid gap-6 sm:grid-cols-2">
           {PRINCIPLES.map((principle) => (
-            <div
-              key={principle.titleKey}
-              className="surface-card p-8"
-            >
+            <div key={principle.titleKey} className="surface-card p-8">
               <h3 className="mb-3 flex items-center gap-3 type-h3 text-card-foreground">
                 <CheckCircle2 className="size-5 text-primary" />
                 {tr(principle.titleKey)}

@@ -24,14 +24,7 @@ export function CtaLink({
   ...linkProps
 }: CtaLinkProps) {
   return (
-    <Link
-      {...linkProps}
-      className={cn(
-        "type-label",
-        VARIANTS[variant],
-        className as string,
-      )}
-    >
+    <Link {...linkProps} className={cn("type-label", VARIANTS[variant], className as string)}>
       {children as React.ReactNode}
       {withArrow && <ArrowRight className="size-4 rtl:rotate-180" />}
     </Link>

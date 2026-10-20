@@ -36,9 +36,4 @@ export interface CredentialItem {
 export const credentials: CredentialItem[] = [];
 
 /** Stable tab IDs; visible labels are translated by the i18n layer. */
-export const credentialTabs: CredentialTab[] = [
-  "work",
-  "projects",
-  "education",
-  "certifications",
-];
+export const credentialTabs: CredentialTab[] = ["work", "projects", "education", "certifications"];

@@ -19,7 +19,6 @@ const AUTO_CLOSE_MS = 5_000;
 const RING_RADIUS = 54;
 const CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
-
 /**
  * Welcome invitation that appears once per session, 10s after the visitor
  * lands, then auto-dismisses after 5s with a progress bar. Hovering, focusing
@@ -160,7 +159,6 @@ export function WelcomeModal() {
     return () => controls.stop();
   }, [open, paused, progress, close, prefersReducedMotion]);
 
-
   if (!open) return null;
 
   const hold = () => setPaused(true);
@@ -169,7 +167,6 @@ export function WelcomeModal() {
   const transition: Transition = prefersReducedMotion
     ? { duration: 0 }
     : { duration: 0.35, ease: [0.22, 1, 0.36, 1] };
-
 
   return (
     <AnimatePresence>
@@ -243,7 +240,6 @@ export function WelcomeModal() {
                 </span>
               </div>
 
-
               {/* Bottom half — large countdown counter */}
               <motion.div
                 aria-hidden="true"
@@ -277,7 +273,6 @@ export function WelcomeModal() {
                     />
                   </svg>
 
-
                   {/* Center number: cross-fades normally, static under reduced motion */}
                   <div className="relative flex items-center justify-center">
                     {prefersReducedMotion ? (
@@ -299,7 +294,6 @@ export function WelcomeModal() {
                       </AnimatePresence>
                     )}
                   </div>
-
                 </div>
 
                 {/* Counter label */}
@@ -313,7 +307,6 @@ export function WelcomeModal() {
                 </motion.span>
               </motion.div>
             </div>
-
 
             <div className="min-w-0">
               <h2 id="welcome-modal-title" className="type-h2 text-balance text-foreground">
@@ -372,7 +365,6 @@ export function WelcomeModal() {
               style={{ scaleX: progress, willChange: "transform" }}
             />
           </div>
-
         </motion.div>
       </motion.div>
     </AnimatePresence>

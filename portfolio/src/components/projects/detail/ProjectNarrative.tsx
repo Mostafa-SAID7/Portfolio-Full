@@ -64,10 +64,7 @@ export function ProjectFeatures({ detail }: { detail: ProjectDetailContent }) {
       <DetailSectionHeader icon={CheckCircle2} title={tr("project.detail.features")} />
       <div className="grid gap-5 sm:grid-cols-2">
         {detail.features.map((feature, index) => (
-          <div
-            key={feature.title}
-            className="surface-card-interactive p-6"
-          >
+          <div key={feature.title} className="surface-card-interactive p-6">
             <div className="type-micro mb-3 font-mono text-primary normal-case">
               {String(index + 1).padStart(2, "0")}
             </div>

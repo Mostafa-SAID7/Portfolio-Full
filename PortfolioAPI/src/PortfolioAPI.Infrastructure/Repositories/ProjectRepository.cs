@@ -111,6 +111,18 @@ namespace PortfolioAPI.Infrastructure.Repositories
                 .ToListAsync();
         }
 
+        /// <summary>
+        /// SQL EXISTS check — never loads project rows into memory (fix for C1).
+        /// Uses case-insensitive comparison to match the unique index behaviour.
+        /// </summary>
+        public async Task<bool> SlugExistsAsync(string slug, int? excludeId = null)
+        {
+            var normalized = slug.Trim().ToLowerInvariant();
+            return await _dbSet.AnyAsync(p =>
+                p.Slug.ToLower() == normalized &&
+                (excludeId == null || p.Id != excludeId));
+        }
+
         /// <summary>T-SQL LIKE escaping: [, % and _ are wildcard characters.</summary>
         private static string EscapeLike(string? value)        {
             var needle = (value ?? string.Empty).Trim();

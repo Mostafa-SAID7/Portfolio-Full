@@ -43,11 +43,27 @@ function ArabicFonts() {
     if (lang !== "ar") return;
     const href =
       "https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&family=Tajawal:wght@400;700&display=swap";
-    if (document.querySelector(`link[href="${href}"]`)) return;
+
+    // Guard against duplicate appends (e.g. strict-mode double effects).
+    const existing = document.querySelector(`link[data-arabic-fonts]`);
+    if (existing) {
+      // Update href if it changed (e.g. after a deploy), then bail out.
+      if ((existing as HTMLLinkElement).href !== href) {
+        (existing as HTMLLinkElement).href = href;
+      }
+      return;
+    }
+
     const link = document.createElement("link");
     link.rel = "stylesheet";
     link.href = href;
+    link.setAttribute("data-arabic-fonts", "true");
     document.head.appendChild(link);
+
+    // Cleanup: remove the link if this component ever unmounts (fixes M1).
+    return () => {
+      link.parentNode?.removeChild(link);
+    };
   }, [lang]);
 
   return null;
@@ -71,7 +87,6 @@ function ErrorComponent({ error, reset }: { error: unknown; reset: () => void })
             onClick={() => {
               router.invalidate();
               reset();
-              if (typeof window !== "undefined") window.location.reload();
             }}
             className="btn-accent"
           >
@@ -105,7 +120,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: "Mostafa Samir" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "theme-color", content: "#FF4B35" },
+      { name: "theme-color", content: "#14100d" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },

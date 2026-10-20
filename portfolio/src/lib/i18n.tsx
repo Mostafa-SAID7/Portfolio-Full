@@ -135,8 +135,6 @@ const t: Dict = {
     ar: "يُغلق هذا الحوار تلقائياً خلال ثوانٍ. مرّر المؤشر أو ركّز أو المس داخله للإيقاف المؤقت.",
   },
 
-
-
   "footer.headline1": { en: "You can find", ar: "يمكنك أن تجدني" },
   "footer.headline2": { en: "me here:", ar: "هنا:" },
   "footer.rights": { en: "ALL RIGHTS RESERVED", ar: "جميع الحقوق محفوظة" },

@@ -172,7 +172,7 @@ import { AuthService } from '../../core/services/auth.service';
                     </div>
                     <p class="mt-0.5 line-clamp-1 text-xs text-soft">{{ project.description }}</p>
                     <div class="mt-2 flex flex-wrap gap-1.5">
-                      @for (tech of project.technologies.slice(0, 4); track tech) {
+                      @for (tech of (project.technologies || []).slice(0, 4); track tech) {
                         <span class="badge-muted">{{ tech }}</span>
                       }
                     </div>

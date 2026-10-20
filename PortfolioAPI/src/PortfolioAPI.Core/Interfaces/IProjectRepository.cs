@@ -51,5 +51,13 @@ namespace PortfolioAPI.Core.Interfaces
         /// (issue #33) - the admin list must keep using <see cref="IRepository{T}.GetAllAsync"/>.
         /// </summary>
         Task<List<Project>> GetPublicProjectsAsync();
+
+        /// <summary>
+        /// Returns true when the slug is already taken by another project.
+        /// The optional <paramref name="excludeId"/> exempts the project being
+        /// updated so its own current slug never blocks a re-save.
+        /// Runs entirely in SQL — does NOT load all projects (fix for C1).
+        /// </summary>
+        Task<bool> SlugExistsAsync(string slug, int? excludeId = null);
     }
 }

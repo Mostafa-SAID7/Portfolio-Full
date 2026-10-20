@@ -44,17 +44,11 @@ export function AboutPreview() {
 
               {/* CTA Buttons */}
               <div className="flex w-full flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-                <Link
-                  to="/about"
-                  className="group btn-accent"
-                >
+                <Link to="/about" className="group btn-accent">
                   <span className="type-label">ABOUT ME</span>
                   <ArrowRight className="size-4 transition-transform group-hover:translate-x-1 rtl:rotate-180" />
                 </Link>
-                <Link
-                  to="/projects"
-                  className="group btn-surface"
-                >
+                <Link to="/projects" className="group btn-surface">
                   <span className="type-label text-foreground">VIEW CASES</span>
                   <ArrowRight className="size-4 text-foreground transition-transform group-hover:translate-x-1 rtl:rotate-180" />
                 </Link>

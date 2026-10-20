@@ -5,10 +5,16 @@ type Theme = "dark" | "light";
 
 const STORAGE_KEY = "theme";
 
-/** Paint colors must stay in sync with --background in styles.css. */
+/**
+ * Paint colors MUST match the --background CSS variable in styles.css for
+ * each theme — this is what the browser shows before the first paint, so a
+ * mismatch causes a visible color flash on reload.
+ * Dark (matches dashboard canvas)  → #14100d
+ * Light (matches dashboard canvas) → #faf6f1
+ */
 const PAINT: Record<Theme, string> = {
-  dark: "#FF4B35",
-  light: "#F8F6F0",
+  dark: "#14100d",
+  light: "#faf6f1",
 };
 
 interface ThemeContextValue {

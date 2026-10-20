@@ -1,8 +1,9 @@
-import { Component, HostListener, computed, inject, isDevMode, signal, PLATFORM_ID } from '@angular/core';
+import { Component, HostListener, computed, inject, isDevMode, signal, PLATFORM_ID, DestroyRef } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { filter } from 'rxjs';
+import { filter, map, startWith } from 'rxjs';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { AuthService } from './core/services/auth.service';
 import { ContactService } from './core/services/contact.service';
 import { ApiInstanceService } from './core/services/api-instance.service';
@@ -162,7 +163,9 @@ export class AppComponent {
   private readonly router = inject(Router);
   private readonly platformId = inject(PLATFORM_ID);
   private readonly sanitizer = inject(DomSanitizer);
+  private readonly destroyRef = inject(DestroyRef);
   private mediaQueryList?: MediaQueryList;
+  private mqlListener?: (e: MediaQueryListEvent) => void;
 
   /** Angular's default sanitizer strips <svg> from innerHTML — mark the hardcoded icon strings trusted. */
   private trust(icon: string): SafeHtml {
@@ -205,21 +208,42 @@ export class AppComponent {
     }
   ];
 
-  readonly pageTitle = computed(() => {
-    const url = this.router.url.split('?')[0];
-    if (url.startsWith('/projects')) return 'Projects';
-    if (url.startsWith('/messages')) return 'Messages';
-    if (url.startsWith('/content')) return 'Content';
+  /**
+   * Reactive page title derived from router NavigationEnd events.
+   * Using toSignal on the router events stream instead of reading
+   * this.router.url (a plain string) so the signal actually updates
+   * on every navigation (fix for DASHBOARD-H1).
+   */
+  readonly pageTitle = toSignal(
+    this.router.events.pipe(
+      filter(event => event instanceof NavigationEnd),
+      map((event: NavigationEnd) => {
+        const url = event.urlAfterRedirects.split('?')[0];
+        if (url.startsWith('/projects')) return 'Projects';
+        if (url.startsWith('/messages')) return 'Messages';
+        if (url.startsWith('/content')) return 'Content';
+        return 'Overview';
+      }),
+      startWith(this.pageTitleFromUrl(this.router.url)),
+    ),
+    { initialValue: 'Overview' },
+  );
+
+  /** Synchronous helper used for the startWith seed. */
+  private pageTitleFromUrl(url: string): string {
+    const path = url.split('?')[0];
+    if (path.startsWith('/projects')) return 'Projects';
+    if (path.startsWith('/messages')) return 'Messages';
+    if (path.startsWith('/content')) return 'Content';
     return 'Overview';
-  });
+  }
 
   readonly todayLabel = computed(() =>
     new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'short', day: 'numeric' }).format(new Date())
   );
 
   constructor() {
-    // Show which API instance the dashboard is talking to (the dev API and the
-    // production API share the database but not the upload folder).
+    // Show which API instance the dashboard is talking to.
     this.apiInstance.load();
 
     // Close the mobile drawer on navigation.
@@ -233,7 +257,6 @@ export class AppComponent {
       this.isDesktop.set(mql.matches);
       const onChange = (e: MediaQueryListEvent) => {
         this.isDesktop.set(e.matches);
-        // Leaving mobile: release the scroll lock and reset the drawer.
         if (e.matches && this.drawerOpen()) {
           this.drawerOpen.set(false);
           this.syncBodyScroll();
@@ -241,6 +264,13 @@ export class AppComponent {
       };
       mql.addEventListener('change', onChange);
       this.mediaQueryList = mql;
+      this.mqlListener = onChange;
+
+      // Remove the listener when the component is destroyed to prevent a
+      // memory leak (fix for DASHBOARD-L1).
+      this.destroyRef.onDestroy(() => {
+        mql.removeEventListener('change', onChange);
+      });
     }
 
     // Keep the unread badge warm even before visiting /messages.
@@ -249,9 +279,8 @@ export class AppComponent {
     }
   }
 
-  initials(): string {
-    return this.authService.initials();
-  }
+  /** Initials signal delegated directly — no extra method call per CD cycle (fix for DASHBOARD-M1). */
+  readonly initials = computed(() => this.authService.initials());
 
   toggleTheme(): void {
     this.themeService.toggleTheme();

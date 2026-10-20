@@ -77,14 +77,36 @@ interface ApiCredential {
 }
 
 async function getJson<T>(path: string): Promise<T | null> {
+  const url = `${apiOrigin()}/api/v1/public/${path}`;
   try {
-    const response = await fetch(`${apiOrigin()}/api/v1/public/${path}`, {
+    const response = await fetch(url, {
       headers: { accept: "application/json" },
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
-    if (!response.ok) return null;
+    if (!response.ok) {
+      // Log HTTP-level failures (4xx/5xx) so they surface in devtools even
+      // when the UI gracefully renders empty — fixes PORTFOLIO-C1.
+      console.error(
+        `[content] API returned ${response.status} for ${url}. ` +
+          "Content will be empty until the API recovers.",
+      );
+      return null;
+    }
     return (await response.json()) as T;
-  } catch {
+  } catch (error) {
+    // Distinguish abort/timeout (user navigated away) from real failures.
+    const isAbort =
+      error instanceof DOMException &&
+      (error.name === "AbortError" || error.name === "TimeoutError");
+
+    if (!isAbort) {
+      // Network error or unexpected throw — log with full detail.
+      console.error(
+        `[content] Failed to fetch ${url}:`,
+        error,
+        "Content will be empty. Check that the API is reachable.",
+      );
+    }
     return null;
   }
 }
@@ -118,21 +140,28 @@ export async function fetchPortfolioProjects(): Promise<Project[]> {
   return data.map(toPortfolioProject);
 }
 
-/** Resolve public link from API list only (slug or legacy api-<id>). */
-export function resolvePortfolioProject(
-  list: Project[],
-  rawId: string,
-): Project | undefined {
-  const id = decodeURIComponent(rawId);
-  const direct = list.find((p) => p.id === id);
-  if (direct) return direct;
-  const legacyApiId = /^api-(\d+)$/.exec(id);
-  if (legacyApiId) {
-    const numericId = Number(legacyApiId[1]);
-    const byApiId = list.find((p) => p.apiId === numericId);
-    if (byApiId) return byApiId;
+/**
+ * Build a lookup map from a project list for O(1) resolution by either the
+ * slug or the legacy `api-<id>` fallback identifier. Call this once per list
+ * reference and cache the result rather than calling resolvePortfolioProject
+ * repeatedly on the same list (fix for PORTFOLIO-M2).
+ */
+export function buildProjectMap(list: Project[]): Map<string, Project> {
+  const map = new Map<string, Project>();
+  for (const p of list) {
+    if (p.id) map.set(p.id, p);
+    if (p.apiId != null) map.set(`api-${p.apiId}`, p);
   }
-  return undefined;
+  return map;
+}
+
+/** Resolve a public project link from an already-built map (O(1)). */
+export function resolvePortfolioProject(list: Project[], rawId: string): Project | undefined {
+  const id = decodeURIComponent(rawId);
+  // Build on demand (callers that render a single project detail page call
+  // this once; the map cost is negligible vs. SSR fetch latency).
+  const map = buildProjectMap(list);
+  return map.get(id);
 }
 
 const ICON_BY_KEYWORD: ReadonlyArray<readonly [keyword: string, icon: SkillIcon]> = [
@@ -223,7 +252,10 @@ export function usePortfolioSkillGroups(): {
 export async function fetchPortfolioCategories(): Promise<string[]> {
   const data = await getJson<ApiCategory[]>("categories");
   if (!data) return [];
-  return data.filter((c) => c.isActive).map((c) => c.name).filter((name) => name.length > 0);
+  return data
+    .filter((c) => c.isActive)
+    .map((c) => c.name)
+    .filter((name) => name.length > 0);
 }
 
 export function usePortfolioCredentials(): CredentialItem[] {

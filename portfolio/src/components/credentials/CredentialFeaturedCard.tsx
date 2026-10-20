@@ -103,11 +103,7 @@ export function CredentialFeaturedCard({
         )}
       </AnimatePresence>
 
-      <button
-        onClick={onToggle}
-        aria-expanded={open}
-        className="group btn-surface mt-auto w-full"
-      >
+      <button onClick={onToggle} aria-expanded={open} className="group btn-surface mt-auto w-full">
         <span className="grid size-6 place-items-center rounded-xl bg-primary text-primary-foreground">
           <motion.span
             animate={{ rotate: open ? 90 : 0 }}

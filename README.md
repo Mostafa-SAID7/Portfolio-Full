@@ -44,10 +44,11 @@ and detail pages 404, so deleted content can never resurface. Public reads
 ├── Portfolio.sln           # solution for all backend projects + tests
 ├── docs/                   # reference documentation
 │   ├── DEPLOYMENT.md       # production deployment guide (MonsterASP + Vercel)
+│   ├── API_VERSIONING.md   # API versioning & route conventions
 │   ├── FULL_STRUCTURE.md   # historical full-repo structure snapshot
 │   └── BACK_STRUCTURE.md   # historical backend structure snapshot
 ├── .github/                # CI workflow + issue/PR templates
-├── PortfolioAPI/
+├── PortfolioAPI/           # ASP.NET Core 9 REST API service (README.md)
 │   ├── src/
 │   │   ├── PortfolioAPI/             # API host: controllers, auth, Program.cs
 │   │   ├── PortfolioAPI.Core/        # entities, DTOs, interfaces
@@ -56,8 +57,8 @@ and detail pages 404, so deleted content can never resurface. Public reads
 │   └── tests/
 │       ├── PortfolioAPI.UnitTests/       # runs in CI
 │       └── PortfolioAPI.IntegrationTests/ # needs Docker; local/manual only
-├── dashboard/              # Angular 20 admin SPA (Vercel)
-└── portfolio/              # TanStack Start public site (Vercel)
+├── dashboard/              # Angular 20 admin SPA (README.md)
+└── portfolio/              # TanStack Start public site (README.md)
 ```
 
 ## Quick start

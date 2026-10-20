@@ -18,10 +18,7 @@ export function ContactCta() {
               Tell me about your marketplace and I&apos;ll come back with a concrete plan.
             </p>
             <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
-              <Link
-                to="/contact"
-                className="group btn-accent type-label"
-              >
+              <Link to="/contact" className="group btn-accent type-label">
                 Start a conversation
                 <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5 rtl:rotate-180" />
               </Link>

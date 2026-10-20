@@ -20,10 +20,7 @@ export function Projects() {
   const icons = [Rocket, Code2, ExternalLink];
 
   return (
-    <section
-      id="works"
-      className="section-shell section-y select-none"
-    >
+    <section id="works" className="section-shell section-y select-none">
       <div className="container-page">
         <SectionHeading title={tr("works.title")} align="start" />
         <div className="grid gap-6 grid-cols-1 md:grid-cols-3">

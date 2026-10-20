@@ -1,5 +1,11 @@
 import { Link } from "@tanstack/react-router";
-import { m as motion, useMotionValue, useReducedMotion, useSpring, useTransform } from "framer-motion";
+import {
+  m as motion,
+  useMotionValue,
+  useReducedMotion,
+  useSpring,
+  useTransform,
+} from "framer-motion";
 import { ArrowLeft, Compass, Home, Search } from "lucide-react";
 import { useEffect, useRef } from "react";
 
