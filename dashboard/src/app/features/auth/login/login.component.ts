@@ -65,15 +65,31 @@ import { AuthService } from '../../../core/services/auth.service';
             </div>
             <div>
               <label for="password" class="field-label">Password</label>
-              <input
-                id="password"
-                type="password"
-                formControlName="password"
-                autocomplete="current-password"
-                placeholder="••••••••"
-                class="input"
-                [attr.aria-invalid]="signInForm.get('password')?.invalid && signInForm.get('password')?.touched ? 'true' : null"
-              />
+              <div class="relative">
+                <input
+                  id="password"
+                  [type]="showPassword ? 'text' : 'password'"
+                  formControlName="password"
+                  autocomplete="current-password"
+                  placeholder="••••••••"
+                  class="input pr-11"
+                  [attr.aria-invalid]="signInForm.get('password')?.invalid && signInForm.get('password')?.touched ? 'true' : null"
+                />
+                <button
+                  type="button"
+                  class="absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-muted transition hover:bg-line/[0.06] hover:text-ink"
+                  (click)="togglePasswordVisibility()"
+                  [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'"
+                  [attr.aria-pressed]="showPassword"
+                  title="{{ showPassword ? 'Hide password' : 'Show password' }}"
+                >
+                  @if (showPassword) {
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 3l18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.4 5.3A9.5 9.5 0 0 1 12 5c5 0 9 4.5 9 7 0 .9-.4 1.8-1.1 2.7M6.2 6.2C4.4 7.4 3 9.4 3 12c0 2.5 4 7 9 7 1.6 0 3.1-.5 4.3-1.3"/></svg>
+                  } @else {
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 12s3.6-7 9-7 9 7 9 7-3.6 7-9 7-9-7-9-7Z"/><circle cx="12" cy="12" r="2.8"/></svg>
+                  }
+                </button>
+              </div>
               @if (signInForm.get('password')?.invalid && signInForm.get('password')?.touched) {
                 <p class="field-error" role="alert">Password is required.</p>
               }
@@ -107,6 +123,12 @@ export class LoginComponent {
 
   submitting = false;
   submitError: string | null = null;
+  /** Whether the password is currently revealed (eye toggle). */
+  showPassword = false;
+
+  togglePasswordVisibility(): void {
+    this.showPassword = !this.showPassword;
+  }
 
   readonly signInForm = this.fb.nonNullable.group({
     username: ['', [Validators.required]],
