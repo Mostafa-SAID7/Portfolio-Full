@@ -299,16 +299,18 @@ export class ProjectFormComponent implements OnInit {
    * other projects already use.
    */
   readonly technologySuggestions = computed<string[]>(() => {
-    const fromSkills = this.skillService.skills().map(skill => skill.name);
-    const fromProjects = this.projectService
-      .projects()
-      .flatMap(project => project.technologies ?? []);
+    const fromSkills = (this.skillService.skills() ?? []).map(skill => skill?.name);
+    const fromProjects = (this.projectService.projects() ?? [])
+      .flatMap(project => project?.technologies ?? []);
 
-    return [...new Set(
-      [...fromSkills, ...fromProjects]
-        .map(name => name.trim())
-        .filter(name => name.length > 0)
-    )].sort((a, b) => a.localeCompare(b));
+    return [
+      ...new Set(
+        [...fromSkills, ...fromProjects]
+          .filter((name): name is string => typeof name === 'string')
+          .map(name => name.trim())
+          .filter(name => name.length > 0)
+      )
+    ].sort((a, b) => a.localeCompare(b));
   });
   readonly typeOptions = ['Team', 'Freelance', 'Self'];
   readonly statusOptions = ['In Progress', 'Completed', 'Deployed'];
@@ -447,8 +449,10 @@ export class ProjectFormComponent implements OnInit {
 
     const value = this.projectForm.getRawValue();
     const payload: ProjectPayload = {
-      title: value.title.trim(),
-      description: value.description.trim(),
+      titleEn: value.title.trim(),
+      titleAr: value.title.trim(),        // single-language dashboard: mirror En
+      descriptionEn: value.description.trim(),
+      descriptionAr: value.description.trim(),
       technologies: value.technologies
         .split(',')
         .map(item => item.trim())
@@ -459,17 +463,27 @@ export class ProjectFormComponent implements OnInit {
       order: value.order,
       featured: value.featured,
       isActive: value.isActive,
-      category: value.category.trim() || null,
-      client: value.client.trim() || null,
-      type: value.type || null,
-      database: value.database.trim() || null,
-      status: value.status || null,
-      badges: value.badges
+      categoryEn: value.category.trim() || null,
+      categoryAr: value.category.trim() || null,
+      clientEn: value.client.trim() || null,
+      clientAr: value.client.trim() || null,
+      typeEn: value.type || null,
+      typeAr: value.type || null,
+      databaseEn: value.database.trim() || null,
+      databaseAr: value.database.trim() || null,
+      statusEn: value.status || null,
+      statusAr: value.status || null,
+      badgesEn: value.badges
+        .split(',')
+        .map(item => item.trim())
+        .filter(Boolean),
+      badgesAr: value.badges
         .split(',')
         .map(item => item.trim())
         .filter(Boolean),
       gradient: this.loadedGradient,
-      metrics: this.loadedMetrics
+      metricsEn: this.loadedMetrics,
+      metricsAr: this.loadedMetrics
     };
 
     const request: Observable<unknown> =
@@ -515,8 +529,10 @@ export class ProjectFormComponent implements OnInit {
 
   private populateForm(project: {
     slug?: string;
-    title: string;
-    description: string;
+    titleEn: string;
+    titleAr: string;
+    descriptionEn: string;
+    descriptionAr: string;
     technologies: string[];
     liveUrl: string | null;
     githubUrl: string | null;
@@ -524,37 +540,37 @@ export class ProjectFormComponent implements OnInit {
     order: number;
     featured: boolean;
     isActive: boolean;
-    category?: string | null;
-    client?: string | null;
-    type?: string | null;
-    database?: string | null;
-    status?: string | null;
-    badges?: string[];
+    categoryEn?: string | null;
+    clientEn?: string | null;
+    typeEn?: string | null;
+    databaseEn?: string | null;
+    statusEn?: string | null;
+    badgesEn?: string[];
     gradient?: string | null;
-    metrics?: ProjectMetric[];
+    metricsEn?: ProjectMetric[];
   }): void {
     this.loadedGradient = project.gradient ?? null;
-    this.loadedMetrics = project.metrics ?? [];
+    this.loadedMetrics = project.metricsEn ?? [];
     // The public link id the API owns - shown to the admin so the address of
     // the project is never a mystery. It is generated once and survives a
     // rename, so the link of a project stays valid.
     this.slug.set(project.slug ?? '');
     this.projectForm.patchValue({
-      title: project.title,
-      description: project.description,
-      technologies: project.technologies.join(', '),
+      title: project.titleEn,
+      description: project.descriptionEn,
+      technologies: (project.technologies ?? []).join(', '),
       liveUrl: project.liveUrl ?? '',
       githubUrl: project.githubUrl ?? '',
       imageUrl: project.imageUrl ?? '',
       order: project.order,
       featured: project.featured,
       isActive: project.isActive,
-      category: project.category ?? '',
-      client: project.client ?? '',
-      type: project.type ?? '',
-      database: project.database ?? '',
-      status: project.status ?? '',
-      badges: (project.badges ?? []).join(', ')
+      category: project.categoryEn ?? '',
+      client: project.clientEn ?? '',
+      type: project.typeEn ?? '',
+      database: project.databaseEn ?? '',
+      status: project.statusEn ?? '',
+      badges: (project.badgesEn ?? []).join(', ')
     });
   }
 }

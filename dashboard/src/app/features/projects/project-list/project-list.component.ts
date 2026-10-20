@@ -66,12 +66,12 @@ const PAGE_SIZE = 9;
                 [style.background]="project.gradient || undefined"
               >
                 <span class="absolute inset-0 flex items-center justify-center font-display text-4xl font-bold text-ink/10">
-                  {{ project.title ? project.title.charAt(0) : '' }}
+                  {{ project.titleEn ? project.titleEn.charAt(0) : '' }}
                 </span>
                 @if (coverUrl(project.imageUrl); as src) {
                   <img
                     [src]="src"
-                    [alt]="(project.title || 'Project') + ' cover'"
+                    [alt]="(project.titleEn || 'Project') + ' cover'"
                     loading="lazy"
                     class="relative h-full w-full object-cover"
                     (error)="onCoverError($event, project)"
@@ -91,30 +91,30 @@ const PAGE_SIZE = 9;
                 <div class="mb-3 flex flex-wrap items-center gap-1.5">
                   @if (project.featured) { <span class="badge-warning">Featured</span> }
                   @if (!project.isActive) { <span class="badge-muted">Hidden</span> }
-                  @if (project.category) { <span class="badge-accent">{{ project.category }}</span> }
-                  @if (project.type) { <span class="badge-muted">{{ project.type }}</span> }
-                  @if (project.status) { <span class="badge-muted">{{ project.status }}</span> }
-                  @for (badge of project.badges; track badge) { <span class="badge-muted">{{ badge }}</span> }
+                  @if (project.categoryEn) { <span class="badge-accent">{{ project.categoryEn }}</span> }
+                  @if (project.typeEn) { <span class="badge-muted">{{ project.typeEn }}</span> }
+                  @if (project.statusEn) { <span class="badge-muted">{{ project.statusEn }}</span> }
+                  @for (badge of project.badgesEn; track badge) { <span class="badge-muted">{{ badge }}</span> }
                 </div>
 
                 <div class="mb-2 flex items-start justify-between gap-3">
                   <div class="block min-w-0">
-                    <h3 class="truncate font-display text-lg font-semibold tracking-[-0.02em] text-ink">{{ project.title }}</h3>
-                    @if (project.client) {
-                      <p class="mt-0.5 truncate text-xs text-muted">Client — {{ project.client }}</p>
+                    <h3 class="truncate font-display text-lg font-semibold tracking-[-0.02em] text-ink">{{ project.titleEn }}</h3>
+                    @if (project.clientEn) {
+                      <p class="mt-0.5 truncate text-xs text-muted">Client — {{ project.clientEn }}</p>
                     }
                   </div>
                   <div class="flex shrink-0 gap-1">
-                    <a [routerLink]="['/projects', project.id, 'edit']" class="icon-btn" [attr.aria-label]="'Edit ' + (project.title || 'project')" title="Edit">
+                    <a [routerLink]="['/projects', project.id, 'edit']" class="icon-btn" [attr.aria-label]="'Edit ' + (project.titleEn || 'project')" title="Edit">
                       <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5m-1.414-9.414a2 2 0 1 1 2.828 2.828L11.828 15H9v-2.828l8.586-8.586Z"/></svg>
                     </a>
-                    <button type="button" class="icon-btn hover:border-danger/40 hover:text-danger" (click)="remove(project)" [attr.aria-label]="'Delete ' + (project.title || 'project')" title="Delete">
+                    <button type="button" class="icon-btn hover:border-danger/40 hover:text-danger" (click)="remove(project)" [attr.aria-label]="'Delete ' + (project.titleEn || 'project')" title="Delete">
                       <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0 1 16.138 21H7.862a2 2 0 0 1-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v3M4 7h16"/></svg>
                     </button>
                   </div>
                 </div>
 
-                <p class="line-clamp-3 text-sm leading-6 text-soft">{{ project.description }}</p>
+                <p class="line-clamp-3 text-sm leading-6 text-soft">{{ project.descriptionEn }}</p>
 
                 @if (project.technologies && project.technologies.length) {
                   <div class="mt-3 flex flex-wrap gap-1.5">
@@ -184,11 +184,11 @@ export class ProjectListComponent implements OnInit {
     if (!needle) return projects;
     return projects.filter(
       project =>
-        (project.title || '').toLowerCase().includes(needle) ||
-        (project.description || '').toLowerCase().includes(needle) ||
+        (project.titleEn || '').toLowerCase().includes(needle) ||
+        (project.descriptionEn || '').toLowerCase().includes(needle) ||
         (project.technologies || []).join(' ').toLowerCase().includes(needle) ||
-        (project.client ?? '').toLowerCase().includes(needle) ||
-        (project.category ?? '').toLowerCase().includes(needle)
+        (project.clientEn ?? '').toLowerCase().includes(needle) ||
+        (project.categoryEn ?? '').toLowerCase().includes(needle)
     );
   });
 
@@ -232,7 +232,7 @@ export class ProjectListComponent implements OnInit {
   async remove(project: Project): Promise<void> {
     const confirmed = await this.dialog.confirm({
       title: 'Delete project?',
-      message: `“${project.title}” will be removed from the public portfolio permanently.`,
+      message: `"${project.titleEn}" will be removed from the public portfolio permanently.`,
       confirmLabel: 'Delete project'
     });
     if (!confirmed) return;

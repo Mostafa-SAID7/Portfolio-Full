@@ -167,10 +167,10 @@ import { AuthService } from '../../core/services/auth.service';
                 @for (project of recentProjects(); track project.id) {
                   <a [routerLink]="['/projects', project.id, 'edit']" class="block px-6 py-4 transition hover:bg-line/[0.03]">
                     <div class="flex items-center justify-between gap-3">
-                      <h4 class="truncate text-sm font-semibold text-ink">{{ project.title }}</h4>
+                      <h4 class="truncate text-sm font-semibold text-ink">{{ project.titleEn }}</h4>
                       @if (project.featured) { <span class="badge-warning shrink-0">Featured</span> }
                     </div>
-                    <p class="mt-0.5 line-clamp-1 text-xs text-soft">{{ project.description }}</p>
+                    <p class="mt-0.5 line-clamp-1 text-xs text-soft">{{ project.descriptionEn }}</p>
                     <div class="mt-2 flex flex-wrap gap-1.5">
                       @for (tech of (project.technologies || []).slice(0, 4); track tech) {
                         <span class="badge-muted">{{ tech }}</span>
