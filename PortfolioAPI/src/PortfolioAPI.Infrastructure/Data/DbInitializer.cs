@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -27,8 +28,16 @@ namespace PortfolioAPI.Infrastructure.Data
             }
 
             // Existing database - ensure schema compatibility and seed reference data
+            // Only seed reference data in non-production environments (issue #40)
+            var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+            var isProduction = string.Equals(env, "Production", StringComparison.OrdinalIgnoreCase);
+
             await EnsureSchemaCompatibilityAsync(context);
-            await SeedReferenceDataAsync(context);
+
+            if (!isProduction)
+            {
+                await SeedReferenceDataAsync(context);
+            }
         }
 
         private static async Task EnsureSchemaCompatibilityAsync(PortfolioDbContext context)
