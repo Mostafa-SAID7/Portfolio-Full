@@ -35,9 +35,10 @@ export interface CredentialItem {
 /** Empty: do not import for content. Use usePortfolioCredentials(). */
 export const credentials: CredentialItem[] = [];
 
-export const credentialTabs: { id: CredentialTab; label: { en: string; ar: string } }[] = [
-  { id: "work", label: { en: "Work", ar: "العمل" } },
-  { id: "projects", label: { en: "Projects", ar: "المشاريع" } },
-  { id: "education", label: { en: "Education", ar: "التعليم" } },
-  { id: "certifications", label: { en: "Certifications", ar: "الشهادات" } },
+/** Stable tab IDs; visible labels are translated by the i18n layer. */
+export const credentialTabs: CredentialTab[] = [
+  "work",
+  "projects",
+  "education",
+  "certifications",
 ];
