@@ -1,45 +1,20 @@
 /**
  * Centralized content layer: the portfolio renders projects, skills and career
- * credentials exclusively from the PortfolioAPI (`/api/v1/public/*`, issue #24)
- * — the single
- * source of truth shared with the admin dashboard. Dashboard CRUD (create /
- * edit / delete / visibility) is therefore reflected here on the next fetch;
- * the bundled `src/data` dataset can never reintroduce content that was
- * deleted from the backend.
- *
- * The local dataset is only presentation enrichment for API rows: stable
- * deep-link ids, case-study narratives, gradients and other metadata matched
- * by title (see `toPortfolioProject`). It is NEVER a data fallback: when the
- * API errors or returns no rows, every fetcher here resolves to an empty
- * list (and the sitemap drops project URLs) — bundled data can never stand
- * in for missing API content.
- *
- * SSR resolves an absolute origin via `apiOrigin()` so server rendering reads
- * the same live data as the browser (which stays same-origin behind the
- * Vercel `/api` rewrite; dev talks to the local API on :5039).
+ * credentials exclusively from the PortfolioAPI (`/api/v1/public/*`).
+ * Presentation fields come from the API when present; otherwise generic defaults.
+ * NO lookup into old static `src/data` catalogs (#39).
  */
 import { useQuery } from "@tanstack/react-query";
 import { apiOrigin } from "@/lib/api-origin";
 import { PLACEHOLDER_COVER } from "@/lib/image";
-import {
-  projects as localProjects,
-  skillGroups as localSkillGroups,
-  type CredentialItem,
-  type CredentialTab,
-} from "@/data";
-import type { Project } from "@/data";
+import type { CredentialItem, CredentialTab, Project } from "@/data";
 import type { SkillIcon } from "@/data/skills";
 
 const FETCH_TIMEOUT_MS = 4_000;
-// Short enough that dashboard CRUD shows up quickly on an open tab (focus or
-// mount refetch once stale). Fresh page loads are always current regardless,
-// because SSR re-runs the fetch on every request.
 const STALE_TIME_MS = 60_000;
 
-/** Shape of PortfolioAPI.Core.DTOs.ProjectDto (camelCase JSON). */
 interface ApiProject {
   id: number;
-  /** Stable URL identifier owned by the API (never changes on a rename). */
   slug: string | null;
   title: string;
   description: string;
@@ -50,7 +25,6 @@ interface ApiProject {
   featured: boolean;
   order: number;
   isActive: boolean;
-  /** Editorial fields owned by the backend/dashboard. */
   category: string | null;
   client: string | null;
   type: string | null;
@@ -61,7 +35,6 @@ interface ApiProject {
   gradient: string | null;
 }
 
-/** Shape of PortfolioAPI.Core.DTOs.SkillDto (camelCase JSON). */
 interface ApiCategory {
   id: number;
   name: string;
@@ -78,7 +51,6 @@ interface ApiSkill {
   isActive: boolean;
 }
 
-/** Shape of PortfolioAPI.Core.DTOs.CredentialDto (camelCase JSON). */
 interface ApiCredential {
   id: number;
   tab: string;
@@ -104,7 +76,6 @@ interface ApiCredential {
   isActive: boolean;
 }
 
-/** GET a public endpoint; `null` on any failure (API down, timeout, non-2xx). */
 async function getJson<T>(path: string): Promise<T | null> {
   try {
     const response = await fetch(`${apiOrigin()}/api/v1/public/${path}`, {
@@ -118,96 +89,52 @@ async function getJson<T>(path: string): Promise<T | null> {
   }
 }
 
-const normalize = (value: string) =>
-  value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-
-/**
- * API project → portfolio Project. API values always win; the local dataset
- * only fills presentation metadata (category, badges, gradient, deep-link id)
- * for rows the API actually returned — it never introduces projects on its own.
- */
+/** API project → portfolio Project. API fields only (#39). */
 function toPortfolioProject(dto: ApiProject): Project {
-  const meta = localProjects.find((p) => normalize(p.title) === normalize(dto.title));
-
   const draft = {
-    // The route id is the slug the API owns: it is generated once and never
-    // changed by a rename, so a project keeps its public link (and every
-    // indexed URL keeps working). Rows created before slugs existed fall
-    // back to "api-<id>".
     id: dto.slug || `api-${dto.id}`,
-    /** Id of the bundled catalog entry (presentation data only). */
-    metaId: meta?.id,
-    /** Numeric id of the API row (used to resolve legacy "api-<id>" links). */
     apiId: dto.id,
     title: dto.title,
     description: dto.description,
-    category: dto.category ?? meta?.category ?? "Other",
-    type: dto.type ?? meta?.type ?? "Self",
+    category: (dto.category as Project["category"]) || "Other",
+    type: (dto.type as Project["type"]) || "Self",
     tech: dto.technologies ?? [],
     live: dto.liveUrl || "#",
-    client: dto.client ?? meta?.client,
-    database: dto.database ?? meta?.database,
-    status: dto.status ?? meta?.status,
-    badges: dto.badges?.length ? dto.badges : (meta?.badges ?? (dto.featured ? ["Featured"] : undefined)),
+    client: dto.client ?? undefined,
+    database: dto.database ?? undefined,
+    status: (dto.status as Project["status"]) ?? undefined,
+    badges: dto.badges?.length ? dto.badges : dto.featured ? ["Featured"] : undefined,
     github: dto.githubUrl ?? undefined,
-    // No cover yet -> the shared placeholder. It is replaced as soon as a
-    // cover is uploaded (the API decides, this is only the default).
     image: dto.imageUrl ?? PLACEHOLDER_COVER,
-    metrics: dto.metrics?.length ? dto.metrics : meta?.metrics,
-    gradient: dto.gradient ?? meta?.gradient,
+    metrics: dto.metrics?.length ? dto.metrics : undefined,
+    gradient: dto.gradient ?? undefined,
   };
-
-  // The cast reconciles optional fields with `exactOptionalPropertyTypes`
-  // (draft fields are explicitly `undefined` when metadata is missing).
   return draft as Project;
 }
 
 export async function fetchPortfolioProjects(): Promise<Project[]> {
   const data = await getJson<ApiProject[]>("projects");
-  // The API is the single source of truth: an unreachable API renders an
-  // empty list, never the bundled dataset (which cannot know about deletes).
   if (!data) return [];
   return data.map(toPortfolioProject);
 }
 
-/**
- * Resolves a public project link to a project of the API list.
- *
- * The canonical id is the slug the API owns (stable across renames). Links
- * that were published before that existed are still resolved, so no indexed
- * or shared URL breaks:
- *   1. "haxel-footwear"  -> the slug (canonical)
- *   2. "api-17"          -> the previous "api-<id>" fallback
- *   3. "under-armour"    -> the bundled catalog id, matched by title
- */
+/** Resolve public link from API list only (slug or legacy api-<id>). */
 export function resolvePortfolioProject(
   list: Project[],
   rawId: string,
 ): Project | undefined {
   const id = decodeURIComponent(rawId);
-
   const direct = list.find((p) => p.id === id);
   if (direct) return direct;
-
   const legacyApiId = /^api-(\d+)$/.exec(id);
   if (legacyApiId) {
     const numericId = Number(legacyApiId[1]);
     const byApiId = list.find((p) => p.apiId === numericId);
     if (byApiId) return byApiId;
   }
-
-  const bundled = localProjects.find((p) => p.id === id);
-  if (bundled) {
-    const byTitle = list.find(
-      (p) => normalize(p.title) === normalize(bundled.title),
-    );
-    if (byTitle) return byTitle;
-  }
-
   return undefined;
 }
 
-/** Category title → icon key (the UI owns the actual icon components). */
 const ICON_BY_KEYWORD: ReadonlyArray<readonly [keyword: string, icon: SkillIcon]> = [
   ["front", "frontend"],
   ["back", "backend"],
@@ -228,12 +155,11 @@ function iconForCategory(category: string): SkillIcon {
   return ICON_BY_KEYWORD.find(([keyword]) => lower.includes(keyword))?.[1] ?? "architecture";
 }
 
-/** API skills → the portfolio's grouped skill-chip layout. */
-export async function fetchPortfolioSkillGroups(): Promise<typeof localSkillGroups> {
+export async function fetchPortfolioSkillGroups(): Promise<
+  { title: string; icon: SkillIcon; skills: string[] }[]
+> {
   const data = await getJson<ApiSkill[]>("skills");
-  // API truth only — no bundled fallback for membership (see fetchPortfolioProjects).
   if (!data) return [];
-
   const groups = new Map<string, { icon: SkillIcon; skills: string[] }>();
   for (const skill of [...data].sort((a, b) => a.order - b.order)) {
     if (!skill.isActive) continue;
@@ -244,11 +170,9 @@ export async function fetchPortfolioSkillGroups(): Promise<typeof localSkillGrou
     }
     group.skills.push(skill.name);
   }
-
   return [...groups.entries()].map(([title, group]) => ({ title, ...group }));
 }
 
-/** API credential → the portfolio's bilingual CredentialItem. */
 function toCredentialItem(c: ApiCredential): CredentialItem {
   const draft = {
     id: `api-${c.id}`,
@@ -270,16 +194,10 @@ function toCredentialItem(c: ApiCredential): CredentialItem {
 
 export async function fetchPortfolioCredentials(): Promise<CredentialItem[]> {
   const data = await getJson<ApiCredential[]>("credentials");
-  // API truth only — no bundled fallback for membership (see fetchPortfolioProjects).
   if (!data) return [];
   return data.map(toCredentialItem);
 }
 
-/**
- * Projects for rendering: API list only. `queryFn` never rejects, so an
- * unreachable API surfaces as an empty list (existing empty/error UI) —
- * never as the bundled `src/data` catalog, which cannot know about deletes.
- */
 export function usePortfolioProjects(): Project[] {
   const { data } = useQuery({
     queryKey: ["content", "projects"],
@@ -289,8 +207,11 @@ export function usePortfolioProjects(): Project[] {
   return data ?? [];
 }
 
-/** Skill groups for rendering; see {@link usePortfolioProjects}. */
-export function usePortfolioSkillGroups(): typeof localSkillGroups {
+export function usePortfolioSkillGroups(): {
+  title: string;
+  icon: SkillIcon;
+  skills: string[];
+}[] {
   const { data } = useQuery({
     queryKey: ["content", "skill-groups"],
     queryFn: fetchPortfolioSkillGroups,
@@ -299,22 +220,12 @@ export function usePortfolioSkillGroups(): typeof localSkillGroups {
   return data ?? [];
 }
 
-/**
- * The project categories that become the filter chips. They are managed in
- * the dashboard and served by the API (GET /api/v1/public/categories), so a
- * category added, renamed, reordered or hidden there shows up on the site
- * without a code change. API truth only - no bundled fallback.
- */
 export async function fetchPortfolioCategories(): Promise<string[]> {
   const data = await getJson<ApiCategory[]>("categories");
   if (!data) return [];
-  return data
-    .filter(c => c.isActive)
-    .map(c => c.name)
-    .filter(name => name.length > 0);
+  return data.filter((c) => c.isActive).map((c) => c.name).filter((name) => name.length > 0);
 }
 
-/** Career credentials (work / projects / education / certifications); see {@link usePortfolioProjects}. */
 export function usePortfolioCredentials(): CredentialItem[] {
   const { data } = useQuery({
     queryKey: ["content", "credentials"],
@@ -324,7 +235,6 @@ export function usePortfolioCredentials(): CredentialItem[] {
   return data ?? [];
 }
 
-/** The filter chips, straight from the API; see {@link usePortfolioProjects}. */
 export function usePortfolioCategories(): string[] {
   const { data } = useQuery({
     queryKey: ["content", "categories"],
@@ -334,7 +244,6 @@ export function usePortfolioCategories(): string[] {
   return data ?? [];
 }
 
-/** Query options for route loaders that need the same cached project list. */
 export const portfolioProjectsQuery = {
   queryKey: ["content", "projects"] as const,
   queryFn: fetchPortfolioProjects,

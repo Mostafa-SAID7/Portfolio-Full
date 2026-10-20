@@ -1,18 +1,15 @@
 /**
- * Data module index
- * Centralized exports for all data types and constants
+ * Data module index — types and empty placeholders only.
+ * Runtime portfolio content = PortfolioAPI (`@/lib/content`). Do not reintroduce static catalogs (#39).
  */
 
-// Projects
-export { projects, projectFilters, type Project } from "./projects";
-
-// Skills
-export { skillGroups, type SkillIcon } from "./skills";
-
-// Credentials (certifications, education, awards)
+export { projects, projectFilters, type Project, type ProjectCategory } from "./projects";
+export { skillGroups, type SkillIcon, type SkillGroup } from "./skills";
 export {
   credentials,
   credentialTabs,
   type CredentialItem,
   type CredentialTab,
+  type Bilingual,
+  type BilingualList,
 } from "./credentials";
