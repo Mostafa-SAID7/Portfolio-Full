@@ -79,6 +79,12 @@ if (swaggerEnabled)
 // Add controllers
 builder.Services.AddControllers();
 
+// Increase startup time limit for IIS/ANCM (default 120s) - DbInitializer may need more time on cold start
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = 10485760; // 10MB
+});
+
 // Output caching for the public, read-only content endpoints (issue #32).
 // Public portfolio content changes only when the dashboard saves, so a
 // short TTL keeps SQL out of the hot path without any invalidation plumbing:

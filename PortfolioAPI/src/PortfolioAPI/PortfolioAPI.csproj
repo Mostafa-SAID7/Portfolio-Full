@@ -4,6 +4,8 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Increase ANCM startup time limit from default 120s to 300s for cold start with DbInitializer -->
+    <AspNetCoreModuleStartupTimeLimit>300</AspNetCoreModuleStartupTimeLimit>
   </PropertyGroup>
 
   <ItemGroup>
