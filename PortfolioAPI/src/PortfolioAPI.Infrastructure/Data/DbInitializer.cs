@@ -114,6 +114,7 @@ namespace PortfolioAPI.Infrastructure.Data
         /// Registers every category the projects already use as a managed
         /// category, so the dashboard can rename/reorder/hide them right away
         /// (the projects keep their category as plain text). Idempotent.
+        /// Also updates existing categories with their Arabic names.
         /// </summary>
         private static async Task SyncCategoriesAsync(PortfolioDbContext context)
         {
@@ -141,6 +142,40 @@ namespace PortfolioAPI.Infrastructure.Data
                 {
                     NameEn = name,
                     NameAr = string.Empty,
+                    IsActive = true,
+                    Order = order++
+                });
+            }
+
+            // Update existing categories with their Arabic names
+            var arabicNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["Clothing"] = "ملابس",
+                ["Beauty"] = "جمال",
+                ["Jewelry"] = "مجوهرات",
+                ["Furniture"] = "أثاث",
+                ["Dashboard"] = "لوحة تحكم",
+                ["Web3"] = "ويب 3",
+                ["Sports"] = "رياضة",
+                ["Tech Accessories"] = "إكسسوارات تقنية",
+                ["Backend"] = "باك إند",
+                ["Other"] = "أخرى"
+            };
+
+            foreach (var category in existing)
+            {
+                if (arabicNames.TryGetValue(category.NameEn, out var arabicName) && string.IsNullOrEmpty(category.NameAr))
+                {
+                    category.NameAr = arabicName;
+                }
+            }
+
+            foreach (var name in used)
+            {
+                context.Categories.Add(new Category
+                {
+                    NameEn = name,
+                    NameAr = arabicNames.GetValueOrDefault(name, string.Empty),
                     IsActive = true,
                     Order = order++
                 });

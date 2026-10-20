@@ -360,29 +360,50 @@ namespace PortfolioAPI.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("Badges")
+                    b.Property<string>("BadgesAr")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
-                    b.Property<string>("Category")
+                    b.Property<string>("BadgesEn")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("CategoryAr")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<string>("Client")
+                    b.Property<string>("CategoryEn")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ClientAr")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ClientEn")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("Database")
+                    b.Property<string>("DatabaseAr")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("DatabaseEn")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("Description")
+                    b.Property<string>("DescriptionAr")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("DescriptionEn")
                         .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
@@ -416,7 +437,11 @@ namespace PortfolioAPI.Infrastructure.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
-                    b.Property<string>("Metrics")
+                    b.Property<string>("MetricsAr")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("MetricsEn")
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
 
@@ -430,7 +455,11 @@ namespace PortfolioAPI.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<string>("Status")
+                    b.Property<string>("StatusAr")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("StatusEn")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
@@ -439,12 +468,21 @@ namespace PortfolioAPI.Infrastructure.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
-                    b.Property<string>("Title")
+                    b.Property<string>("TitleAr")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<string>("Type")
+                    b.Property<string>("TitleEn")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("TypeAr")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("TypeEn")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
@@ -453,7 +491,7 @@ namespace PortfolioAPI.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Category");
+                    b.HasIndex("CategoryEn");
 
                     b.HasIndex("Featured");
 
@@ -464,7 +502,7 @@ namespace PortfolioAPI.Infrastructure.Migrations
                         .HasDatabaseName("IX_Projects_Slug")
                         .HasFilter("[Slug] <> ''");
 
-                    b.HasIndex("Title");
+                    b.HasIndex("TitleEn");
 
                     b.ToTable("Projects");
                 });
