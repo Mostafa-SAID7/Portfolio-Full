@@ -1,13 +1,12 @@
-import { QueryClient, dehydrate, hydrate } from "@tanstack/react-query";
+﻿import { QueryClient } from "@tanstack/react-query";
 import { createRouter } from "@tanstack/react-router";
+import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
 import { routeTree } from "./routeTree.gen";
-
-interface RouterContext {
-  queryClient: QueryClient;
-}
 
 /**
  * Creates a new QueryClient with the default configuration.
+ * A fresh instance is created per request on the server to prevent
+ * cache leakage between concurrent users.
  */
 function createQueryClient(): QueryClient {
   return new QueryClient({
@@ -24,12 +23,21 @@ function createQueryClient(): QueryClient {
 }
 
 /**
- * Creates a router instance with a QueryClient.
- * On the server, this creates a fresh QueryClient for prefetching.
- * On the client, this creates a fresh QueryClient that will be hydrated.
+ * The single router factory used by both SSR (server entry) and the browser
+ * client. TanStack Start calls `getRouter()` once per request on the server
+ * and once on the client — creating a fresh QueryClient each time prevents
+ * cross-request state leakage.
+ *
+ * `setupRouterSsrQueryIntegration` automatically:
+ *   - Dehydrates the QueryClient into the HTML stream after SSR rendering
+ *   - Rehydrates it in the browser before the first client render
+ * This eliminates the hydration mismatch caused by the client starting with
+ * an empty QueryClient while the server had 14 projects in its cache.
  */
-function createRouterInstance(queryClient: QueryClient) {
-  return createRouter({
+export function getRouter() {
+  const queryClient = createQueryClient();
+
+  const router = createRouter({
     routeTree,
     context: { queryClient },
     scrollRestoration: true,
@@ -41,46 +49,9 @@ function createRouterInstance(queryClient: QueryClient) {
     defaultPendingMs: 180,
     defaultPendingMinMs: 320,
   });
-}
 
-/**
- * Creates a router instance for the server with a fresh QueryClient.
- * Used during SSR for prefetching and dehydration.
- */
-export function createServerRouter(): {
-  router: ReturnType<typeof createRouterInstance>;
-  queryClient: QueryClient;
-} {
-  const queryClient = createQueryClient();
-  const router = createRouterInstance(queryClient);
-  return { router, queryClient };
-}
+  // Automatically wire up SSR dehydration -> HTML stream -> client rehydration.
+  setupRouterSsrQueryIntegration({ router, queryClient });
 
-/**
- * Creates a router instance for the client with a hydrated QueryClient.
- * Used during client-side hydration.
- */
-export function createClientRouter(dehydratedState?: unknown): {
-  router: ReturnType<typeof createRouterInstance>;
-  queryClient: QueryClient;
-} {
-  const queryClient = createQueryClient();
-
-  // Hydrate the QueryClient with the dehydrated state from the server
-  if (dehydratedState) {
-    hydrate(queryClient, dehydratedState as ReturnType<typeof dehydrate>);
-  }
-
-  const router = createRouterInstance(queryClient);
-  return { router, queryClient };
-}
-
-/**
- * Legacy export for backward compatibility.
- * Creates a router with a fresh QueryClient (used in tests or non-SSR contexts).
- */
-export const getRouter = () => {
-  const queryClient = createQueryClient();
-  const router = createRouterInstance(queryClient);
   return router;
-};
+}

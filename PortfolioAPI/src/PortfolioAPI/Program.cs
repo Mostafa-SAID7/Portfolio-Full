@@ -96,6 +96,7 @@ builder.Services.AddOutputCache(options =>
         policy
             .Expire(TimeSpan.FromSeconds(30))
             .SetVaryByQuery("featured")
+            .SetVaryByHeader("Origin")
             .Tag("public"));
 });
 
@@ -390,6 +391,11 @@ app.Use(async (context, next) =>
     await next();
 });
 
+// Use CORS (policy name set up above) — MUST sit before UseResponseCompression
+// and UseOutputCache so cross-origin headers are attached to every response,
+// including cached public content.
+app.UseCors("Frontends");
+
 // Compress JSON responses (gzip) — must sit before the endpoints write.
 app.UseResponseCompression();
 
@@ -416,9 +422,6 @@ app.Use(async (context, next) =>
 
     await next();
 });
-
-// Use CORS (policy name set up above)
-app.UseCors("Frontends");
 
 // Serve uploaded files (UploadController) at {FileStorage:BaseUrl} — /api/files
 // by default. Both frontends reach this path through their own /api proxy, so

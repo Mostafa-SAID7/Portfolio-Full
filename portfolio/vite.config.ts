@@ -22,5 +22,14 @@ export default defineConfig({
     port: 5173,
     host: true,
     allowedHosts: true,
+    watch: {
+      ignored: ["**/.vercel/**", "**/dist/**"],
+    },
+    proxy: {
+      "/api": {
+        target: "http://localhost:5039",
+        changeOrigin: true,
+      },
+    },
   },
 });

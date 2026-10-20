@@ -16,8 +16,11 @@ const STALE_TIME_MS = 60_000;
 interface ApiProject {
   id: number;
   slug: string | null;
-  title: string;
-  description: string;
+  // Bilingual title/description (API v2 schema)
+  titleEn: string;
+  titleAr: string;
+  descriptionEn: string;
+  descriptionAr: string;
   imageUrl: string | null;
   technologies: string[];
   githubUrl: string | null;
@@ -25,13 +28,19 @@ interface ApiProject {
   featured: boolean;
   order: number;
   isActive: boolean;
-  category: string | null;
-  client: string | null;
-  type: string | null;
-  database: string | null;
-  status: string | null;
-  badges: string[] | null;
-  metrics: { label: string; value: string }[] | null;
+  categoryEn: string | null;
+  categoryAr: string | null;
+  clientEn: string | null;
+  clientAr: string | null;
+  typeEn: string | null;
+  typeAr: string | null;
+  databaseEn: string | null;
+  databaseAr: string | null;
+  statusEn: string | null;
+  statusAr: string | null;
+  badgesEn: string[] | null;
+  badgesAr: string[] | null;
+  metricsEn: { labelEn: string; labelAr: string; value: string }[] | null;
   gradient: string | null;
 }
 
@@ -111,24 +120,32 @@ async function getJson<T>(path: string): Promise<T | null> {
   }
 }
 
-/** API project → portfolio Project. API fields only (#39). */
+/** API project → portfolio Project. Bilingual API fields (v2 schema). */
 function toPortfolioProject(dto: ApiProject): Project {
   const draft = {
     id: dto.slug || `api-${dto.id}`,
     apiId: dto.id,
-    title: dto.title,
-    description: dto.description,
-    category: (dto.category as Project["category"]) || "Other",
-    type: (dto.type as Project["type"]) || "Self",
+    // Use English title/description as canonical presentation fields
+    title: dto.titleEn ?? dto.titleAr ?? "",
+    description: dto.descriptionEn ?? dto.descriptionAr ?? "",
+    category: ((dto.categoryEn ?? dto.categoryAr) as Project["category"]) || "Other",
+    type: ((dto.typeEn ?? dto.typeAr) as Project["type"]) || "Self",
     tech: dto.technologies ?? [],
     live: dto.liveUrl || "#",
-    client: dto.client ?? undefined,
-    database: dto.database ?? undefined,
-    status: (dto.status as Project["status"]) ?? undefined,
-    badges: dto.badges?.length ? dto.badges : dto.featured ? ["Featured"] : undefined,
+    client: dto.clientEn ?? dto.clientAr ?? undefined,
+    database: dto.databaseEn ?? dto.databaseAr ?? undefined,
+    status: ((dto.statusEn ?? dto.statusAr) as Project["status"]) ?? undefined,
+    badges:
+      dto.badgesEn?.length
+        ? dto.badgesEn
+        : dto.featured
+          ? ["Featured"]
+          : undefined,
     github: dto.githubUrl ?? undefined,
     image: dto.imageUrl ?? PLACEHOLDER_COVER,
-    metrics: dto.metrics?.length ? dto.metrics : undefined,
+    metrics: dto.metricsEn?.length
+      ? dto.metricsEn.map((m) => ({ label: m.labelEn ?? m.labelAr ?? "", value: m.value }))
+      : undefined,
     gradient: dto.gradient ?? undefined,
   };
   return draft as Project;

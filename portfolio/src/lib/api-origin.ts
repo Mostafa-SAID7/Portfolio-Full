@@ -50,7 +50,13 @@ let warnedMissingServerOrigin = false;
 export function apiOrigin(): string {
   const explicit = explicitOrigin();
   if (explicit) return explicit;
-  if (import.meta.env.DEV) return "http://localhost:5039";
+  // DEV: SSR (Node) still needs the absolute URL for server-to-server fetches.
+  // The browser uses same-origin "" so the Vite proxy routes /api → :5039,
+  // avoiding cross-origin CORS issues in the browser.
+  if (import.meta.env.DEV) {
+    if (typeof window === "undefined") return "http://localhost:5039";
+    return "";
+  }
 
   // Non-browser (SSR): Vercel exposes its own deployment origin, so preview
   // deployments resolve to the same production API by default.
