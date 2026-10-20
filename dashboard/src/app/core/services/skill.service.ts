@@ -57,13 +57,15 @@ export class SkillService {
     // Send an explicit payload (never the raw model): the API binds
     // UpdateSkillDto and ignores server-managed fields anyway.
     return this.updateSkill(skill.id, {
-      name: skill.name,
-      category: skill.category,
-      proficiency: skill.proficiency,
-      iconUrl: skill.iconUrl,
-      description: skill.description,
-      order: skill.order,
-      isActive: !skill.isActive
+      NameEn: skill.NameEn,
+      NameAr: skill.NameAr || '',
+      CategoryEn: skill.CategoryEn,
+      CategoryAr: skill.CategoryAr || '',
+      Proficiency: skill.Proficiency,
+      IconUrl: skill.IconUrl,
+      DescriptionEn: skill.DescriptionEn,
+      Order: skill.order,
+      IsActive: !skill.IsActive
     });
   }
 

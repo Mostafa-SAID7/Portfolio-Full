@@ -1,21 +1,46 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { Suspense, lazy } from "react";
 import { PageShell } from "@/components/layout/PageShell";
 import { Hero } from "@/components/sections/Hero";
-import { AboutPreview } from "@/components/sections/home/AboutPreview";
-import { SkillsPreview } from "@/components/sections/home/SkillsPreview";
 import { Projects } from "@/components/sections/Projects";
-import { ExperiencePreview } from "@/components/sections/home/ExperiencePreview";
 import { CredentialsCarouselLazy } from "@/components/credentials/CredentialsCarouselLazy";
-import { ContactCta } from "@/components/sections/home/ContactCta";
 import { LazyIsland } from "@/components/ui/LazyIsland";
 import { pageSeo } from "@/lib/seo";
 import { SITE, absoluteUrl } from "@/lib/site";
+import {
+  portfolioProjectsQuery,
+  portfolioSkillGroupsQuery,
+  portfolioCredentialsQuery,
+} from "@/lib/content";
+
+// Below-fold sections: lazy-loaded to remove their icons & framer-motion
+// from the hydration critical path. Hero + Projects stay eager (above fold).
+const AboutPreview = lazy(() =>
+  import("@/components/sections/home/AboutPreview").then((m) => ({ default: m.AboutPreview }))
+);
+const SkillsPreview = lazy(() =>
+  import("@/components/sections/home/SkillsPreview").then((m) => ({ default: m.SkillsPreview }))
+);
+const ExperiencePreview = lazy(() =>
+  import("@/components/sections/home/ExperiencePreview").then((m) => ({ default: m.ExperiencePreview }))
+);
+const ContactCta = lazy(() =>
+  import("@/components/sections/home/ContactCta").then((m) => ({ default: m.ContactCta }))
+);
 const heroIsoAvif = "/images/hero-iso.avif";
 
 const DESCRIPTION =
   "Portfolio of Mostafa Samir, Senior Full Stack Engineer specializing in .NET 8 microservices, React.js and Angular platforms.";
 
 export const Route = createFileRoute("/")({
+  // Pre-warm all home page data in parallel during SSR so components
+  // hydrate from cache instantly — no client-side waterfall fetches.
+  loader: ({ context: { queryClient } }) =>
+    Promise.all([
+      queryClient.ensureQueryData(portfolioProjectsQuery),
+      queryClient.ensureQueryData(portfolioSkillGroupsQuery),
+      queryClient.ensureQueryData(portfolioCredentialsQuery),
+    ]),
   head: () => {
     const seo = pageSeo({
       title: `${SITE.name} | ${SITE.role}`,
@@ -61,19 +86,27 @@ function Index() {
       <Hero />
       <Projects />
       <div className="defer-paint">
-        <SkillsPreview />
+        <Suspense fallback={<div className="section-y min-h-[40vh]" aria-hidden />}>
+          <SkillsPreview />
+        </Suspense>
       </div>
       <div className="defer-paint">
-        <ExperiencePreview />
+        <Suspense fallback={<div className="section-y min-h-[40vh]" aria-hidden />}>
+          <ExperiencePreview />
+        </Suspense>
       </div>
       <div className="defer-paint">
-        <AboutPreview />
+        <Suspense fallback={<div className="section-y min-h-[30vh]" aria-hidden />}>
+          <AboutPreview />
+        </Suspense>
       </div>
       <LazyIsland className="defer-paint">
         <CredentialsCarouselLazy />
       </LazyIsland>
       <LazyIsland className="defer-paint">
-        <ContactCta />
+        <Suspense fallback={null}>
+          <ContactCta />
+        </Suspense>
       </LazyIsland>
     </PageShell>
   );

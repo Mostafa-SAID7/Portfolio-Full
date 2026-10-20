@@ -1,6 +1,5 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { ContactService } from '../../core/services/contact.service';
 import { ContactMessage } from '../../core/models/contact.model';
 import { ConfirmDialogService } from '../../shared/confirm-dialog.component';
@@ -15,7 +14,6 @@ const PAGE_SIZE = 8;
   standalone: true,
   imports: [
     CommonModule,
-    FormsModule,
     PaginatorComponent,
     EmptyStateComponent,
     ErrorStateComponent,

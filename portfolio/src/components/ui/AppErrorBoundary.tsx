@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { Link, useRouter } from "@tanstack/react-router";
+import { useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
   RotateCcw,
@@ -29,22 +28,21 @@ export function AppErrorBoundary({
   subtitle,
   fullPage = true,
 }: AppErrorBoundaryProps) {
-  const router = useRouter();
   const [showDetails, setShowDetails] = useState(false);
   const [copied, setCopied] = useState(false);
+  const reportedRef = useRef(false);
 
   // Format detailed error string safely
   const formattedError = describeError(error);
 
-  // Report the error to telemetry
-  reportAppError(error, { source: "AppErrorBoundary" });
+  // Report error once after mount — never during SSR render
+  useEffect(() => {
+    if (reportedRef.current) return;
+    reportedRef.current = true;
+    reportAppError(error, { source: "AppErrorBoundary" });
+  }, [error]);
 
   const handleRetry = () => {
-    try {
-      router.invalidate();
-    } catch {
-      // router might not be ready
-    }
     if (reset) {
       reset();
     } else if (typeof window !== "undefined") {
@@ -106,21 +104,21 @@ export function AppErrorBoundary({
             <span>Try again</span>
           </button>
 
-          <Link
-            to="/"
+          <a
+            href="/"
             className="inline-flex items-center gap-2 rounded-xl border border-border bg-foreground/5 px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-foreground/10"
           >
             <Home className="size-4 text-muted-foreground" />
             <span>Return Home</span>
-          </Link>
+          </a>
 
-          <Link
-            to="/projects"
+          <a
+            href="/projects"
             className="inline-flex items-center gap-2 rounded-xl border border-border bg-foreground/5 px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-foreground/10"
           >
             <Briefcase className="size-4 text-muted-foreground" />
             <span>Browse Projects</span>
-          </Link>
+          </a>
         </div>
 
         {/* Collapsible diagnostic details */}

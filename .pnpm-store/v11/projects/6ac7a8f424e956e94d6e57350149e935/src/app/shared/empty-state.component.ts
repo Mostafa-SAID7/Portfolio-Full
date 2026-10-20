@@ -1,0 +1,73 @@
+import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { CommonModule } from '@angular/common';
+
+@Component({
+  selector: 'app-empty-state',
+  standalone: true,
+  imports: [CommonModule],
+  template: `
+    <div class="empty-state-card flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-line/20 bg-surface/50 px-6 py-12 text-center backdrop-blur-sm transition-all hover:border-line/30">
+      <!-- Icon Container with Subtle Glow -->
+      <div class="flex h-14 w-14 items-center justify-center rounded-2xl border border-line/15 bg-line/[0.04] text-accent shadow-inner">
+        @switch (icon) {
+          @case ('folder') {
+            <svg class="h-7 w-7 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+            </svg>
+          }
+          @case ('search') {
+            <svg class="h-7 w-7 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+          }
+          @case ('message') {
+            <svg class="h-7 w-7 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+            </svg>
+          }
+          @case ('tag') {
+            <svg class="h-7 w-7 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+            </svg>
+          }
+          @default {
+            <svg class="h-7 w-7 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+            </svg>
+          }
+        }
+      </div>
+
+      <!-- Title -->
+      @if (title) {
+        <h4 class="text-base font-semibold text-ink">{{ title }}</h4>
+      }
+
+      <!-- Description -->
+      @if (description) {
+        <p class="max-w-md text-sm leading-relaxed text-soft">{{ description }}</p>
+      }
+
+      <!-- Action Button -->
+      @if (actionLabel) {
+        <button
+          type="button"
+          (click)="action.emit()"
+          class="btn btn-primary mt-2 inline-flex items-center gap-2"
+        >
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+          </svg>
+          <span>{{ actionLabel }}</span>
+        </button>
+      }
+    </div>
+  `
+})
+export class EmptyStateComponent {
+  @Input() icon: 'folder' | 'search' | 'message' | 'tag' | 'box' = 'folder';
+  @Input() title = '';
+  @Input() description = '';
+  @Input() actionLabel: string | null = null;
+  @Output() action = new EventEmitter<void>();
+}

@@ -2,12 +2,12 @@ import { useEffect, useRef, useState } from "react";
 
 const STORAGE_KEY = "app-preloaded";
 /** Never flash: once shown, the splash stays up at least this long. */
-const MIN_VISIBLE_MS = 350;
+const MIN_VISIBLE_MS = 100;
 /** Hard ceiling — a slow asset must never trap the visitor behind the splash. */
-const MAX_VISIBLE_MS = 2500;
+const MAX_VISIBLE_MS = 1500;
 /** Webfonts must never gate the splash for longer than this. */
-const FONTS_TIMEOUT_MS = 600;
-const FADE_MS = 250;
+const FONTS_TIMEOUT_MS = 200;
+const FADE_MS = 150;
 
 /**
  * Runs before first paint. If this session already booted the app (SPA

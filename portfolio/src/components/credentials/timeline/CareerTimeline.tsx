@@ -5,14 +5,18 @@ import { ArrowRight } from "lucide-react";
 import { type CredentialTab } from "@/data";
 import { usePortfolioCredentials } from "@/lib/content";
 import { useI18n } from "@/lib/i18n";
-import { EASE } from "@/lib/motion";
+import { SectionHeading } from "@/components/ui/SectionHeading";
 import { CareerTabs } from "./CareerTabs";
 import { CareerRow } from "./CareerRow";
 import { tabIcons } from "./tabIcons";
 import { timelineListVariants } from "./timelineVariants";
 
+export interface CareerTimelineProps {
+  showCta?: boolean;
+}
+
 /** Tabbed career + credentials timeline with expandable entries. */
-export function CareerTimeline() {
+export function CareerTimeline({ showCta = true }: CareerTimelineProps = {}) {
   const [activeTab, setActiveTab] = useState<CredentialTab>("work");
   const [openId, setOpenId] = useState<string | null>(null);
   const { tr } = useI18n();
@@ -28,17 +32,8 @@ export function CareerTimeline() {
   return (
     <section id="events" className="section-shell section-y">
       <div className="container-narrow">
-        <motion.div
-          initial={reduce ? false : { opacity: 0, y: 24 }}
-          whileInView={reduce ? {} : { opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.4 }}
-          transition={{ duration: 0.5, ease: EASE }}
-        >
-          <h2 className="type-h2 text-center">{tr("events.title")}</h2>
-          <p className="type-lead mx-auto mt-4 max-w-2xl text-center text-muted-foreground">
-            {tr("events.desc")}
-          </p>
-        </motion.div>
+        <SectionHeading title={tr("events.title")} description={tr("events.desc")} />
+
 
         <CareerTabs
           activeTab={activeTab}
@@ -75,15 +70,17 @@ export function CareerTimeline() {
           </motion.div>
         </AnimatePresence>
 
-        <div className="mt-10 flex justify-center">
-          <Link
-            to="/experience"
-            className="type-label inline-flex items-center gap-2 rounded-xl border border-border bg-foreground/5 px-6 py-3 transition-colors hover:bg-foreground/15"
-          >
-            {tr("events.cta")}
-            <ArrowRight className="size-3.5 rtl:rotate-180" />
-          </Link>
-        </div>
+        {showCta && (
+          <div className="mt-10 flex justify-center">
+            <Link
+              to="/experience"
+              className="type-label inline-flex items-center gap-2 rounded-xl border border-border bg-foreground/5 px-6 py-3 transition-colors hover:bg-foreground/15"
+            >
+              {tr("events.cta")}
+              <ArrowRight className="size-3.5 rtl:rotate-180" />
+            </Link>
+          </div>
+        )}
       </div>
     </section>
   );

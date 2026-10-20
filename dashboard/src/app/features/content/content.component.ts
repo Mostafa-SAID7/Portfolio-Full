@@ -72,7 +72,7 @@ const EXPERIENCE_PER_PAGE = 6;
                 [(ngModel)]="newCategoryName"
                 (keyup.enter)="addCategory()"
               />
-              <button type="button" class="btn-primary" [disabled]="!newCategoryName.trim()" (click)="addCategory()">
+              <button type="button" class="btn-primary" [disabled]="!(newCategoryName ?? '').trim()" (click)="addCategory()">
                 Add category
               </button>
             </div>
@@ -177,7 +177,7 @@ const EXPERIENCE_PER_PAGE = 6;
               <label for="skillProficiency" class="field-label">Proficiency %</label>
               <input id="skillProficiency" type="number" min="0" max="100" class="input" [(ngModel)]="newSkillProficiency" name="skillProficiency" />
             </div>
-            <button type="submit" class="btn-primary sm:mb-0.5" [disabled]="!newSkillName.trim()">Add</button>
+            <button type="submit" class="btn-primary sm:mb-0.5" [disabled]="!(newSkillName ?? '').trim()">Add</button>
           </form>
 
           @if (skillsByCategory().length === 0) {
@@ -205,7 +205,7 @@ const EXPERIENCE_PER_PAGE = 6;
                             </div>
                             <div>
                               <label class="field-label" [for]="'edit-prof-' + skill.id">Proficiency (0–100)</label>
-                              <input [id]="'edit-prof-' + skill.id" type="number" min="0" max="100" class="input" [(ngModel)]="editDraft.proficiency" />
+                              <input [id]="'edit-prof-' + skill.id" type="number" min="0" max="100" class="input" [(ngModel)]="editDraft.Proficiency" />
                             </div>
                             <div>
                               <label class="field-label" [for]="'edit-order-' + skill.id">Display order</label>
@@ -213,7 +213,7 @@ const EXPERIENCE_PER_PAGE = 6;
                             </div>
                             <div class="sm:col-span-2">
                               <label class="field-label" [for]="'edit-icon-' + skill.id">Icon URL</label>
-                              <input [id]="'edit-icon-' + skill.id" type="text" class="input" [(ngModel)]="editDraft.iconUrl" placeholder="Optional" />
+                              <input [id]="'edit-icon-' + skill.id" type="text" class="input" [(ngModel)]="editDraft.IconUrl" placeholder="Optional" />
                             </div>
                             <div class="sm:col-span-2">
                               <label class="field-label" [for]="'edit-desc-' + skill.id">Description</label>
@@ -229,7 +229,7 @@ const EXPERIENCE_PER_PAGE = 6;
                               type="button"
                               class="btn-primary"
                               (click)="saveEditSkill()"
-                              [disabled]="!editDraft.name.trim() || !editDraft.category.trim()"
+                              [disabled]="!(editDraft?.name ?? '').trim() || !(editDraft?.category ?? '').trim()"
                             >
                               Save changes
                             </button>
@@ -237,17 +237,17 @@ const EXPERIENCE_PER_PAGE = 6;
                         </div>
                       } @else {
                         <div class="min-w-0 flex-1">
-                          <p class="text-sm font-semibold" [class]="skill.isActive ? 'text-ink' : 'text-muted line-through'">{{ skill.name }}</p>
+                          <p class="text-sm font-semibold" [class]="skill.IsActive ? 'text-ink' : 'text-muted line-through'">{{ skill.NameEn }}</p>
                           <div class="mt-1.5 h-1.5 w-40 overflow-hidden rounded-full bg-line/10">
-                            <div class="h-full rounded-full bg-accent" [style.width.%]="skill.proficiency"></div>
+                            <div class="h-full rounded-full bg-accent" [style.width.%]="skill.Proficiency"></div>
                           </div>
                         </div>
-                        <span class="hidden text-xs text-muted sm:block">{{ skill.proficiency }}%</span>
+                        <span class="hidden text-xs text-muted sm:block">{{ skill.Proficiency }}%</span>
                         <button type="button" class="btn-ghost" (click)="startEditSkill(skill)">Edit</button>
                         <button type="button" class="btn-ghost" (click)="toggleSkill(skill)">
-                          {{ skill.isActive ? 'Hide' : 'Show' }}
+                          {{ skill.IsActive ? 'Hide' : 'Show' }}
                         </button>
-                        <button type="button" class="icon-btn hover:border-danger/40 hover:text-danger" (click)="deleteSkill(skill)" [attr.aria-label]="'Delete ' + skill.name">
+                        <button type="button" class="icon-btn hover:border-danger/40 hover:text-danger" (click)="deleteSkill(skill)" [attr.aria-label]="'Delete ' + skill.NameEn">
                           <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0 1 16.138 21H7.862a2 2 0 0 1-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v3M4 7h16"/></svg>
                         </button>
                       }
@@ -350,7 +350,7 @@ const EXPERIENCE_PER_PAGE = 6;
                 <button
                   type="submit"
                   class="btn-primary"
-                  [disabled]="!expDraft.position.trim() || !expDraft.company.trim() || !expDraft.description.trim() || !expDraft.startDate"
+                  [disabled]="!(expDraft?.position ?? '').trim() || !(expDraft?.company ?? '').trim() || !(expDraft?.description ?? '').trim() || !expDraft?.startDate"
                 >
                   {{ editingExperienceId ? 'Save changes' : 'Create experience' }}
                 </button>
@@ -431,7 +431,9 @@ export class ContentComponent implements OnInit {
   ];
 
   newSkillName = '';
+  newSkillNameAr = '';
   newSkillCategory = '';
+  newSkillCategoryAr = '';
   newSkillProficiency = 70;
 
   /** Inline skill editor state. */
@@ -439,9 +441,9 @@ export class ContentComponent implements OnInit {
   editDraft: {
     name: string;
     category: string;
-    proficiency: number;
+    Proficiency: number;
     order: number;
-    iconUrl: string;
+    IconUrl: string;
     description: string;
   } | null = null;
   skillFormError: string | null = null;
@@ -468,7 +470,7 @@ export class ContentComponent implements OnInit {
   readonly skillsByCategory = computed(() => {
     const groups = new Map<string, Skill[]>();
     for (const skill of this.skillService.skills()) {
-      const category = skill.category?.trim() || 'Uncategorized';
+      const category = skill.CategoryEn?.trim() || skill.NameEn?.trim() || 'Uncategorized';
       if (!groups.has(category)) groups.set(category, []);
       groups.get(category)!.push(skill);
     }
@@ -511,13 +513,13 @@ export class ContentComponent implements OnInit {
   categoryFormError: string | null = null;
 
   addCategory(): void {
-    const name = this.newCategoryName.trim();
+    const name = (this.newCategoryName ?? '').trim();
     if (!name) return;
 
     this.categoryFormError = null;
     const order = this.categoryService.categories().length;
     this.categoryService
-      .createCategory({ nameEn: name, nameAr: '', order, isActive: true })
+      .createCategory({ nameEn: name, nameAr: '', order, IsActive: true })
       .subscribe({
         next: () => {
           this.newCategoryName = '';
@@ -530,12 +532,12 @@ export class ContentComponent implements OnInit {
 
   startEditingCategory(category: Category): void {
     this.editingCategoryId = category.id;
-    this.categoryDraftName = category.nameEn;
+    this.categoryDraftName = category.nameEn ?? '';
     this.categoryFormError = null;
   }
 
   saveCategory(category: Category): void {
-    const name = this.categoryDraftName.trim();
+    const name = (this.categoryDraftName ?? '').trim();
     if (!name) {
       this.categoryFormError = 'The category name cannot be empty.';
       return;
@@ -606,20 +608,25 @@ export class ContentComponent implements OnInit {
   }
 
   addSkill(): void {
-    const name = this.newSkillName.trim();
-    if (!name) return;
+    const nameEn = (this.newSkillName ?? '').trim();
+    const nameAr = (this.newSkillNameAr ?? '').trim(); // new input for Arabic name
+    if (!nameEn && !nameAr) return;
 
     this.skillService
       .createSkill({
-        name,
-        category: this.newSkillCategory.trim() || 'General',
-        proficiency: Math.min(100, Math.max(0, Number(this.newSkillProficiency) || 0)),
-        isActive: true
+        NameEn: nameEn,
+        NameAr: nameAr,
+        CategoryEn: (this.newSkillCategory ?? '').trim() || 'General',
+        CategoryAr: (this.newSkillCategoryAr ?? '').trim(),
+        Proficiency: Math.min(100, Math.max(0, Number(this.newSkillProficiency) || 0)),
+        IsActive: true
       })
       .subscribe({
         next: () => {
           this.newSkillName = '';
+          this.newSkillNameAr = '';
           this.newSkillCategory = '';
+          this.newSkillCategoryAr = '';
           this.newSkillProficiency = 70;
         },
         error: err => alert(err?.error?.message ?? 'Failed to add the skill.')
@@ -632,12 +639,14 @@ export class ContentComponent implements OnInit {
     this.editingSkillId = skill.id;
     this.skillFormError = null;
     this.editDraft = {
-      name: skill.name,
-      category: skill.category,
-      proficiency: skill.proficiency,
-      order: skill.order,
-      iconUrl: skill.iconUrl ?? '',
-      description: skill.description ?? ''
+      NameEn: skill.NameEn ?? '',
+      NameAr: skill.NameAr ?? '',
+      CategoryEn: skill.CategoryEn ?? '',
+      CategoryAr: skill.CategoryAr ?? '',
+      proficiency: skill.Proficiency ?? 0,
+      order: skill.order ?? 0,
+      IconUrl: skill.IconUrl ?? '',
+      description: skill.DescriptionEn ?? ''
     };
   }
 
@@ -658,11 +667,13 @@ export class ContentComponent implements OnInit {
 
     this.skillService
       .updateSkill(id, {
-        name: draft.name.trim(),
-        category: draft.category.trim(),
-        proficiency: Math.min(100, Math.max(0, Number(draft.proficiency) || 0)),
-        iconUrl: draft.iconUrl.trim() || null,
-        description: draft.description.trim() || null,
+        NameEn: (draft.name ?? '').trim(),
+        NameAr: (draft.nameAr ?? '').trim(),
+        CategoryEn: (draft.category ?? '').trim() || 'General',
+        CategoryAr: (draft.categoryAr ?? '').trim(),
+        Proficiency: Math.min(100, Math.max(0, Number(draft.Proficiency) || 0)),
+        IconUrl: draft.IconUrl ? draft.IconUrl.trim() || null : null,
+        description: draft.description ? draft.description.trim() || null : null,
         order: Number(draft.order) || 0,
         isActive: current?.isActive ?? true
       })
@@ -690,7 +701,7 @@ export class ContentComponent implements OnInit {
       technologies: '',
       order: this.experienceService.experience().length,
       current: false,
-      isActive: true
+      IsActive: true
     };
   }
 
@@ -699,16 +710,16 @@ export class ContentComponent implements OnInit {
     this.editingExperienceId = item.id;
     this.experienceError = null;
     this.expDraft = {
-      position: item.position,
-      company: item.company,
+      position: item.position ?? '',
+      company: item.company ?? '',
       location: item.location ?? '',
       startDate: item.startDate ? item.startDate.slice(0, 10) : '',
       endDate: item.endDate ? item.endDate.slice(0, 10) : '',
-      description: item.description,
-      technologies: item.technologies.join(', '),
-      order: item.order,
-      current: item.current,
-      isActive: item.isActive
+      description: item.description ?? '',
+      technologies: Array.isArray(item.technologies) ? item.technologies.join(', ') : '',
+      order: item.order ?? 0,
+      current: Boolean(item.current),
+      isActive: item.isActive ?? true
     };
   }
 
@@ -726,19 +737,19 @@ export class ContentComponent implements OnInit {
     // Date-only values: keep them as local calendar dates (no toISOString() —
     // UTC conversion shifts the day in non-UTC timezones and drifts on re-edit).
     const payload: ExperiencePayload = {
-      company: draft.company.trim(),
-      position: draft.position.trim(),
+      company: (draft.company ?? '').trim(),
+      position: (draft.position ?? '').trim(),
       startDate: `${draft.startDate}T00:00:00`,
       endDate: draft.current || !draft.endDate ? null : `${draft.endDate}T00:00:00`,
-      description: draft.description.trim(),
-      technologies: draft.technologies
+      description: (draft.description ?? '').trim(),
+      technologies: (draft.technologies ?? '')
         .split(',')
         .map(item => item.trim())
         .filter(Boolean),
-      location: draft.location.trim() || null,
-      current: draft.current,
+      location: draft.location ? draft.location.trim() || null : null,
+      current: Boolean(draft.current),
       order: Number(draft.order) || 0,
-      isActive: draft.isActive
+      isActive: draft.isActive ?? true
     };
 
     const request$: Observable<unknown> =
@@ -763,7 +774,7 @@ export class ContentComponent implements OnInit {
   async deleteSkill(skill: Skill): Promise<void> {
     const confirmed = await this.dialog.confirm({
       title: 'Delete skill?',
-      message: `“${skill.name}” will be removed from the skill stack.`,
+      message: `“${skill.NameEn}” will be removed from the skill stack.`,
       confirmLabel: 'Delete skill'
     });
     if (!confirmed) return;

@@ -3,7 +3,7 @@ import { PageShell } from "@/components/layout/PageShell";
 import { ProjectsExplorer } from "@/components/projects/explorer/ProjectsExplorer";
 import { PageSkeleton } from "@/components/ui/Skeletons";
 import { validateProjectsSearch } from "@/hooks/useProjectsExplorer";
-import { portfolioProjectsQuery } from "@/lib/content";
+import { portfolioProjectsQuery, portfolioCategoriesQuery } from "@/lib/content";
 import { pageSeo, pageTitle } from "@/lib/seo";
 import { absoluteUrl } from "@/lib/site";
 
@@ -19,7 +19,13 @@ export const Route = createFileRoute("/projects/")({
   // HTML, and the client hydrates the same cache instead of starting empty.
   // API down → the query resolves to [] → the explorer's existing EmptyState
   // renders (never a bundled catalog fallback).
-  loader: ({ context }) => context.queryClient.ensureQueryData(portfolioProjectsQuery),
+  // Pre-warm both projects and categories in parallel during SSR.
+  // ProjectFilterChips (categories) was previously a client-side waterfall fetch.
+  loader: ({ context: { queryClient } }) =>
+    Promise.all([
+      queryClient.ensureQueryData(portfolioProjectsQuery),
+      queryClient.ensureQueryData(portfolioCategoriesQuery),
+    ]),
   head: () =>
     pageSeo({
       title: pageTitle("All Projects"),

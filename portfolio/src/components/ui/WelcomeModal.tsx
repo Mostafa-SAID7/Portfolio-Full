@@ -1,168 +1,33 @@
-import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, Sparkles, X } from "lucide-react";
-import {
-  m as motion,
-  AnimatePresence,
-  useReducedMotion,
-  useMotionValue,
-  useTransform,
-  animate,
-  type Transition,
-} from "framer-motion";
+import { m as motion, AnimatePresence, type Transition } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
 import { LottieIcon } from "@/components/ui/LottieIcon";
+import { useWelcomeModal, RING_RADIUS, CIRCUMFERENCE } from "@/hooks/useWelcomeModal";
 
-const STORAGE_KEY = "welcome-modal-seen";
-const DELAY_MS = 10_000;
-const AUTO_CLOSE_MS = 5_000;
-const RING_RADIUS = 54;
-const CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
+const AUTO_CLOSE_SECONDS = 5;
 
 /**
- * Welcome invitation that appears once per session, 10s after the visitor
- * lands, then auto-dismisses after 5s with a progress bar. Hovering, focusing
- * or touching the dialog pauses the countdown so nobody loses the message
- * mid-read. Presentation comes from the shared utilities in styles.css.
+ * Welcome invitation modal that appears once per session.
+ * Interaction & state management is separated into `useWelcomeModal` hook (SRP).
  */
 export function WelcomeModal() {
   const { tr, dir } = useI18n();
-  const prefersReducedMotion = useReducedMotion();
-  const [open, setOpen] = useState(false);
-  const [seconds, setSeconds] = useState(AUTO_CLOSE_MS / 1000);
-  const [paused, setPaused] = useState(false);
-  const progress = useMotionValue(1);
-  const dashOffset = useTransform(progress, (v: number) => CIRCUMFERENCE * (1 - v));
-
-  const closeRef = useRef<HTMLButtonElement>(null);
-  const dialogRef = useRef<HTMLDivElement>(null);
-  const previouslyFocused = useRef<Element | null>(null);
-
-  const close = useCallback(() => {
-    setOpen(false);
-    try {
-      sessionStorage.setItem(STORAGE_KEY, "1");
-    } catch {
-      /* storage unavailable — modal simply shows again next load */
-    }
-    if (previouslyFocused.current instanceof HTMLElement) {
-      previouslyFocused.current.focus();
-    }
-  }, []);
-
-  useEffect(() => {
-    let seen = false;
-    try {
-      seen = sessionStorage.getItem(STORAGE_KEY) === "1";
-    } catch {
-      seen = false;
-    }
-    if (seen) return;
-    const timer = window.setTimeout(() => setOpen(true), DELAY_MS);
-    return () => window.clearTimeout(timer);
-  }, []);
-
-  useEffect(() => {
-    if (!open) return;
-    previouslyFocused.current = document.activeElement;
-    closeRef.current?.focus();
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.stopPropagation();
-        close();
-        return;
-      }
-      if (event.key !== "Tab") return;
-
-      // Focus trap: keep Tab/Shift+Tab cycling inside the dialog.
-      const root = dialogRef.current;
-      if (!root) return;
-      const focusables = Array.from(
-        root.querySelectorAll<HTMLElement>(
-          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-        ),
-      ).filter((el) => el.offsetParent !== null || el === document.activeElement);
-      if (focusables.length === 0) return;
-
-      const first = focusables[0]!;
-      const last = focusables[focusables.length - 1]!;
-      const active = document.activeElement as HTMLElement | null;
-
-      if (!active || !root.contains(active)) {
-        event.preventDefault();
-        first.focus();
-      } else if (event.shiftKey && active === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && active === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener("keydown", onKeyDown);
-
-    return () => {
-      document.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [open, close]);
-
-  // Countdown driven by a motion value: the bar/ring interpolate on the
-  // compositor thread (perfectly smooth) while React only re-renders once
-  // per whole second for the visible digit.
-  useEffect(() => {
-    if (!open) return;
-    progress.set(1);
-    setSeconds(AUTO_CLOSE_MS / 1000);
-  }, [open, progress]);
-
-  useEffect(() => {
-    const unsubscribe = progress.on("change", (value) => {
-      const next = Math.max(0, Math.ceil((value * AUTO_CLOSE_MS) / 1000));
-      setSeconds((current) => (current === next ? current : next));
-    });
-    return unsubscribe;
-  }, [progress]);
-
-  useEffect(() => {
-    if (!open || paused) return;
-    const left = progress.get() * AUTO_CLOSE_MS;
-    if (left <= 0) {
-      close();
-      return;
-    }
-
-    // Reduced motion: step the ring/bar once per second instead of sweeping,
-    // so the countdown stays readable and announced without continuous motion.
-    if (prefersReducedMotion) {
-      let remaining = Math.ceil(left / 1000) * 1000;
-      const id = window.setInterval(() => {
-        remaining -= 1000;
-        progress.set(Math.max(0, remaining / AUTO_CLOSE_MS));
-        if (remaining <= 0) {
-          window.clearInterval(id);
-          close();
-        }
-      }, 1000);
-      return () => window.clearInterval(id);
-    }
-
-    const controls = animate(progress, 0, {
-      duration: left / 1000,
-      ease: "linear",
-      onComplete: close,
-    });
-    return () => controls.stop();
-  }, [open, paused, progress, close, prefersReducedMotion]);
+  const {
+    open,
+    close,
+    seconds,
+    paused,
+    progress,
+    dashOffset,
+    closeRef,
+    dialogRef,
+    hold,
+    release,
+    prefersReducedMotion,
+  } = useWelcomeModal();
 
   if (!open) return null;
-
-  const hold = () => setPaused(true);
-  const release = () => setPaused(false);
 
   const transition: Transition = prefersReducedMotion
     ? { duration: 0 }
@@ -194,17 +59,14 @@ export function WelcomeModal() {
           onMouseEnter={hold}
           onMouseLeave={release}
           onFocusCapture={(event) => {
-            // Ignore the initial programmatic focus on the close button.
             if ((event.target as Node) !== closeRef.current) hold();
           }}
           onBlurCapture={(event) => {
-            // Resume the countdown once keyboard focus leaves the dialog.
             const next = event.relatedTarget as Node | null;
             if (!next || !dialogRef.current?.contains(next)) release();
           }}
           onTouchStart={hold}
           onTouchEnd={release}
-
           initial={{ opacity: 0, scale: 0.92, y: 24 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.96, y: 16 }}
@@ -223,9 +85,9 @@ export function WelcomeModal() {
             <X className="h-4 w-4" />
           </button>
 
-          {/* Two-column grid on desktop: visual rail + message column */}
+          {/* Two-column layout: Visual rail + Message column */}
           <div className="relative grid gap-6 p-6 pb-10 text-center sm:p-8 sm:pb-12 md:grid-cols-[minmax(0,13rem)_minmax(0,1fr)] md:items-stretch md:gap-8 md:p-10 md:pb-14 md:text-start">
-            {/* Visual rail: exact top half Lottie, bottom half large counter */}
+            {/* Visual rail */}
             <div className="grid min-h-[22rem] grid-rows-2 items-center justify-items-center md:min-h-full">
               {/* Top half — Lottie */}
               <div className="flex h-full w-full flex-col items-center justify-center gap-3">
@@ -240,7 +102,7 @@ export function WelcomeModal() {
                 </span>
               </div>
 
-              {/* Bottom half — large countdown counter */}
+              {/* Bottom half — countdown ring */}
               <motion.div
                 aria-hidden="true"
                 className="relative flex h-full w-full flex-col items-center justify-center gap-2"
@@ -249,7 +111,6 @@ export function WelcomeModal() {
                 transition={{ duration: 0.25 }}
               >
                 <div className="relative grid aspect-square h-full max-h-[8.5rem] place-items-center">
-                  {/* Background track */}
                   <svg
                     viewBox={`0 0 ${RING_RADIUS * 2 + 12} ${RING_RADIUS * 2 + 12}`}
                     className="absolute inset-0 size-full -rotate-90"
@@ -273,7 +134,6 @@ export function WelcomeModal() {
                     />
                   </svg>
 
-                  {/* Center number: cross-fades normally, static under reduced motion */}
                   <div className="relative flex items-center justify-center">
                     {prefersReducedMotion ? (
                       <span className="type-h1 absolute font-bold tabular-nums text-foreground">
@@ -296,7 +156,6 @@ export function WelcomeModal() {
                   </div>
                 </div>
 
-                {/* Counter label */}
                 <motion.span
                   key={paused ? "paused" : "counting"}
                   initial={{ opacity: 0 }}
@@ -308,6 +167,7 @@ export function WelcomeModal() {
               </motion.div>
             </div>
 
+            {/* Message column */}
             <div className="min-w-0">
               <h2 id="welcome-modal-title" className="type-h2 text-balance text-foreground">
                 {tr("welcome.title")}
@@ -351,13 +211,13 @@ export function WelcomeModal() {
             </div>
           </div>
 
-          {/* Auto-close progress bar pinned to the bottom edge */}
+          {/* Auto-close progress bar */}
           <div
             role="progressbar"
             aria-label={tr("welcome.autoclose").replace("{s}", String(seconds))}
             aria-valuemin={0}
             aria-valuemax={100}
-            aria-valuenow={Math.round((seconds / (AUTO_CLOSE_MS / 1000)) * 100)}
+            aria-valuenow={Math.round((seconds / AUTO_CLOSE_SECONDS) * 100)}
             className="absolute inset-x-0 bottom-0 h-1.5 overflow-hidden bg-muted"
           >
             <motion.div

@@ -449,35 +449,35 @@ export class ProjectFormComponent implements OnInit {
 
     const value = this.projectForm.getRawValue();
     const payload: ProjectPayload = {
-      titleEn: value.title.trim(),
-      titleAr: value.title.trim(),        // single-language dashboard: mirror En
-      descriptionEn: value.description.trim(),
-      descriptionAr: value.description.trim(),
-      technologies: value.technologies
+      titleEn: (value.title ?? '').trim(),
+      titleAr: (value.title ?? '').trim(),        // single-language dashboard: mirror En
+      descriptionEn: (value.description ?? '').trim(),
+      descriptionAr: (value.description ?? '').trim(),
+      technologies: (value.technologies ?? '')
         .split(',')
         .map(item => item.trim())
         .filter(Boolean),
-      liveUrl: value.liveUrl.trim() || null,
-      githubUrl: value.githubUrl.trim() || null,
-      imageUrl: value.imageUrl.trim() || null,
-      order: value.order,
-      featured: value.featured,
-      isActive: value.isActive,
-      categoryEn: value.category.trim() || null,
-      categoryAr: value.category.trim() || null,
-      clientEn: value.client.trim() || null,
-      clientAr: value.client.trim() || null,
+      liveUrl: value.liveUrl ? value.liveUrl.trim() || null : null,
+      githubUrl: value.githubUrl ? value.githubUrl.trim() || null : null,
+      imageUrl: value.imageUrl ? value.imageUrl.trim() || null : null,
+      order: Number(value.order) || 0,
+      featured: Boolean(value.featured),
+      isActive: value.isActive ?? true,
+      categoryEn: value.category ? value.category.trim() || null : null,
+      categoryAr: value.category ? value.category.trim() || null : null,
+      clientEn: value.client ? value.client.trim() || null : null,
+      clientAr: value.client ? value.client.trim() || null : null,
       typeEn: value.type || null,
       typeAr: value.type || null,
-      databaseEn: value.database.trim() || null,
-      databaseAr: value.database.trim() || null,
+      databaseEn: value.database ? value.database.trim() || null : null,
+      databaseAr: value.database ? value.database.trim() || null : null,
       statusEn: value.status || null,
       statusAr: value.status || null,
-      badgesEn: value.badges
+      badgesEn: (value.badges ?? '')
         .split(',')
         .map(item => item.trim())
         .filter(Boolean),
-      badgesAr: value.badges
+      badgesAr: (value.badges ?? '')
         .split(',')
         .map(item => item.trim())
         .filter(Boolean),

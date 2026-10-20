@@ -3,48 +3,46 @@ import { Github, Linkedin, Mail, MessageSquare, Play } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useI18n } from "@/lib/i18n";
 import { LottieIcon } from "@/components/ui/LottieIcon";
+import { NAV_LINKS, SOCIAL_LINKS } from "@/lib/site";
+import { BrandLogo } from "@/components/ui/BrandLogo";
 
 const socials = [
   {
     Icon: Github,
-    lottie: "/lottie/social/github.lottie",
-    label: "GitHub",
-    href: "https://github.com/Mostafa-SAID7",
-    bgClass: "bg-[var(--social-github)]",
-    featured: true,
+    lottie: SOCIAL_LINKS.github.lottie,
+    label: SOCIAL_LINKS.github.label,
+    href: SOCIAL_LINKS.github.url,
+    bgClass: SOCIAL_LINKS.github.bgClass,
+    featured: SOCIAL_LINKS.github.featured,
   },
   {
     Icon: Linkedin,
-    lottie: "/lottie/social/linkedin.lottie",
-    label: "LinkedIn",
-    href: "https://linkedin.com/in/mostafasamirsaid",
-    bgClass: "bg-[var(--social-linkedin)]",
-    featured: true,
+    lottie: SOCIAL_LINKS.linkedin.lottie,
+    label: SOCIAL_LINKS.linkedin.label,
+    href: SOCIAL_LINKS.linkedin.url,
+    bgClass: SOCIAL_LINKS.linkedin.bgClass,
+    featured: SOCIAL_LINKS.linkedin.featured,
   },
   {
     Icon: Mail,
-    lottie: "/lottie/social/mail.lottie",
-    label: "Email",
-    href: "mailto:m.ssaid356@gmail.com",
-    bgClass: "bg-[var(--social-instagram)]",
+    lottie: SOCIAL_LINKS.email.lottie,
+    label: SOCIAL_LINKS.email.label,
+    href: SOCIAL_LINKS.email.url,
+    bgClass: SOCIAL_LINKS.email.bgClass,
+    featured: SOCIAL_LINKS.email.featured,
   },
   {
     Icon: MessageSquare,
-    lottie: "/lottie/social/whatsapp.lottie",
-    label: "WhatsApp",
-    href: "https://wa.me/+201067358073",
-    bgClass: "bg-[#25D366]",
+    lottie: SOCIAL_LINKS.whatsapp.lottie,
+    label: SOCIAL_LINKS.whatsapp.label,
+    href: SOCIAL_LINKS.whatsapp.url,
+    bgClass: SOCIAL_LINKS.whatsapp.bgClass,
+    featured: SOCIAL_LINKS.whatsapp.featured,
   },
 ];
 
-const footerNavLinks = [
-  { key: "nav.works", to: "/projects" },
-  { key: "nav.about", to: "/about" },
-  { key: "nav.experience", to: "/experience" },
-  { key: "nav.contact", to: "/contact" },
-] as const;
-
 type Social = (typeof socials)[number];
+
 
 /**
  * Footer social tile: static lucide glyph by default, swapped for a matching
@@ -148,32 +146,16 @@ export function Footer() {
           <div className="flex flex-col items-center justify-between gap-6 px-2 md:flex-row md:px-4">
             {/* Logo & Brand Name */}
             <Link to="/" className="flex items-center gap-3.5 group" aria-label="Home">
-              {/* Dot & Colon Prefix */}
-              <div className="flex items-end gap-[3px] select-none opacity-90">
-                <span className="size-1.5 rounded-full bg-foreground mb-[2px]" />
-                <div className="flex flex-col gap-[3px]">
-                  <span className="size-1.5 rounded-full bg-foreground" />
-                  <span className="size-1.5 rounded-full bg-foreground" />
-                </div>
-              </div>
-
-              {/* MS Square Badge */}
-              <div className="grid place-items-center rounded-[8px] bg-foreground px-2.5 py-1 shadow-sm transition-transform duration-300 group-hover:scale-105">
-                <span className="keep-latin type-wordmark [--wordmark-size:1.25rem] sm:[--wordmark-size:1.5rem] text-background">
-                  MS
-                </span>
-              </div>
-
-              {/* Spaced MOSTAFA SAMIR Text */}
-              <div className="keep-latin flex flex-col text-start type-micro text-foreground">
-                <span>MOSTAFA</span>
-                <span>SAMIR</span>
-              </div>
+              <BrandLogo
+                size="lg"
+                variant="foreground"
+                className="transition-transform duration-300 group-hover:scale-105"
+              />
             </Link>
 
             {/* Navigation Links */}
             <nav className="flex flex-wrap items-center justify-center gap-6 sm:gap-8 md:gap-10">
-              {footerNavLinks.map((item) => (
+              {NAV_LINKS.map((item) => (
                 <Link
                   key={item.key}
                   to={item.to}

@@ -17,15 +17,13 @@ export function ProjectsExplorer() {
   return (
     <section className="section-shell section-y nav-offset">
       <div className="container-page">
-        <Reveal>
-          <header className="mb-8 max-w-2xl text-center md:text-start">
-            <span className="eyebrow rounded-xl bg-foreground/10 px-3 py-1 text-primary border border-border inline-block mb-2">
-              {tr("projects.index.eyebrow")}
-            </span>
-            <h1 className="type-h1 text-foreground">{tr("projects.index.title")}</h1>
-            <p className="type-body mt-2 text-foreground/90">{tr("projects.index.desc")}</p>
-          </header>
-        </Reveal>
+        <header className="mb-8 max-w-2xl text-center md:text-start">
+          <span className="eyebrow rounded-xl bg-foreground/10 px-3 py-1 text-primary border border-border inline-block mb-2">
+            {tr("projects.index.eyebrow")}
+          </span>
+          <h1 className="type-h1 text-foreground">{tr("projects.index.title")}</h1>
+          <p className="type-body mt-2 text-foreground/90">{tr("projects.index.desc")}</p>
+        </header>
 
         <ProjectsToolbar
           searchQuery={explorer.searchQuery}

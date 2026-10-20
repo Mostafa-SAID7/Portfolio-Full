@@ -10,8 +10,8 @@ import { PLACEHOLDER_COVER } from "@/lib/image";
 import type { CredentialItem, CredentialTab, Project } from "@/data";
 import type { SkillIcon } from "@/data/skills";
 
-const FETCH_TIMEOUT_MS = 4_000;
-const STALE_TIME_MS = 60_000;
+const FETCH_TIMEOUT_MS = 2_000; // 2 s max — don't block SSR streaming longer
+const STALE_TIME_MS = 5 * 60 * 1_000; // 5 min — matches router.tsx defaultOptions
 
 interface ApiProject {
   id: number;
@@ -85,31 +85,35 @@ interface ApiCredential {
   isActive: boolean;
 }
 
-async function getJson<T>(path: string): Promise<T | null> {
-  const url = `${apiOrigin()}/api/v1/public/${path}`;
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+}
+const contentMemoryCache = new Map<string, CacheEntry<unknown>>();
+const CACHE_TTL_MS = 60_000;
+
+async function fetchFromApi<T>(url: string): Promise<T | null> {
   try {
     const response = await fetch(url, {
       headers: { accept: "application/json" },
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
     if (!response.ok) {
-      // Log HTTP-level failures (4xx/5xx) so they surface in devtools even
-      // when the UI gracefully renders empty — fixes PORTFOLIO-C1.
       console.error(
         `[content] API returned ${response.status} for ${url}. ` +
           "Content will be empty until the API recovers.",
       );
       return null;
     }
-    return (await response.json()) as T;
+    const data = (await response.json()) as T;
+    contentMemoryCache.set(url, { data, timestamp: Date.now() });
+    return data;
   } catch (error) {
-    // Distinguish abort/timeout (user navigated away) from real failures.
     const isAbort =
       error instanceof DOMException &&
       (error.name === "AbortError" || error.name === "TimeoutError");
 
     if (!isAbort) {
-      // Network error or unexpected throw — log with full detail.
       console.error(
         `[content] Failed to fetch ${url}:`,
         error,
@@ -118,6 +122,25 @@ async function getJson<T>(path: string): Promise<T | null> {
     }
     return null;
   }
+}
+
+async function getJson<T>(path: string): Promise<T | null> {
+  const url = `${apiOrigin()}/api/v1/public/${path}`;
+  const cached = contentMemoryCache.get(url) as CacheEntry<T> | undefined;
+  const now = Date.now();
+
+  if (cached) {
+    // If fresh, return immediately (0ms)
+    if (now - cached.timestamp < CACHE_TTL_MS) {
+      return cached.data;
+    }
+    // If stale, return stale data immediately and revalidate in background (SWR)
+    void fetchFromApi<T>(url);
+    return cached.data;
+  }
+
+  // Cold cache: fetch and await
+  return fetchFromApi<T>(url);
 }
 
 /** API project → portfolio Project. Bilingual API fields (v2 schema). */
@@ -148,8 +171,8 @@ function toPortfolioProject(dto: ApiProject): Project {
 
 export async function fetchPortfolioProjects(): Promise<Project[]> {
   const data = await getJson<ApiProject[]>("projects");
-  if (!data) return [];
-  return data.map(toPortfolioProject);
+  if (!data || !Array.isArray(data)) return [];
+  return data.filter(Boolean).map(toPortfolioProject);
 }
 
 /**
@@ -191,7 +214,8 @@ const ICON_BY_KEYWORD: ReadonlyArray<readonly [keyword: string, icon: SkillIcon]
   ["testing", "security"],
 ];
 
-function iconForCategory(category: string): SkillIcon {
+function iconForCategory(category?: string | null): SkillIcon {
+  if (!category || typeof category !== "string") return "architecture";
   const lower = category.toLowerCase();
   return ICON_BY_KEYWORD.find(([keyword]) => lower.includes(keyword))?.[1] ?? "architecture";
 }
@@ -200,16 +224,19 @@ export async function fetchPortfolioSkillGroups(): Promise<
   { title: string; icon: SkillIcon; skills: string[] }[]
 > {
   const data = await getJson<ApiSkill[]>("skills");
-  if (!data) return [];
+  if (!data || !Array.isArray(data)) return [];
   const groups = new Map<string, { icon: SkillIcon; skills: string[] }>();
-  for (const skill of [...data].sort((a, b) => a.order - b.order)) {
-    if (!skill.isActive) continue;
-    let group = groups.get(skill.category);
+  for (const skill of [...data].sort((a, b) => (a?.order ?? 0) - (b?.order ?? 0))) {
+    if (!skill || !skill.isActive) continue;
+    const cat = (typeof skill.category === "string" ? skill.category.trim() : "") || "General";
+    let group = groups.get(cat);
     if (!group) {
-      group = { icon: iconForCategory(skill.category), skills: [] };
-      groups.set(skill.category, group);
+      group = { icon: iconForCategory(cat), skills: [] };
+      groups.set(cat, group);
     }
-    group.skills.push(skill.name);
+    if (skill.name && typeof skill.name === "string") {
+      group.skills.push(skill.name);
+    }
   }
   return [...groups.entries()].map(([title, group]) => ({ title, ...group }));
 }
@@ -217,26 +244,26 @@ export async function fetchPortfolioSkillGroups(): Promise<
 function toCredentialItem(c: ApiCredential): CredentialItem {
   const draft = {
     id: `api-${c.id}`,
-    tab: c.tab as CredentialTab,
-    year: c.year,
-    period: { en: c.periodEn, ar: c.periodAr },
-    title: { en: c.titleEn, ar: c.titleAr },
-    org: { en: c.orgEn, ar: c.orgAr },
+    tab: (c.tab as CredentialTab) || "work",
+    year: c.year ?? "",
+    period: { en: c.periodEn ?? "", ar: c.periodAr ?? c.periodEn ?? "" },
+    title: { en: c.titleEn ?? "", ar: c.titleAr ?? c.titleEn ?? "" },
+    org: { en: c.orgEn ?? "", ar: c.orgAr ?? c.orgEn ?? "" },
     location: { en: c.locationEn ?? "", ar: c.locationAr ?? "" },
     summary: { en: c.summaryEn ?? "", ar: c.summaryAr ?? "" },
     highlights: { en: c.highlightsEn ?? [], ar: c.highlightsAr ?? [] },
     stack: c.stack ?? [],
     credentialId: c.credentialId ?? undefined,
     status: c.statusEn ? { en: c.statusEn, ar: c.statusAr ?? c.statusEn } : undefined,
-    featured: c.featured,
+    featured: Boolean(c.featured),
   };
   return draft as CredentialItem;
 }
 
 export async function fetchPortfolioCredentials(): Promise<CredentialItem[]> {
   const data = await getJson<ApiCredential[]>("credentials");
-  if (!data) return [];
-  return data.map(toCredentialItem);
+  if (!data || !Array.isArray(data)) return [];
+  return data.filter(Boolean).map(toCredentialItem);
 }
 
 export function usePortfolioProjects(): Project[] {
@@ -291,5 +318,23 @@ export function usePortfolioCategories(): string[] {
 export const portfolioProjectsQuery = {
   queryKey: ["content", "projects"] as const,
   queryFn: fetchPortfolioProjects,
+  staleTime: STALE_TIME_MS,
+};
+
+export const portfolioSkillGroupsQuery = {
+  queryKey: ["content", "skill-groups"] as const,
+  queryFn: fetchPortfolioSkillGroups,
+  staleTime: STALE_TIME_MS,
+};
+
+export const portfolioCredentialsQuery = {
+  queryKey: ["content", "credentials"] as const,
+  queryFn: fetchPortfolioCredentials,
+  staleTime: STALE_TIME_MS,
+};
+
+export const portfolioCategoriesQuery = {
+  queryKey: ["content", "categories"] as const,
+  queryFn: fetchPortfolioCategories,
   staleTime: STALE_TIME_MS,
 };

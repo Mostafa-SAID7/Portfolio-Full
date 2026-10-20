@@ -1,13 +1,13 @@
 import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, RouterLink],
   template: `
     <div class="flex min-h-screen bg-canvas text-ink">
       <!-- Brand panel (desktop only) -->
@@ -47,7 +47,7 @@ import { AuthService } from '../../../core/services/auth.service';
             </p>
           </div>
 
-          <form [formGroup]="signInForm" (ngSubmit)="onSubmit()" class="space-y-5" novalidate>
+          <form [formGroup]="signInForm" (ngSubmit)="onSubmit()" class="space-y-5" novalidate ngNativeValidate>
             <div>
               <label for="username" class="field-label">Username</label>
               <input

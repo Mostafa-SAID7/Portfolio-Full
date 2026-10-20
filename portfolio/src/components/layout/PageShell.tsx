@@ -1,7 +1,12 @@
-import type { ReactNode, Ref } from "react";
+import { type ReactNode, type Ref, lazy, Suspense } from "react";
 import { Navbar } from "@/components/layout/Navbar";
-import { Footer } from "@/components/layout/Footer";
 import { cn } from "@/lib/utils";
+
+// Footer is below the fold — defer its module evaluation and icon imports
+// out of the hydration critical path entirely.
+const Footer = lazy(() =>
+  import("@/components/layout/Footer").then((m) => ({ default: m.Footer }))
+);
 
 interface PageShellProps {
   children: ReactNode;
@@ -48,7 +53,9 @@ export function PageShell({
       >
         {children}
       </main>
-      <Footer />
+      <Suspense fallback={null}>
+        <Footer />
+      </Suspense>
     </div>
   );
 }

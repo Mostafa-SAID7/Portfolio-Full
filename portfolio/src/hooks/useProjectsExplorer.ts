@@ -66,11 +66,11 @@ const PER_PAGE: Record<ProjectView, number> = { grid: 9, list: 6 };
 
 function matchesQuery(project: Project, query: string) {
   return (
-    project.title.toLowerCase().includes(query) ||
-    project.description.toLowerCase().includes(query) ||
-    project.category.toLowerCase().includes(query) ||
+    (project.title ?? "").toLowerCase().includes(query) ||
+    (project.description ?? "").toLowerCase().includes(query) ||
+    (project.category ?? "").toLowerCase().includes(query) ||
     (project.client?.toLowerCase().includes(query) ?? false) ||
-    project.tech.some((tech) => tech.toLowerCase().includes(query))
+    (project.tech ?? []).some((tech) => (tech ?? "").toLowerCase().includes(query))
   );
 }
 
