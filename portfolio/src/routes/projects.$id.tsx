@@ -33,17 +33,9 @@ import { absoluteUrl } from "@/lib/site";
 
 export const Route = createFileRoute("/projects/$id")({
   loader: async ({ context, params }) => {
-    // The project list comes from the centralized PortfolioAPI; TanStack
-    // Query dedupes the fetch across the SSR render and the client.
-    // API is the single source of truth: an id the API doesn't return (or an
-    // unreachable API, which yields an empty list) throws notFound() — the
-    // bundled src/data catalog is never consulted as a lookup fallback.
     const list = await context.queryClient.ensureQueryData(portfolioProjectsQuery);
     const project = resolvePortfolioProject(list, params.id);
     if (!project) throw notFound();
-    // Links that were published before the API owned the slug still resolve,
-    // but they are redirected to the canonical link so every indexed URL
-    // ends up (and stays) on one address.
     if (project.id !== params.id) {
       throw redirect({ to: "/projects/$id", params: { id: project.id } });
     }
@@ -93,8 +85,6 @@ export const Route = createFileRoute("/projects/$id")({
 
 function ProjectNotFound() {
   const { tr } = useI18n();
-  // A dead link (e.g. a project that was renamed before the API owned the
-  // slug) must not be a dead end: offer the live projects of the API.
   const projects = usePortfolioProjects();
 
   return (
@@ -133,11 +123,7 @@ function ProjectNotFound() {
 
 function ProjectDetail() {
   const { project } = Route.useLoaderData();
-  // Same cached API list the loader primed (live backend data).
   const projects = usePortfolioProjects();
-  // Presentation enrichment only (case-study copy matched by id/category) —
-  // membership always comes from the API list, so deleted projects never
-  // reappear here.
   const detail = getProjectDetail(project);
   const related = getRelatedProjects(project, projects);
 
@@ -145,6 +131,14 @@ function ProjectDetail() {
   const index = projects.findIndex((item) => item.id === project.id);
   const nextProject = projects[index + 1] ?? null;
   const prevProject = index > 0 ? (projects[index - 1] ?? null) : null;
+
+  const hasChallengeSolution = Boolean(detail.challenge?.trim() || detail.solution?.trim());
+  const hasFeatures = detail.features.length > 0;
+  const hasArchitecture = detail.architecture.length > 0;
+  const hasResponsibilities = detail.responsibilities.length > 0;
+  const hasProcess = detail.process.length > 0;
+  const hasOutcomes = detail.outcomes.length > 0;
+  const hasHighlights = detail.highlights.length > 0;
 
   return (
     <PageShell contained={false} padded={false} disableOverflowX className="nav-offset pb-24">
@@ -155,18 +149,18 @@ function ProjectDetail() {
         className="container-page page-gutter"
       >
         <ProjectDetailHeader project={project} />
-        <ProjectHighlights highlights={detail.highlights} />
+        {hasHighlights && <ProjectHighlights highlights={detail.highlights} />}
 
         <div className="grid grid-cols-1 items-start gap-12 lg:grid-cols-12 lg:gap-16">
           <div className="space-y-20 lg:col-span-8">
             <ProjectShowcase project={project} />
             <ProjectOverview detail={detail} />
-            <ProjectChallengeSolution detail={detail} />
-            <ProjectFeatures detail={detail} />
-            <ProjectArchitecture techs={project.tech} detail={detail} />
-            <ProjectResponsibilities detail={detail} />
-            <ProjectProcess detail={detail} />
-            <ProjectOutcomes detail={detail} />
+            {hasChallengeSolution && <ProjectChallengeSolution detail={detail} />}
+            {hasFeatures && <ProjectFeatures detail={detail} />}
+            {hasArchitecture && <ProjectArchitecture techs={project.tech} detail={detail} />}
+            {hasResponsibilities && <ProjectResponsibilities detail={detail} />}
+            {hasProcess && <ProjectProcess detail={detail} />}
+            {hasOutcomes && <ProjectOutcomes detail={detail} />}
           </div>
 
           <ProjectBrief project={project} detail={detail} hasLiveSite={hasLiveSite} />
