@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ProjectService } from '../../../core/services/project.service';
 import { Project } from '../../../core/models/project.model';
-import { resolvePortfolioImage } from '../../../core/portfolio-origin';
+import { isApiHostedImage, resolvePortfolioImage } from '../../../core/portfolio-origin';
 import { ConfirmDialogService } from '../../../shared/confirm-dialog.component';
 import { PaginatorComponent } from '../../../shared/paginator.component';
 
@@ -192,11 +192,15 @@ export class ProjectListComponent implements OnInit {
   /** Hide a broken cover so the gradient + letter fallback shows through. */
   onCoverError(event: Event, project: Project): void {
     (event.currentTarget as HTMLImageElement).style.display = 'none';
-    // Flag it: the file is referenced by the database but missing on the
-    // server (e.g. it was uploaded through a different deployment, or the
-    // upload folder was wiped by a redeploy). Silently hiding the image left
-    // the admin with a gradient and no clue why.
-    this.brokenCovers.update(ids => new Set(ids).add(project.id));
+    // Flag it ONLY for an API-hosted upload (/api/files/...): those can be
+    // missing on the server (uploaded through a different deployment, or the
+    // upload folder was wiped by a redeploy) and the admin can fix that by
+    // uploading again. A bundled portfolio cover is served by the portfolio
+    // app, which the dashboard cannot reach - a failed preview there says
+    // nothing about the live site, so it must not raise an alarm.
+    if (isApiHostedImage(project.imageUrl)) {
+      this.brokenCovers.update(ids => new Set(ids).add(project.id));
+    }
   }
 
   /** True when the cover image failed to load for this project. */

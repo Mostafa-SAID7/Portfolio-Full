@@ -8,7 +8,7 @@ import { CategoryService } from '../../../core/services/category.service';
 import { SkillService } from '../../../core/services/skill.service';
 import { TagsInputComponent } from '../../../shared/tags-input.component';
 import { ProjectMetric, ProjectPayload } from '../../../core/models/project.model';
-import { resolvePortfolioImage } from '../../../core/portfolio-origin';
+import { isApiHostedImage, resolvePortfolioImage } from '../../../core/portfolio-origin';
 import { SelectFieldComponent } from '../../../shared/select-field.component';
 
 const MAX_COVER_BYTES = 10 * 1024 * 1024; // API-side cap is 10MB.
@@ -356,7 +356,13 @@ export class ProjectFormComponent implements OnInit {
    */
   onPreviewError(event: Event): void {
     (event.currentTarget as HTMLImageElement).style.display = 'none';
-    this.coverBroken.set(true);
+    // Only an API-hosted upload can be missing in a way the admin can fix
+    // (upload it again). A bundled portfolio cover is served by the portfolio
+    // app, which the dashboard cannot reach, so a failed preview there says
+    // nothing about the live site and must not raise an alarm.
+    if (isApiHostedImage(this.projectForm.getRawValue().imageUrl)) {
+      this.coverBroken.set(true);
+    }
   }
 
   onFileSelected(event: Event): void {

@@ -46,6 +46,19 @@ const RESPONSIVE_BASES = new Set([
 const stripExtension = (path: string) => path.replace(/\.(png|jpe?g|webp|avif)$/i, '');
 
 /**
+ * True for a cover that is HOSTED BY THE API (`/api/files/...`).
+ *
+ * Only those can be "missing on the server" in a way the admin can fix by
+ * uploading again. A bundled portfolio cover (e.g. `/projects/angular/zyro-electric.png`)
+ * is served by the portfolio app itself - the dashboard cannot even fetch it
+ * (different app in production), so a failed preview there says nothing about
+ * the live site and must not raise an alarm.
+ */
+export function isApiHostedImage(imageUrl: string | null | undefined): boolean {
+  return !!imageUrl && imageUrl.startsWith('/api/files/');
+}
+
+/**
  * Resolve a stored imageUrl (absolute URL or portfolio-relative path) to a
  * loadable URL. Responsive images pick the requested WebP variant
  * (`640` for cards/thumbnails, `1280` for detail heroes).
