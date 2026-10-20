@@ -148,25 +148,30 @@ const MAX_COVER_BYTES = 10 * 1024 * 1024; // API-side cap is 10MB.
                 <code>App_Data/uploads</code> folder was replaced during a redeploy.)
               </p>
             }
-          } @else {
-            <div
-              class="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-line/20 bg-line/[0.03] px-6 py-8 text-center transition"
-              [class.border-accent/50]="dragActive()"
-              role="button"
-              tabindex="0"
-              aria-label="Upload cover image"
-              (click)="coverInput.click()"
-              (keydown.enter)="coverInput.click()"
-              (keydown.space)="$event.preventDefault(); coverInput.click()"
-              (dragover)="$event.preventDefault(); dragActive.set(true)"
-              (dragleave)="dragActive.set(false)"
-              (drop)="onDrop($event)"
-            >
-              <svg class="h-8 w-8 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16v1a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-1m-5-4-4-4m0 0-4 4m4-4v12"/></svg>
-              <span class="text-sm font-semibold text-ink">Drop an image here, or click to browse</span>
-              <span class="text-xs text-muted">JPG, PNG, WebP, GIF or AVIF · up to 10MB</span>
-            </div>
           }
+
+          <!-- The upload control is ALWAYS available: a project that still points at a
+               bundled cover (e.g. /projects/angular/zyro-electric.png) must be
+               replaceable, otherwise the admin can never change it. -->
+          <div
+            class="mt-3 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-line/20 bg-line/[0.03] px-6 py-8 text-center transition"
+            [class.border-accent/50]="dragActive()"
+            role="button"
+            tabindex="0"
+            aria-label="Upload cover image"
+            (click)="coverInput.click()"
+            (keydown.enter)="coverInput.click()"
+            (keydown.space)="$event.preventDefault(); coverInput.click()"
+            (dragover)="$event.preventDefault(); dragActive.set(true)"
+            (dragleave)="dragActive.set(false)"
+            (drop)="onDrop($event)"
+          >
+            <svg class="h-8 w-8 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16v1a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-1m-5-4-4-4m0 0-4 4m4-4v12"/></svg>
+            <span class="text-sm font-semibold text-ink">
+              {{ coverPreview() ? 'Drop a new image here to replace the current cover' : 'Drop an image here, or click to browse' }}
+            </span>
+            <span class="text-xs text-muted">JPG, PNG, WebP, GIF or AVIF · up to 10MB</span>
+          </div>
           <input
             #coverInput
             type="file"
