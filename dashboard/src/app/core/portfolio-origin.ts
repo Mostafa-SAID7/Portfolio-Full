@@ -59,6 +59,13 @@ export function isApiHostedImage(imageUrl: string | null | undefined): boolean {
 }
 
 /**
+ * Default cover for a project that has no image yet. It is used until a cover
+ * is uploaded through the dashboard - the API stays the source of truth, so the
+ * placeholder never overrides a real image.
+ */
+export const PLACEHOLDER_COVER = '/placeholder.svg';
+
+/**
  * Resolve a stored imageUrl (absolute URL or portfolio-relative path) to a
  * loadable URL. Responsive images pick the requested WebP variant
  * (`640` for cards/thumbnails, `1280` for detail heroes).
@@ -67,7 +74,8 @@ export function resolvePortfolioImage(
   imageUrl: string | null | undefined,
   variant: 640 | 1280 = 640
 ): string | null {
-  if (!imageUrl) return null;
+  // No cover yet -> the shared placeholder image.
+  if (!imageUrl) return PLACEHOLDER_COVER;
   if (/^(https?:)?\/\//.test(imageUrl) || imageUrl.startsWith('data:')) return imageUrl;
 
   // Backend-owned uploads (`/api/files/...`) are served by the Portfolio API.

@@ -345,7 +345,11 @@ export class ProjectFormComponent implements OnInit {
 
   /** Resolved preview of the current cover (uploaded or external URL). */
   coverPreview(): string | null {
-    return resolvePortfolioImage(this.projectForm.getRawValue().imageUrl);
+    const imageUrl = this.projectForm.getRawValue().imageUrl;
+    // No cover yet -> null, so the form keeps showing the drop zone (the
+    // placeholder image is for the LIST, not for the upload control).
+    if (!imageUrl) return null;
+    return resolvePortfolioImage(imageUrl);
   }
 
   /**

@@ -16,6 +16,13 @@
  */
 import { apiOrigin } from "@/lib/api-origin";
 
+/**
+ * Default cover for a project that has no image yet. It is used until a cover
+ * is uploaded through the dashboard - the API stays the source of truth, so the
+ * placeholder never overrides a real image.
+ */
+export const PLACEHOLDER_COVER = "/images/placeholder.svg";
+
 /** Bases that have -640/-1280 WebP variants on disk. */
 const RESPONSIVE_BASES = new Set([
   "/api/Marketing-Mvc",

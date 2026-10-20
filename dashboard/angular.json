@@ -23,6 +23,11 @@
                 "output": "/"
               },
               "src/assets",
+              {
+                "glob": "placeholder.svg",
+                "input": "public",
+                "output": "/"
+              },
               "src/manifest.json"
             ],
             "styles": ["src/styles.css"],

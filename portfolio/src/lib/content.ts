@@ -20,6 +20,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { apiOrigin } from "@/lib/api-origin";
+import { PLACEHOLDER_COVER } from "@/lib/image";
 import {
   projects as localProjects,
   skillGroups as localSkillGroups,
@@ -139,7 +140,9 @@ function toPortfolioProject(dto: ApiProject): Project {
     status: dto.status ?? meta?.status,
     badges: dto.badges?.length ? dto.badges : (meta?.badges ?? (dto.featured ? ["Featured"] : undefined)),
     github: dto.githubUrl ?? undefined,
-    image: dto.imageUrl ?? undefined,
+    // No cover yet -> the shared placeholder. It is replaced as soon as a
+    // cover is uploaded (the API decides, this is only the default).
+    image: dto.imageUrl ?? PLACEHOLDER_COVER,
     metrics: dto.metrics?.length ? dto.metrics : meta?.metrics,
     gradient: dto.gradient ?? meta?.gradient,
   };
