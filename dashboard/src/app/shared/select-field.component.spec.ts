@@ -94,8 +94,10 @@ describe('SelectFieldComponent', () => {
     input.value = '新しい';
     input.dispatchEvent(new Event('input', { bubbles: true }));
     field.open.set(true);
-    field.onKeydown(new KeyboardEvent('keydown', { key: 'Enter', isComposing: true, cancelable: true }));
-    expect(fixture.componentInstance.control.value).toBe('');
+    const enter = new KeyboardEvent('keydown', { key: 'Enter', isComposing: true, cancelable: true });
+    field.onKeydown(enter);
+    expect(enter.defaultPrevented).toBeFalse();
+    expect(fixture.componentInstance.control.value).toBe('新しい');
     expect(field.open()).toBeTrue();
   });
 
