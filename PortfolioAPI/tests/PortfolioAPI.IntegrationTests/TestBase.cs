@@ -283,6 +283,11 @@ namespace PortfolioAPI.IntegrationTests
             return SaveFileAsync(imageStream, fileName, "image/jpeg");
         }
 
+        public Task<string> SaveOptimizedImageAsync(Stream imageStream, string? projectSlug = null)
+        {
+            return SaveFileAsync(imageStream, (projectSlug ?? "image") + ".webp", "image/webp");
+        }
+
         public Task<string> SaveDocumentAsync(Stream documentStream, string fileName)
         {
             return SaveFileAsync(documentStream, fileName, "application/pdf");

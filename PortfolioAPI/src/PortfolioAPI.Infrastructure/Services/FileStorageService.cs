@@ -1,4 +1,7 @@
 using Microsoft.Extensions.Configuration;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Webp;
+using SixLabors.ImageSharp.Processing;
 
 namespace PortfolioAPI.Infrastructure.Services
 {
@@ -117,6 +120,82 @@ namespace PortfolioAPI.Infrastructure.Services
                 throw new InvalidOperationException("The file content does not match its extension.");
 
             return await SaveBytesAsync(sourceBytes, ".webp", descriptiveName);
+        }
+
+        public async Task<string> SaveOptimizedImageAsync(Stream imageStream, string? projectSlug = null)
+        {
+            ArgumentNullException.ThrowIfNull(imageStream);
+
+            var sourceBytes = await ReadCappedAsync(imageStream);
+            if (sourceBytes.Length == 0)
+                throw new InvalidOperationException("The uploaded file is empty.");
+
+            // Validate magic bytes against allowed image types
+            var (contentType, sniff) = DetectImageType(sourceBytes);
+            if (sniff is null)
+                throw new InvalidOperationException("Only JPG, PNG, GIF and WebP image files are allowed.");
+            if (!sniff(sourceBytes))
+                throw new InvalidOperationException("The file content does not match its extension.");
+
+            // Process image: resize if width > 1600px (maintain aspect ratio), convert to WebP quality 80
+            using var image = Image.Load(sourceBytes);
+            if (image.Width > 1600)
+            {
+                var scale = 1600.0 / image.Width;
+                var newHeight = (int)Math.Round(image.Height * scale);
+                image.Mutate(x => x.Resize(1600, newHeight));
+            }
+
+            using var outputStream = new MemoryStream();
+            var encoder = new WebpEncoder { Quality = 80 };
+            await image.SaveAsync(outputStream, encoder);
+            var optimizedBytes = outputStream.ToArray();
+
+            // Sanitize slug for file name
+            var safeSlug = SanitizeSlug(projectSlug);
+            var uniqueFileName = GetUniqueFileName(safeSlug);
+
+            var filePath = Path.Combine(_storagePath, uniqueFileName);
+            await File.WriteAllBytesAsync(filePath, optimizedBytes);
+            return $"{_baseUrl}/{uniqueFileName}";
+        }
+
+        private static (string ContentType, Func<byte[], bool>? Sniff) DetectImageType(byte[] bytes)
+        {
+            if (IsJpeg(bytes)) return ("image/jpeg", IsJpeg);
+            if (IsPng(bytes)) return ("image/png", IsPng);
+            if (IsGif(bytes)) return ("image/gif", IsGif);
+            if (IsWebp(bytes)) return ("image/webp", IsWebp);
+            return (string.Empty, null);
+        }
+
+        private static string SanitizeSlug(string? slug)
+        {
+            if (string.IsNullOrWhiteSpace(slug))
+                return "image";
+
+            // Normalize to FormD, lowercase, replace non-alphanumeric with -
+            var normalized = slug.Normalize(System.Text.NormalizationForm.FormD).ToLowerInvariant();
+            var slugified = System.Text.RegularExpressions.Regex.Replace(normalized, @"[^a-z0-9]+", "-").Trim('-');
+            return string.IsNullOrWhiteSpace(slugified) ? "image" : slugified;
+        }
+
+        private string GetUniqueFileName(string baseSlug)
+        {
+            var fileName = $"{baseSlug}.webp";
+            var filePath = Path.Combine(_storagePath, fileName);
+            if (!File.Exists(filePath))
+                return fileName;
+
+            var counter = 2;
+            while (true)
+            {
+                fileName = $"{baseSlug}-{counter}.webp";
+                filePath = Path.Combine(_storagePath, fileName);
+                if (!File.Exists(filePath))
+                    return fileName;
+                counter++;
+            }
         }
 
         public async Task<string> SaveDocumentAsync(Stream documentStream, string fileName)
@@ -268,6 +347,7 @@ namespace PortfolioAPI.Infrastructure.Services
         Task<bool> FileExistsAsync(string fileUrl);
         Task<long> GetFileSizeAsync(string fileUrl);
         Task<string> SaveImageAsync(Stream imageStream, string fileName, string? projectTitle = null);
+        Task<string> SaveOptimizedImageAsync(Stream imageStream, string? projectSlug = null);
         Task<string> SaveDocumentAsync(Stream documentStream, string fileName);
     }
 }

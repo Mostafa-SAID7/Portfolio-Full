@@ -34,7 +34,7 @@ namespace PortfolioAPI.Controllers
         /// </summary>
         [HttpPost("image")]
         [RequestSizeLimit(12 * 1024 * 1024)]
-        public async Task<IActionResult> UploadImage(IFormFile? file, [FromForm] string? projectTitle)
+        public async Task<IActionResult> UploadImage(IFormFile? file, [FromForm] string? projectTitle, [FromForm] string? slug)
         {
             if (file is null || file.Length == 0)
             {
@@ -44,7 +44,7 @@ namespace PortfolioAPI.Controllers
             try
             {
                 await using var stream = file.OpenReadStream();
-                var url = await _storage.SaveImageAsync(stream, file.FileName, projectTitle);
+                var url = await _storage.SaveOptimizedImageAsync(stream, slug ?? projectTitle);
                 var storedSize = await _storage.GetFileSizeAsync(url);
                 return Ok(new { url, fileName = Path.GetFileName(url), size = storedSize });
             }
