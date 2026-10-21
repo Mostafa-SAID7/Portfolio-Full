@@ -248,6 +248,7 @@ export class SelectFieldComponent implements ControlValueAccessor {
         if (this.open()) {
           const active = this.activeValue();
           if (active !== null && options.some(option => option.value === active)) this.select(active);
+          else if (this.allowCustom && this.customValue) this.select(this.customValue);
         } else {
           this.toggle();
         }

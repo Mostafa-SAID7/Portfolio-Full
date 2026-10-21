@@ -2,7 +2,7 @@ import { afterRenderEffect, Component, ElementRef, HostListener, computed, injec
 import { CommonModule, DOCUMENT, isPlatformBrowser } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { NavigationEnd, NavigationStart, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { filter, map, startWith } from 'rxjs';
+import { filter, interval, map, startWith } from 'rxjs';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { AuthService } from './core/services/auth.service';
 import { ContactService } from './core/services/contact.service';
@@ -106,9 +106,11 @@ export class AppComponent {
     return 'Overview';
   }
 
-  readonly todayLabel = computed(() =>
-    new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'short', day: 'numeric' }).format(new Date())
-  );
+  private readonly clockTick = toSignal(interval(60_000).pipe(startWith(0)), { initialValue: 0 });
+  readonly todayLabel = computed(() => {
+    this.clockTick();
+    return new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'short', day: 'numeric' }).format(new Date());
+  });
 
   constructor() {
     // Show which API instance the dashboard is talking to.

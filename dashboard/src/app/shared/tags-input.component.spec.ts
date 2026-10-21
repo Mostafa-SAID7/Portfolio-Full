@@ -69,6 +69,18 @@ describe('TagsInputComponent', () => {
     expect(field.open()).toBeFalse();
   });
 
+  it('keeps Home and End available for caret movement when there are no suggestions', () => {
+    type('No matching item');
+    key('ArrowDown');
+    expect(field.open()).toBeTrue();
+    const home = new KeyboardEvent('keydown', { key: 'Home', bubbles: true, cancelable: true });
+    input.dispatchEvent(home);
+    const end = new KeyboardEvent('keydown', { key: 'End', bubbles: true, cancelable: true });
+    input.dispatchEvent(end);
+    expect(home.defaultPrevented).toBeFalse();
+    expect(end.defaultPrevented).toBeFalse();
+  });
+
   it('preserves a typed draft when Escape is pressed with the suggestion list closed', () => {
     type('Vue');
     field.onDocumentClick(new MouseEvent('click'));

@@ -106,7 +106,7 @@ describe('ContentComponent', () => {
     component.newCategoryNameAr = ' الروبوتات ';
     await render();
     component.addCategory(form());
-    expect(categories.createCategory).toHaveBeenCalledOnceWith({ nameEn: 'Robotics', nameAr: 'الروبوتات', order: 0, isActive: true });
+    expect(categories.createCategory).toHaveBeenCalledOnceWith({ nameEn: 'Robotics', nameAr: 'الروبوتات', order: 1, isActive: true });
     categories.categories.set([category]);
     component.startEditingCategory(category);
     expect(component.categoryDraftNameAr).toBe(category.nameAr);
@@ -139,7 +139,7 @@ describe('ContentComponent', () => {
     component.addSkill(form());
     expect(skills.createSkill).toHaveBeenCalledOnceWith({
       nameEn: 'Angular', nameAr: 'أنجولار', categoryEn: 'Frontend', categoryAr: 'واجهات', proficiency: 70,
-      iconUrl: null, descriptionEn: null, descriptionAr: null, order: 0, isActive: true
+      iconUrl: null, descriptionEn: null, descriptionAr: null, order: 1, isActive: true
     });
   });
 

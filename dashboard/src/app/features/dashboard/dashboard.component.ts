@@ -135,7 +135,7 @@ export class DashboardComponent implements OnInit {
   });
 
   ngOnInit(): void {
-    this.reload();
+    this.reload(false);
   }
 
   private loadProjects(): void {
@@ -150,14 +150,14 @@ export class DashboardComponent implements OnInit {
     this.experienceService.loadExperience().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({ error: () => undefined });
   }
 
-  private loadMessages(): void {
-    this.contactService.loadMessages({ force: true }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({ error: () => undefined });
+  private loadMessages(force: boolean): void {
+    this.contactService.loadMessages({ force }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({ error: () => undefined });
   }
 
-  reload(): void {
+  reload(forceMessages = true): void {
     this.loadProjects();
     this.loadSkills();
     this.loadExperience();
-    this.loadMessages();
+    this.loadMessages(forceMessages);
   }
 }

@@ -228,7 +228,7 @@
                 </div>
                 <p class="mt-0.5 text-sm text-accent-text">{{ item.companyEn }}@if (item.locationEn) { — {{ item.locationEn }} }</p>
                 <p class="text-sm text-soft" lang="ar" dir="rtl">{{ item.positionAr }} · {{ item.companyAr }}@if (item.locationAr) { — {{ item.locationAr }} }</p>
-                <p class="mt-1 text-xs text-muted">{{ item.startDate.slice(0, 10) | date: 'MMM y' }} — {{ item.current ? 'Present' : ((item.endDate?.slice(0, 10) | date: 'MMM y') || '—') }}</p>
+                <p class="mt-1 text-xs text-muted">{{ item.startDate | date: 'MMM y' : 'UTC' }} — {{ item.current ? 'Present' : ((item.endDate | date: 'MMM y' : 'UTC') || '—') }}</p>
                 <p class="mt-2 line-clamp-2 text-sm leading-6 text-soft">{{ item.descriptionEn }}</p>
                 <p class="mt-1 line-clamp-2 text-sm leading-6 text-soft" lang="ar" dir="rtl">{{ item.descriptionAr }}</p>
                 @if (item.technologies.length) {

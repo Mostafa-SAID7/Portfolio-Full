@@ -63,6 +63,7 @@ export class ProjectListComponent implements OnInit {
   }
 
   readonly projectCount = computed(() => this.service.projects().length);
+  readonly hasActiveQuery = computed(() => this.listState.query().trim().length > 0);
 
   readonly filteredProjects = computed(() => {
     const needle = this.listState.query().trim().toLowerCase();
@@ -106,6 +107,23 @@ export class ProjectListComponent implements OnInit {
   /** True when the cover image failed to load for this project. */
   coverBroken(project: Project): boolean {
     return this.brokenCovers().has(project.id);
+  }
+
+  coverGradient(value: string | null): string | null {
+    if (!value) return null;
+    if (/^(?:linear|radial|conic)-gradient\(/i.test(value)) return value;
+    const colors: Record<string, string> = {
+      'blue-500': '#3b82f6', 'purple-500': '#a855f7', 'indigo-500': '#6366f1',
+      'cyan-500': '#06b6d4', 'teal-500': '#14b8a6', 'emerald-500': '#10b981',
+      'green-500': '#22c55e', 'lime-500': '#84cc16', 'amber-500': '#f59e0b',
+      'orange-500': '#f97316', 'rose-500': '#f43f5e', 'pink-500': '#ec4899',
+      'red-500': '#ef4444', 'sky-500': '#0ea5e9', 'violet-500': '#8b5cf6',
+      'fuchsia-500': '#d946ef', 'yellow-500': '#eab308'
+    };
+    const match = value.match(/^from-([a-z]+-\d+)\s+to-([a-z]+-\d+)$/);
+    return match && colors[match[1]] && colors[match[2]]
+      ? `linear-gradient(to right, ${colors[match[1]]}, ${colors[match[2]]})`
+      : null;
   }
 
   ngOnInit(): void {

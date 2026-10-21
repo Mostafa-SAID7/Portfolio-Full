@@ -99,7 +99,7 @@ export class TagsInputComponent implements ControlValueAccessor {
       }
       case 'Home':
       case 'End':
-        if (this.open()) {
+        if (this.open() && suggestions.length > 0) {
           event.preventDefault();
           this.active.set(suggestions[event.key === 'Home' ? 0 : suggestions.length - 1] ?? null);
         }

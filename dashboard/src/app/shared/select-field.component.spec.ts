@@ -73,6 +73,20 @@ describe('SelectFieldComponent', () => {
     expect(fixture.componentInstance.control.value).toBe('C');
   });
 
+  it('commits a typed custom value on Enter when no option is active', () => {
+    fixture.componentInstance.custom = true;
+    fixture.detectChanges();
+    const input = trigger() as HTMLInputElement;
+    input.value = 'New category';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    key('ArrowDown');
+    input.value = 'Another category';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    key('Enter');
+    expect(fixture.componentInstance.control.value).toBe('Another category');
+    expect(field.open()).toBeFalse();
+  });
+
   it('marks an unchanged control touched on blur and closes on Escape/Tab', () => {
     key('ArrowDown');
     key('Escape');

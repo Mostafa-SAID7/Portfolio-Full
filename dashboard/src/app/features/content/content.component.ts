@@ -142,7 +142,7 @@ export class ContentComponent implements OnInit {
     if (form.invalid || this.categoryFormError) { form.control.markAllAsTouched(); return; }
     this.mutate('categories', this.categoryService.createCategory({
       nameEn: this.newCategoryName.trim(), nameAr: this.newCategoryNameAr.trim(),
-      order: this.categoryService.categories().length, isActive: true
+      order: Math.max(0, ...this.categoryService.categories().map(category => category.order)) + 1, isActive: true
     }), () => {
       this.newCategoryName = '';
       this.newCategoryNameAr = '';
@@ -224,7 +224,7 @@ export class ContentComponent implements OnInit {
       nameEn: this.newSkillName.trim(), nameAr: this.newSkillNameAr.trim(),
       categoryEn: this.newSkillCategory.trim(), categoryAr: this.newSkillCategoryAr.trim(),
       proficiency: this.newSkillProficiency, iconUrl: null, descriptionEn: null, descriptionAr: null,
-      order: 0, isActive: true
+      order: Math.max(0, ...this.skillService.skills().map(skill => skill.order)) + 1, isActive: true
     }), () => {
       this.newSkillName = this.newSkillNameAr = this.newSkillCategory = this.newSkillCategoryAr = '';
       this.newSkillProficiency = 70;
