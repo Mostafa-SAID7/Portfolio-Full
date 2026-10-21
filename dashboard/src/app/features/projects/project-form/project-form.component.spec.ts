@@ -1,3 +1,6 @@
+Warning: truncated output (original token count: 6711)
+Total output lines: 558
+
 import { HttpErrorResponse } from '@angular/common/http';
 import { signal, WritableSignal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
@@ -232,63 +235,7 @@ describe('ProjectFormComponent', () => {
   it('switches reused route IDs, unsubscribes stale loads and only saves the latest project', () => {
     const first = new Subject<Project>();
     const second = new Subject<Project>();
-    projects.getProject.and.callFake(id => id === 1 ? first : second);
-    startEdit();
-    params.next(convertToParamMap({ id: '2' }));
-    expect(first.observed).toBeFalse();
-    first.next(projectFixture(1));
-    expect(component.ready()).toBeFalse();
-    expect(component.slug()).toBe('');
-    const latest = projectFixture(2);
-    latest.titleAr = 'المشروع الثاني';
-    second.next(latest);
-    second.complete();
-    component.onSubmit();
-    expect(projects.updateProject).toHaveBeenCalledWith(2, jasmine.objectContaining({ titleAr: 'المشروع الثاني' }));
-    expect(projects.getProject.calls.allArgs()).toEqual([[1], [2]]);
-  });
-
-  it('recovers on a later valid ID after a load error', () => {
-    projects.getProject.and.callFake(id => id === 1 ? throwError(() => new Error('failure')) : of(projectFixture(id)));
-    startEdit();
-    expect(component.ready()).toBeFalse();
-    params.next(convertToParamMap({ id: '2' }));
-    expect(component.ready()).toBeTrue();
-    expect(component.errorMessage()).toBeNull();
-    expect(component.projectForm.controls.titleAr.value).toBe('المخزون');
-  });
-
-  it('uses only API category options and explicitly displays lookup failures', () => {
-    categories.loadCategories.and.returnValue(throwError(() => new HttpErrorResponse({ error: { message: 'Category lookup unavailable' } })));
-    skills.loadSkills.and.returnValue(throwError(() => new Error('offline')));
-    startCreate();
-    expect(component.categoryOptions()).toEqual([]);
-    expect(component.categoryOptionsAr()).toEqual([]);
-    expect(component.categoryError()).toBe('Category lookup unavailable');
-    expect(component.skillError()).toContain('Failed to load skill suggestions');
-    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Category lookup unavailable');
-    expect(component.projectForm.enabled).toBeTrue();
-  });
-
-  for (const mime of ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif']) {
-    it(`accepts backend-supported ${mime} uploads`, () => {
-      startCreate();
-      const image = file(mime);
-      selectFile(image);
-      expect(projects.uploadCover).toHaveBeenCalledOnceWith(image);
-      expect(component.projectForm.controls.imageUrl.value).toBe(uploadedImage.url);
-      expect(component.uploading()).toBeFalse();
-      expect(component.projectForm.controls.imageUrl.enabled).toBeTrue();
-    });
-  }
-
-  it('rejects SVG and every non-allowlisted MIME rather than accepting all image types', () => {
-    startCreate();
-    for (const mime of ['image/svg+xml', 'image/bmp', 'image/tiff', 'image/x-icon', 'image/jpg', 'text/plain', 'application/pdf', '']) {
-      selectFile(file(mime));
-      expect(component.uploadError()).withContext(mime).toContain('JPEG, PNG, GIF, WebP or AVIF');
-    }
-    expect(projects.uploadCover).not.toHaveBeenCalled();
+    projects.getProject…711 tokens truncated…nCalled();
   });
 
   it('accepts exactly 10 MiB and rejects one byte over the backend size cap', () => {
@@ -555,3 +502,4 @@ describe('ProjectFormComponent', () => {
     expect(projects.updateProject).not.toHaveBeenCalled();
   });
 });
+

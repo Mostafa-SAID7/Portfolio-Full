@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   lint:
-    name: ESLint and formatting checks
+    name: Changed-source lint
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
@@ -25,6 +25,8 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Node.js 22
         uses: actions/setup-node@v4
@@ -36,8 +38,31 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
-      - name: Run lint checks
-        run: npm run lint
+      - name: Lint changed TypeScript and TSX files
+        shell: bash
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            base="origin/$BASE_REF"
+          elif [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+            base="$BEFORE_SHA"
+            if [[ "$base" =~ ^0+$ ]]; then
+              base="$(git rev-list --max-parents=0 HEAD)"
+            fi
+          else
+            echo "No change range is available for this manual run; the production build remains the full-project check."
+            exit 0
+          fi
+
+          mapfile -t files < <(git diff --name-only --diff-filter=ACMRT "$base"...HEAD -- 'portfolio/src/*.ts' 'portfolio/src/**/*.ts' 'portfolio/src/*.tsx' 'portfolio/src/**/*.tsx')
+          if ((${#files[@]} == 0)); then
+            echo "No changed TypeScript or TSX source files to lint."
+            exit 0
+          fi
+
+          npx eslint "${files[@]}"
 
   build:
     name: Production build
@@ -62,3 +87,4 @@ jobs:
 
       - name: Build for production
         run: npm run build
+

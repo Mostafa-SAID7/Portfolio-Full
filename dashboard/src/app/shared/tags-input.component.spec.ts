@@ -117,10 +117,11 @@ describe('TagsInputComponent', () => {
 
   it('uses distinct indexed IDs for punctuation, non-Latin text, and separate instances', () => {
     fixture.componentInstance.suggestions = ['C++', 'C#', 'عربي', 'فارسي'];
+    fixture.detectChanges();
     key('ArrowDown');
     const options = Array.from(fixture.nativeElement.querySelectorAll('[role="option"]')) as HTMLElement[];
     expect(new Set(options.map(option => option.id)).size).toBe(4);
-    expect(input.getAttribute('aria-activedescendant')).toBe(options[0].id);
+    expect(fixture.nativeElement.querySelector('input').getAttribute('aria-activedescendant')).toBe(options[0].id);
     const other = TestBed.createComponent(TagsHost);
     other.detectChanges();
     const second = other.debugElement.query(By.directive(TagsInputComponent)).componentInstance as TagsInputComponent;
@@ -128,3 +129,4 @@ describe('TagsInputComponent', () => {
     other.destroy();
   });
 });
+
