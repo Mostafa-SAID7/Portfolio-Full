@@ -129,4 +129,3 @@ describe('TagsInputComponent', () => {
     other.destroy();
   });
 });
-
