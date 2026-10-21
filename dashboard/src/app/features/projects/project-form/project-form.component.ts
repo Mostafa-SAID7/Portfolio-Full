@@ -86,7 +86,7 @@ export class ProjectFormComponent implements OnInit, OnDestroy {
   readonly categoryOptionsAr = computed(() => this.categoryService.categories()
     .filter(category => category.isActive).map(category => category.nameAr));
   readonly technologySuggestions = computed<string[]>(() => {
-    const fromSkills = this.skillService.skills().map(skill => skill.NameEn || skill.NameAr);
+    const fromSkills = this.skillService.skills().map(skill => skill.nameEn || skill.nameAr);
     const fromProjects = this.projectService.projects().flatMap(project => project.technologies ?? []);
     return [...new Set([...fromSkills, ...fromProjects]
       .filter((name): name is string => typeof name === 'string')

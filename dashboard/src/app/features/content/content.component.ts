@@ -60,7 +60,7 @@ export class ContentComponent implements OnInit {
   readonly skillsByCategory = computed(() => {
     const groups = new Map<string, Skill[]>();
     for (const skill of this.skillService.skills()) {
-      const category = skill.CategoryEn?.trim() || 'Uncategorized';
+      const category = skill.categoryEn?.trim() || 'Uncategorized';
       if (!groups.has(category)) groups.set(category, []);
       groups.get(category)!.push(skill);
     }
@@ -231,9 +231,9 @@ export class ContentComponent implements OnInit {
     this.editingSkillId = skill.id;
     this.skillFormError = null;
     this.editDraft = {
-      nameEn: skill.NameEn, nameAr: skill.NameAr, categoryEn: skill.CategoryEn, categoryAr: skill.CategoryAr,
-      proficiency: skill.Proficiency, order: skill.order, iconUrl: skill.IconUrl ?? '',
-      descriptionEn: skill.DescriptionEn ?? '', descriptionAr: skill.DescriptionAr ?? ''
+      nameEn: skill.nameEn, nameAr: skill.nameAr, categoryEn: skill.categoryEn, categoryAr: skill.categoryAr,
+      proficiency: skill.proficiency, order: skill.order, iconUrl: skill.iconUrl ?? '',
+      descriptionEn: skill.descriptionEn ?? '', descriptionAr: skill.descriptionAr ?? ''
     };
   }
 
@@ -256,10 +256,10 @@ export class ContentComponent implements OnInit {
     if (!Number.isInteger(draft.order) || draft.order < 0) this.skillFormError = 'Display order must be a non-negative integer.';
     if (form.invalid || this.skillFormError) { form.control.markAllAsTouched(); return; }
     this.mutate('skills', this.skillService.updateSkill(id, {
-      NameEn: draft.nameEn.trim(), NameAr: draft.nameAr.trim(), CategoryEn: draft.categoryEn.trim(), CategoryAr: draft.categoryAr.trim(),
-      Proficiency: draft.proficiency, IconUrl: draft.iconUrl.trim() || null,
-      DescriptionEn: draft.descriptionEn.trim() || null, DescriptionAr: draft.descriptionAr.trim() || null,
-      Order: draft.order, IsActive: current.IsActive
+      nameEn: draft.nameEn.trim(), nameAr: draft.nameAr.trim(), categoryEn: draft.categoryEn.trim(), categoryAr: draft.categoryAr.trim(),
+      proficiency: draft.proficiency, iconUrl: draft.iconUrl.trim() || null,
+      descriptionEn: draft.descriptionEn.trim() || null, descriptionAr: draft.descriptionAr.trim() || null,
+      order: draft.order, isActive: current.isActive
     }), () => this.clearSkillEditor(), 'Failed to save the skill.');
   }
 
@@ -267,16 +267,16 @@ export class ContentComponent implements OnInit {
     if (this.unavailable('skills')) return;
     // Full-replacement PUT: retain both descriptions even if the service toggle helper omits one.
     const payload: SkillPayload = {
-      NameEn: skill.NameEn, NameAr: skill.NameAr, CategoryEn: skill.CategoryEn, CategoryAr: skill.CategoryAr,
-      Proficiency: skill.Proficiency, IconUrl: skill.IconUrl,
-      DescriptionEn: skill.DescriptionEn, DescriptionAr: skill.DescriptionAr, Order: skill.order, IsActive: !skill.IsActive
+      nameEn: skill.nameEn, nameAr: skill.nameAr, categoryEn: skill.categoryEn, categoryAr: skill.categoryAr,
+      proficiency: skill.proficiency, iconUrl: skill.iconUrl,
+      descriptionEn: skill.descriptionEn, descriptionAr: skill.descriptionAr, order: skill.order, isActive: !skill.isActive
     };
     this.mutate('skills', this.skillService.updateSkill(skill.id, payload), () => undefined, 'Failed to update the skill.');
   }
 
   deleteSkill(skill: Skill): Promise<void> {
     return this.confirmRemoval('skills', {
-      title: 'Delete skill?', message: `“${skill.NameEn}” will be removed from the skill stack.`, confirmLabel: 'Delete skill'
+      title: 'Delete skill?', message: `“${skill.nameEn}” will be removed from the skill stack.`, confirmLabel: 'Delete skill'
     }, () => this.skillService.deleteSkill(skill.id), 'Failed to delete the skill.');
   }
 
