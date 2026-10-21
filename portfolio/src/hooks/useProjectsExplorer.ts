@@ -32,31 +32,22 @@ export interface ProjectsSearch {
 }
 
 /** Normalises (and validates) the search params of the /projects route. */
-export function validateProjectsSearch(
-  search: Record<string, unknown>,
-): ProjectsSearch {
+export function validateProjectsSearch(search: Record<string, unknown>): ProjectsSearch {
   const rawSort = typeof search["sort"] === "string" ? search["sort"] : undefined;
   const sort = PROJECT_SORTS.some((option) => option.value === rawSort)
     ? (rawSort as SortValue)
     : undefined;
-  const rawPage =
-    typeof search["page"] === "number"
-      ? search["page"]
-      : Number(search["page"]);
+  const rawPage = typeof search["page"] === "number" ? search["page"] : Number(search["page"]);
 
   return {
     filter:
       typeof search["filter"] === "string" && search["filter"].length > 0
         ? search["filter"]
         : undefined,
-    q:
-      typeof search["q"] === "string" && search["q"].length > 0
-        ? search["q"]
-        : undefined,
+    q: typeof search["q"] === "string" && search["q"].length > 0 ? search["q"] : undefined,
     sort,
     view: search["view"] === "list" ? "list" : undefined,
-    page:
-      Number.isFinite(rawPage) && rawPage > 0 ? Math.floor(rawPage) : undefined,
+    page: Number.isFinite(rawPage) && rawPage > 0 ? Math.floor(rawPage) : undefined,
   };
 }
 
@@ -75,11 +66,11 @@ const PER_PAGE: Record<ProjectView, number> = { grid: 9, list: 6 };
 
 function matchesQuery(project: Project, query: string) {
   return (
-    project.title.toLowerCase().includes(query) ||
-    project.description.toLowerCase().includes(query) ||
-    project.category.toLowerCase().includes(query) ||
+    (project.title ?? "").toLowerCase().includes(query) ||
+    (project.description ?? "").toLowerCase().includes(query) ||
+    (project.category ?? "").toLowerCase().includes(query) ||
     (project.client?.toLowerCase().includes(query) ?? false) ||
-    project.tech.some((tech) => tech.toLowerCase().includes(query))
+    (project.tech ?? []).some((tech) => (tech ?? "").toLowerCase().includes(query))
   );
 }
 

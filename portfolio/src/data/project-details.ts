@@ -83,7 +83,7 @@ export function getProjectDetail(project: Project): ProjectDetailContent {
     process: [],
     outcomes: project.badges?.length ? project.badges.map((b) => b) : [],
     role: typeRole[project.type] ?? "Engineer",
-    timeline: project.status === "In Progress" ? "Ongoing" : project.status ?? "—",
+    timeline: project.status === "In Progress" ? "Ongoing" : (project.status ?? "—"),
     teamSize: typeTeam[project.type] ?? "—",
     platforms: ["Web"],
   };

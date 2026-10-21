@@ -5,6 +5,7 @@ import { PageIntro } from "@/components/ui/PageIntro";
 import { CtaLink } from "@/components/ui/CtaLink";
 import { CtaBand } from "@/components/ui/CtaBand";
 import { ExperiencePreview } from "@/components/sections/home/ExperiencePreview";
+import { portfolioCredentialsQuery } from "@/lib/content";
 import { pageSeo, pageTitle } from "@/lib/seo";
 import { useI18n } from "@/lib/i18n";
 
@@ -12,6 +13,8 @@ const DESCRIPTION =
   "Professional software engineering experience of Mostafa Samir — .NET 8 Microservices, SignalR IoT telemetry, and multi-tenant marketplace architectures.";
 
 export const Route = createFileRoute("/experience")({
+  loader: ({ context: { queryClient } }) =>
+    queryClient.ensureQueryData(portfolioCredentialsQuery),
   head: () =>
     pageSeo({ title: pageTitle("Experience"), description: DESCRIPTION, path: "/experience" }),
   pendingComponent: PageSkeleton,
@@ -29,7 +32,7 @@ function ExperiencePage() {
         description={tr("experience.page.desc")}
       />
 
-      <ExperiencePreview />
+      <ExperiencePreview showCta={false} />
 
       <CtaBand
         lottie="/lottie/experience-side.lottie"

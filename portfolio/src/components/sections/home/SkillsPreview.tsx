@@ -3,12 +3,11 @@ import { ArrowRight } from "lucide-react";
 import { Reveal } from "@/components/ui/Reveal";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { useI18n } from "@/lib/i18n";
-import { useLocalizedContent } from "@/lib/localize";
 import { usePortfolioSkillGroups } from "@/lib/content";
+import { SkillCard } from "@/components/skills/SkillCard";
 
 export function SkillsPreview() {
   const { tr } = useI18n();
-  const { skillGroupTitle } = useLocalizedContent();
   // Live content from the PortfolioAPI (empty while loading/offline — the
   // bundled src/data catalog is never used as a runtime fallback).
   const skillGroups = usePortfolioSkillGroups();
@@ -22,31 +21,16 @@ export function SkillsPreview() {
         <div className="grid gap-4 sm:grid-cols-2">
           {featured.map((group, i) => (
             <Reveal key={group.title} delay={i * 0.08}>
-              <div className="bg-card border border-border h-full rounded-2xl p-6 shadow-glow transition-transform hover:-translate-y-1">
-                <h3 className="mb-4 flex items-center gap-3 type-h4">
-                  <span className="size-2 rounded-full bg-accent" />
-                  {skillGroupTitle(group.title)}
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {group.skills.slice(0, 5).map((skill) => (
-                    <span
-                      key={skill}
-                      dir="ltr"
-                      className="rounded-xl border border-border bg-foreground/10 px-3 py-1.5 type-body text-foreground/80"
-                    >
-                      {skill}
-                    </span>
-                  ))}
-                  {group.skills.length > 5 && (
-                    <span className="rounded-xl px-3 py-1.5 type-body-strong text-accent">
-                      +{group.skills.length - 5}
-                    </span>
-                  )}
-                </div>
-              </div>
+              <SkillCard
+                title={group.title}
+                skills={group.skills}
+                compact
+                maxSkills={5}
+              />
             </Reveal>
           ))}
         </div>
+
 
         <Reveal delay={0.3}>
           <div className="mt-10 flex justify-center">

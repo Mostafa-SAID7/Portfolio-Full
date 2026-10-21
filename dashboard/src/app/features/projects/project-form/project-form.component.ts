@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidatorFn, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { EMPTY, Observable, Subject, Subscription, catchError, finalize, switchMap, takeUntil, tap } from 'rxjs';
+import { EMPTY, Observable, Subject, Subscription, catchError, defer, finalize, from, switchMap, takeUntil, tap } from 'rxjs';
 import { ProjectService } from '../../../core/services/project.service';
 import { CategoryService } from '../../../core/services/category.service';
 import { SkillService } from '../../../core/services/skill.service';
@@ -11,6 +11,7 @@ import { TagsInputComponent } from '../../../shared/tags-input.component';
 import { Project, ProjectMetric, ProjectPayload } from '../../../core/models/project.model';
 import { isApiHostedImage, resolvePortfolioImage } from '../../../core/portfolio-origin';
 import { SelectFieldComponent } from '../../../shared/select-field.component';
+import { optimizeProjectImage } from '../../../core/project-image-optimizer';
 
 const MAX_COVER_BYTES = 10 * 1024 * 1024;
 const COVER_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif']);
@@ -76,6 +77,7 @@ export class ProjectFormComponent implements OnInit, OnDestroy {
   readonly skillError = signal<string | null>(null);
   readonly coverBroken = signal(false);
   readonly uploading = signal(false);
+  readonly optimizingCover = signal(false);
   readonly uploadError = signal<string | null>(null);
   readonly dragActive = signal(false);
   readonly slug = signal('');
@@ -273,8 +275,10 @@ export class ProjectFormComponent implements OnInit, OnDestroy {
   }
 
   private uploadCover(file: File): void {
+    console.log('uploadCover called, inputBlocked:', this.inputBlocked(), 'uploading:', this.uploading(), 'stopped:', this.stopped, 'ready:', this.ready());
     if (this.inputBlocked() || this.uploading() || this.stopped) return;
     this.uploadError.set(null);
+    console.log('MIME check:', COVER_MIME_TYPES.has(file.type), file.type);
     if (!COVER_MIME_TYPES.has(file.type)) {
       this.uploadError.set('Choose a JPEG, PNG, GIF, WebP or AVIF image.');
       return;
@@ -283,15 +287,20 @@ export class ProjectFormComponent implements OnInit, OnDestroy {
       this.uploadError.set('That image is larger than 10 MiB — pick a smaller one.');
       return;
     }
+    console.log('Passed MIME and size checks');
     const version = ++this.uploadVersion;
     this.uploading.set(true);
     this.projectForm.controls.imageUrl.disable({ emitEvent: false });
-    this.uploadSubscription = this.projectService.uploadCover(file).pipe(
-      takeUntil(this.contextChanged$),
+    const projectTitle = this.projectForm.controls.title.value.trim()
+      || this.projectForm.controls.titleAr.value.trim()
+      || file.name.replace(/\.[^.]+$/, '');
+    this.optimizingCover.set(true);
+    this.uploadSubscription = this.projectService.uploadCover(file, projectTitle).pipe(
       takeUntil(this.stop$),
       finalize(() => {
         if (!this.stopped && version === this.uploadVersion) {
           this.uploading.set(false);
+          this.optimizingCover.set(false);
           this.projectForm.controls.imageUrl.enable({ emitEvent: false });
         }
       })
@@ -303,7 +312,9 @@ export class ProjectFormComponent implements OnInit, OnDestroy {
       },
       error: (error: unknown) => {
         if (!this.stopped && version === this.uploadVersion) {
-          this.uploadError.set(projectFailure(error, 'Upload failed — please try again.').message);
+          this.uploadError.set(error instanceof Error
+            ? error.message
+            : projectFailure(error, 'Upload failed — please try again.').message);
         }
       }
     });

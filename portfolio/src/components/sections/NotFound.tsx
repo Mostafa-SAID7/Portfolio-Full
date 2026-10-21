@@ -1,16 +1,16 @@
 import { Link } from "@tanstack/react-router";
-import { m as motion, useMotionValue, useReducedMotion, useSpring, useTransform } from "framer-motion";
+import {
+  m as motion,
+  useMotionValue,
+  useReducedMotion,
+  useSpring,
+  useTransform,
+} from "framer-motion";
 import { ArrowLeft, Compass, Home, Search } from "lucide-react";
 import { useEffect, useRef } from "react";
-
 import { PageShell } from "@/components/layout/PageShell";
+import { NAV_LINKS } from "@/lib/site";
 
-const NAV = [
-  { to: "/projects", label: "Projects" },
-  { to: "/about", label: "About" },
-  { to: "/experience", label: "Experience" },
-  { to: "/contact", label: "Contact" },
-] as const;
 
 /**
  * Animated 404. Layered composition:
@@ -213,7 +213,7 @@ export function NotFound() {
           aria-label="Suggested pages"
           className="mt-10 flex flex-wrap items-center justify-center gap-2"
         >
-          {NAV.map((item, i) => (
+          {NAV_LINKS.map((item, i) => (
             <motion.div
               key={item.to}
               {...(reduce ? {} : { whileHover: { y: -3, scale: 1.04 } })}

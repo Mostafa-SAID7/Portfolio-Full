@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 const portraitWebp = "/images/portrait-cutout.webp";
 const portraitAvif = "/images/portrait-cutout.avif";
 import { PenTyping } from "@/components/ui/PenTyping";
+import { BrandLogo } from "@/components/ui/BrandLogo";
 
 export function AboutPreview() {
   return (
@@ -13,22 +14,10 @@ export function AboutPreview() {
             {/* Left Column (5 cols) */}
             <div className="lg:col-span-6 flex flex-col justify-center items-start">
               {/* Logo Prefix */}
-              <div className="flex items-center gap-3 mb-6">
-                <div className="flex items-end gap-[2px] opacity-90">
-                  <span className="size-1 rounded-full bg-foreground mb-[1px]" />
-                  <div className="flex flex-col gap-[2px]">
-                    <span className="size-1 rounded-full bg-foreground" />
-                    <span className="size-1 rounded-full bg-foreground" />
-                  </div>
-                </div>
-                <div className="grid place-items-center rounded-[6px] bg-foreground px-2.5 py-0.5 shadow-sm">
-                  <span className="type-wordmark text-background">MS</span>
-                </div>
-                <div className="flex flex-col text-start type-micro text-foreground">
-                  <span>MOSTAFA</span>
-                  <span>SAMIR</span>
-                </div>
+              <div className="mb-6">
+                <BrandLogo size="md" variant="foreground" />
               </div>
+
 
               {/* Headline */}
               <PenTyping
@@ -44,17 +33,11 @@ export function AboutPreview() {
 
               {/* CTA Buttons */}
               <div className="flex w-full flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-                <Link
-                  to="/about"
-                  className="group btn-accent"
-                >
+                <Link to="/about" className="group btn-accent">
                   <span className="type-label">ABOUT ME</span>
                   <ArrowRight className="size-4 transition-transform group-hover:translate-x-1 rtl:rotate-180" />
                 </Link>
-                <Link
-                  to="/projects"
-                  className="group btn-surface"
-                >
+                <Link to="/projects" className="group btn-surface">
                   <span className="type-label text-foreground">VIEW CASES</span>
                   <ArrowRight className="size-4 text-foreground transition-transform group-hover:translate-x-1 rtl:rotate-180" />
                 </Link>

@@ -27,13 +27,14 @@ namespace PortfolioAPI.Controllers
         }
 
         /// <summary>
-        /// Upload a cover image (JPG, PNG, GIF, WebP or AVIF; max 10MB).
+        /// Upload an optimized WebP cover image (max 10MB). The dashboard converts
+        /// and resizes supported image selections to WebP before sending them here.
         /// Returns <c>{ url, fileName, size }</c> where <c>url</c> is the
-        /// relative path to store on the entity (e.g. /api/files/&lt;guid&gt;.webp).
+        /// relative path to store on the entity (e.g. /api/files/project-title-hash.webp).
         /// </summary>
         [HttpPost("image")]
         [RequestSizeLimit(12 * 1024 * 1024)]
-        public async Task<IActionResult> UploadImage(IFormFile? file)
+        public async Task<IActionResult> UploadImage(IFormFile? file, [FromForm] string? projectTitle)
         {
             if (file is null || file.Length == 0)
             {
@@ -43,8 +44,9 @@ namespace PortfolioAPI.Controllers
             try
             {
                 await using var stream = file.OpenReadStream();
-                var url = await _storage.SaveImageAsync(stream, file.FileName);
-                return Ok(new { url, fileName = Path.GetFileName(url), size = file.Length });
+                var url = await _storage.SaveImageAsync(stream, file.FileName, projectTitle);
+                var storedSize = await _storage.GetFileSizeAsync(url);
+                return Ok(new { url, fileName = Path.GetFileName(url), size = storedSize });
             }
             catch (InvalidOperationException ex)
             {

@@ -43,14 +43,7 @@ const HASHED_PREFIXES = ["/assets/", "/_build/", "/_serverFn/assets/"];
  * namespace; real endpoints live under the versioned `/api/v1/public/*`
  * (with legacy `/api/public/*` aliases) and are excluded below.
  */
-const MEDIA_PREFIXES = [
-  "/lottie/",
-  "/wasm/",
-  "/images/",
-  "/projects/",
-  "/api/",
-  "/fonts/",
-];
+const MEDIA_PREFIXES = ["/lottie/", "/wasm/", "/images/", "/projects/", "/api/", "/fonts/"];
 
 const MEDIA_FILES = new Set([
   "/favicon.ico",
@@ -61,12 +54,7 @@ const MEDIA_FILES = new Set([
 
 /** Short-TTL, non-hashed files that are edited between deploys. */
 const SHORT_PREFIXES = ["/cv/"];
-const SHORT_FILES = new Set([
-  "/robots.txt",
-  "/manifest.json",
-  "/site.webmanifest",
-  "/sitemap.xml",
-]);
+const SHORT_FILES = new Set(["/robots.txt", "/manifest.json", "/site.webmanifest", "/sitemap.xml"]);
 
 /** Content types that are always static bytes, whatever the URL looks like. */
 const MEDIA_CONTENT_TYPES = ["image/", "font/", "video/", "audio/", "application/font"];
@@ -89,9 +77,24 @@ function isServerFnPath(pathname: string): boolean {
 }
 
 function isApiRoute(pathname: string): boolean {
-  // Fold the versioned namespace (issue #24) onto the legacy paths first.
+  // Only the JSON API endpoints should get NO_STORE. The /api/ directory in
+  // public/ is static images, and /api/files/ is the upload static server —
+  // both must remain cacheable as MEDIA (fix for PORTFOLIO-H1).
+  // Normalise the versioned prefix onto the legacy one for a single match.
   const p = pathname.replace(/^\/api\/v1(?=\/|$)/, "/api");
-  return p.startsWith("/api/public/") || p === "/api" || p === "/api/public";
+  return (
+    p.startsWith("/api/public/") ||
+    p === "/api/public" ||
+    p === "/api/health" ||
+    p === "/api" ||
+    // auth and admin endpoints are never cached
+    p.startsWith("/api/auth/") ||
+    (p.startsWith("/api/") &&
+      !p.startsWith("/api/files/") &&
+      !p.startsWith("/api/images/") &&
+      // exclude the static images folder served from public/api/
+      !/^\/api\/[^/]+\.(avif|webp|png|jpg|jpeg|svg|gif|ico|woff2?|ttf|otf)/.test(p))
+  );
 }
 
 function isMedia(pathname: string, contentType: string | null): boolean {
@@ -213,4 +216,3 @@ function applyHeaders(
     });
   }
 }
-

@@ -35,10 +35,7 @@ export function Hero() {
 
             {/* Primary actions: view work + download CV, inline on one line */}
             <div className="mt-4 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
-              <a
-                href="#works"
-                className="group btn-surface"
-              >
+              <a href="#works" className="group btn-surface">
                 <span className="grid size-7 place-items-center rounded-xl bg-primary text-primary-foreground shadow-sm transition-transform duration-300 group-hover:rotate-12">
                   <Play
                     className={`size-3.5 fill-primary-foreground text-primary-foreground ${dir === "rtl" ? "me-0.5 rotate-180" : "ms-0.5"}`}

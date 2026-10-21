@@ -36,8 +36,7 @@ function normalizeOrigin(raw: string | undefined): string | null {
 /** `VITE_API_BASE_URL` from the runtime env (SSR) or the build env (both). */
 function explicitOrigin(): string | null {
   if (typeof window === "undefined") {
-    const proc = (globalThis as { process?: { env?: Record<string, string | undefined> } })
-      .process;
+    const proc = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process;
     const runtime = normalizeOrigin(proc?.env?.["VITE_API_BASE_URL"]);
     if (runtime) return runtime;
   }
@@ -51,16 +50,23 @@ let warnedMissingServerOrigin = false;
 export function apiOrigin(): string {
   const explicit = explicitOrigin();
   if (explicit) return explicit;
-  if (import.meta.env.DEV) return "http://localhost:5039";
+  // DEV: SSR (Node) still needs the absolute URL for server-to-server fetches.
+  // The browser uses same-origin "" so the Vite proxy routes /api → :5039,
+  // avoiding cross-origin CORS issues in the browser.
+  if (import.meta.env.DEV) {
+    if (typeof window === "undefined") return "http://localhost:5039";
+    return "";
+  }
 
   // Non-browser (SSR): Vercel exposes its own deployment origin, so preview
   // deployments resolve to the same production API by default.
   if (typeof window === "undefined") {
-    const proc = (globalThis as { process?: { env?: Record<string, string | undefined> } })
-      .process;
-    const host =
-      proc?.env?.["VERCEL_PROJECT_PRODUCTION_URL"] ?? proc?.env?.["VERCEL_URL"];
-    const fromVercel = normalizeOrigin(host ? `https://${host}` : undefined);
+    const proc = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process;
+    const host = proc?.env?.["VERCEL_PROJECT_PRODUCTION_URL"] ?? proc?.env?.["VERCEL_URL"];
+    // VERCEL_PROJECT_PRODUCTION_URL is documented as hostname-only (no scheme),
+    // but pass it through normalizeOrigin which handles both cases safely —
+    // avoids https://https://... if the var ever includes a scheme (fix for M3).
+    const fromVercel = normalizeOrigin(host ?? undefined);
     if (fromVercel) return fromVercel;
 
     if (!warnedMissingServerOrigin) {

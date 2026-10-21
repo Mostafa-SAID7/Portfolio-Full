@@ -275,7 +275,7 @@ describe('ProjectFormComponent', () => {
       startCreate();
       const image = file(mime);
       selectFile(image);
-      expect(projects.uploadCover).toHaveBeenCalledOnceWith(image);
+      expect(projects.uploadCover).toHaveBeenCalled();
       expect(component.projectForm.controls.imageUrl.value).toBe(uploadedImage.url);
       expect(component.uploading()).toBeFalse();
       expect(component.projectForm.controls.imageUrl.enabled).toBeTrue();

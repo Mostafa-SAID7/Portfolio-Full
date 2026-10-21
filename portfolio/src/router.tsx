@@ -1,9 +1,15 @@
-import { QueryClient } from "@tanstack/react-query";
+﻿import { QueryClient } from "@tanstack/react-query";
 import { createRouter } from "@tanstack/react-router";
+import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
 import { routeTree } from "./routeTree.gen";
 
-export const getRouter = () => {
-  const queryClient = new QueryClient({
+/**
+ * Creates a new QueryClient with the default configuration.
+ * A fresh instance is created per request on the server to prevent
+ * cache leakage between concurrent users.
+ */
+function createQueryClient(): QueryClient {
+  return new QueryClient({
     defaultOptions: {
       queries: {
         // Portfolio data is static-ish: avoid refetch storms on focus/mount.
@@ -14,6 +20,22 @@ export const getRouter = () => {
       },
     },
   });
+}
+
+/**
+ * The single router factory used by both SSR (server entry) and the browser
+ * client. TanStack Start calls `getRouter()` once per request on the server
+ * and once on the client — creating a fresh QueryClient each time prevents
+ * cross-request state leakage.
+ *
+ * `setupRouterSsrQueryIntegration` automatically:
+ *   - Dehydrates the QueryClient into the HTML stream after SSR rendering
+ *   - Rehydrates it in the browser before the first client render
+ * This eliminates the hydration mismatch caused by the client starting with
+ * an empty QueryClient while the server had 14 projects in its cache.
+ */
+export function getRouter() {
+  const queryClient = createQueryClient();
 
   const router = createRouter({
     routeTree,
@@ -28,5 +50,8 @@ export const getRouter = () => {
     defaultPendingMinMs: 320,
   });
 
+  // Automatically wire up SSR dehydration -> HTML stream -> client rehydration.
+  setupRouterSsrQueryIntegration({ router, queryClient });
+
   return router;
-};
+}

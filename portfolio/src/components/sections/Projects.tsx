@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Reveal } from "@/components/ui/Reveal";
-import { Code2, ExternalLink, Rocket } from "lucide-react";
+import { ArrowRight, Code2, ExternalLink, Rocket } from "lucide-react";
 import { SmartImage } from "@/components/ui/SmartImage";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { useI18n } from "@/lib/i18n";
@@ -20,10 +20,7 @@ export function Projects() {
   const icons = [Rocket, Code2, ExternalLink];
 
   return (
-    <section
-      id="works"
-      className="section-shell section-y select-none"
-    >
+    <section id="works" className="section-shell section-y select-none">
       <div className="container-page">
         <SectionHeading title={tr("works.title")} align="start" />
         <div className="grid gap-6 grid-cols-1 md:grid-cols-3">
@@ -108,7 +105,7 @@ export function Projects() {
                     <span className="type-micro text-foreground group-hover/btn:text-primary transition-colors">
                       {tr("projects.preview.view")}
                     </span>
-                    <ArrowRightIcon className="size-3 text-foreground group-hover/btn:text-primary transition-colors group-hover/btn:translate-x-1 rtl:rotate-180" />
+                    <ArrowRight className="size-3 text-foreground group-hover/btn:text-primary transition-colors group-hover/btn:translate-x-1 rtl:rotate-180" />
                   </Link>
                 </div>
               </Reveal>
@@ -117,26 +114,5 @@ export function Projects() {
         </div>
       </div>
     </section>
-  );
-}
-
-// Arrow helper icon
-function ArrowRightIcon(props: React.ComponentProps<"svg">) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M5 12h14" />
-      <path d="m12 5 7 7-7 7" />
-    </svg>
   );
 }

@@ -5,19 +5,14 @@ import { useTheme } from "@/lib/theme";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { prefetchRouteLottie } from "@/lib/lottie-routes";
+import { NAV_LINKS, SOCIAL_LINKS } from "@/lib/site";
+import { BrandLogo } from "@/components/ui/BrandLogo";
 
 export function Navbar() {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const { lang, toggleLang, tr } = useI18n();
-
-  const navLinks = [
-    { key: "nav.works", to: "/projects" },
-    { key: "nav.about", to: "/about" },
-    { key: "nav.experience", to: "/experience" },
-    { key: "nav.contact", to: "/contact" },
-  ] as const;
 
   const headerRef = useRef<HTMLElement>(null);
 
@@ -36,21 +31,17 @@ export function Navbar() {
   useEffect(() => {
     const el = headerRef.current;
     if (!el) return;
-    const write = () => {
-      document.documentElement.style.setProperty(
-        "--nav-h",
-        `${Math.round(el.getBoundingClientRect().height)}px`,
-      );
-    };
-    write();
-    const ro = new ResizeObserver(write);
+    const ro = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      const height = entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height;
+      if (height > 0) {
+        document.documentElement.style.setProperty("--nav-h", `${Math.round(height)}px`);
+      }
+    });
     ro.observe(el);
-    const id = window.setInterval(write, 100);
-    const stop = window.setTimeout(() => window.clearInterval(id), 700);
     return () => {
       ro.disconnect();
-      window.clearInterval(id);
-      window.clearTimeout(stop);
     };
   }, [scrolled, open]);
 
@@ -77,39 +68,23 @@ export function Navbar() {
           className="group flex items-center gap-2 rounded-2xl bg-card text-card-foreground px-2.5 py-1 shadow-sm border border-border transition-all duration-500 hover:scale-105 select-none"
           aria-label={tr("common.home")}
         >
-          {/* Prefix dots */}
-          <div className="flex items-end gap-[2px] opacity-90">
-            <span className="size-1 rounded-full bg-brand mb-[1px]" />
-            <div className="flex flex-col gap-[2px]">
-              <span className="size-1 rounded-full bg-brand" />
-              <span className="size-1 rounded-full bg-brand" />
-            </div>
-          </div>
-
-          {/* MS Red Square */}
-          <div className="grid place-items-center rounded-[4px] bg-brand px-1.5 py-0.5 shadow-sm">
-            <span className="keep-latin type-wordmark [--wordmark-size:0.75rem] text-white">
-              MS
-            </span>
-          </div>
-
-          {/* MOSTAFA SAMIR Text */}
-          <div className="keep-latin flex flex-col text-start type-micro text-foreground">
-            <span>MOSTAFA</span>
-            <span>SAMIR</span>
-          </div>
+          <BrandLogo size="sm" variant="brand" />
         </Link>
+
 
         {/* Center: Nav Links */}
         <div className="hidden items-center gap-6 md:flex">
-          {navLinks.map((l) => (
+          {NAV_LINKS.map((l) => (
             <Link
               key={l.key}
               to={l.to}
               onMouseEnter={() => prefetchRouteLottie(l.to)}
               onFocus={() => prefetchRouteLottie(l.to)}
               onTouchStart={() => prefetchRouteLottie(l.to)}
-              className="nav-label text-foreground transition-opacity hover:opacity-75"
+              className="nav-label relative text-foreground/60 transition-colors duration-200 hover:text-foreground"
+              activeProps={{
+                className: "!text-accent after:absolute after:-bottom-1 after:left-0 after:h-px after:w-full after:rounded-full after:bg-accent",
+              }}
             >
               {tr(l.key)}
             </Link>
@@ -154,7 +129,7 @@ export function Navbar() {
           {/* Social Icons: GitHub & LinkedIn */}
           <div className="hidden items-center gap-2 sm:flex">
             <a
-              href="https://github.com/Mostafa-SAID7"
+              href={SOCIAL_LINKS.github.url}
               target="_blank"
               rel="noopener noreferrer"
               className="grid size-8 place-items-center rounded-2xl bg-foreground/10 border border-border text-foreground transition-all hover:bg-foreground/20 hover:scale-105"
@@ -163,7 +138,7 @@ export function Navbar() {
               <Github className="size-3.5" />
             </a>
             <a
-              href="https://linkedin.com/in/mostafasamirsaid"
+              href={SOCIAL_LINKS.linkedin.url}
               target="_blank"
               rel="noopener noreferrer"
               className="grid size-8 place-items-center rounded-2xl bg-foreground/10 border border-border text-foreground transition-all hover:bg-foreground/20 hover:scale-105"
@@ -187,21 +162,24 @@ export function Navbar() {
       {/* Mobile Drawer */}
       {open && (
         <div className="pointer-events-auto absolute top-full inset-x-0 mx-auto mt-2 flex w-[calc(100%-1.5rem)] max-w-md flex-col gap-1 rounded-2xl bg-card text-card-foreground p-4 md:hidden border border-border shadow-2xl">
-          {navLinks.map((l) => (
+          {NAV_LINKS.map((l) => (
             <Link
               key={l.key}
               to={l.to}
               onClick={() => setOpen(false)}
               onTouchStart={() => prefetchRouteLottie(l.to)}
               onFocus={() => prefetchRouteLottie(l.to)}
-              className="rounded-2xl px-4 py-2.5 text-start type-label text-foreground hover:bg-foreground/10"
+              className="rounded-2xl px-4 py-2.5 text-start type-label text-foreground/70 hover:bg-foreground/10 hover:text-foreground transition-all duration-200"
+              activeProps={{
+                className: "!text-accent bg-accent/10 border border-accent/20",
+              }}
             >
               {tr(l.key)}
             </Link>
           ))}
           <div className="flex items-center gap-3 pt-3 border-t border-border mt-1 px-4">
             <a
-              href="https://github.com/Mostafa-SAID7"
+              href={SOCIAL_LINKS.github.url}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 type-body-strong text-foreground hover:opacity-75"
@@ -210,7 +188,7 @@ export function Navbar() {
             </a>
             <span className="opacity-30">|</span>
             <a
-              href="https://linkedin.com/in/mostafasamirsaid"
+              href={SOCIAL_LINKS.linkedin.url}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 type-body-strong text-foreground hover:opacity-75"

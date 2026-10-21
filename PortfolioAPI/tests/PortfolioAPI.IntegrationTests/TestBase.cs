@@ -278,7 +278,7 @@ namespace PortfolioAPI.IntegrationTests
             throw new FileNotFoundException();
         }
 
-        public Task<string> SaveImageAsync(Stream imageStream, string fileName)
+        public Task<string> SaveImageAsync(Stream imageStream, string fileName, string? projectTitle = null)
         {
             return SaveFileAsync(imageStream, fileName, "image/jpeg");
         }

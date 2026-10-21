@@ -58,13 +58,6 @@ export function Reveal({
       return;
     }
 
-    // Already in view on mount (above the fold): reveal immediately.
-    const rect = el.getBoundingClientRect();
-    if (rect.top < window.innerHeight && rect.bottom > 0) {
-      setVisible(true);
-      return;
-    }
-
     callbacks.set(el, setVisible);
     io.observe(el);
     return () => {

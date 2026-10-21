@@ -1,6 +1,5 @@
 using System.Security.Cryptography;
 using System.Text;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using PortfolioAPI.Auth;
@@ -44,36 +43,58 @@ namespace PortfolioAPI.Controllers
 
             if (string.IsNullOrWhiteSpace(configuredUser) || string.IsNullOrWhiteSpace(configuredPassword))
             {
-                // Fail closed AND make the misconfiguration visible in the log
-                // (review finding: auth outcomes were never logged at all).
-                _logger.LogWarning(
-                    "Login rejected ({RemoteIp}): Auth:Username/Auth:Password are not configured (503).", remoteIp);
-
-                // Say WHAT is missing and where it was looked for. Two traps
-                // account for most of these: the file was not uploaded, or an
-                // environment variable with the same name exists but is EMPTY
-                // (environment variables win over the JSON file).
                 var envUser = Environment.GetEnvironmentVariable("Auth__Username");
                 var envPassword = Environment.GetEnvironmentVariable("Auth__Password");
                 var emptyEnvOverride = (envUser is not null || envPassword is not null)
                     && string.IsNullOrWhiteSpace(configuredUser)
                     && string.IsNullOrWhiteSpace(configuredPassword);
 
+                // Always log full diagnostics server-side so operators can debug
+                // without exposing config details in the HTTP response body (fix for H3).
+                _logger.LogWarning(
+                    "Login rejected ({RemoteIp}): Auth:Username/Auth:Password are not configured (503). " +
+                    "fileHasUsername={FileHasUsername}, fileHasPassword={FileHasPassword}, " +
+                    "envUsernamePresent={EnvUsernamePresent}, envPasswordPresent={EnvPasswordPresent}. " +
+                    "Hint: {Hint}",
+                    remoteIp,
+                    !string.IsNullOrWhiteSpace(configuredUser),
+                    !string.IsNullOrWhiteSpace(configuredPassword),
+                    envUser is not null,
+                    envPassword is not null,
+                    emptyEnvOverride
+                        ? "Auth__* env var exists but is EMPTY — clear it or give it a value."
+                        : "Upload appsettings.Production.json and restart the app pool.");
+
+                // Detailed hints are safe in Development only; Production returns a
+                // generic message so server config is never disclosed (fix for H3).
+                var isDevelopment = string.Equals(
+                    Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
+                    "Development",
+                    StringComparison.OrdinalIgnoreCase);
+
+                if (isDevelopment)
+                {
+                    return StatusCode(StatusCodes.Status503ServiceUnavailable, new
+                    {
+                        message = "Authentication is not configured on this server. Set Auth:Username and Auth:Password "
+                                + "in appsettings.Development.json (or via Auth__Username / Auth__Password environment variables).",
+                        sources = new
+                        {
+                            appsettingsKey = "Auth:Username / Auth:Password",
+                            fileHasUsername = !string.IsNullOrWhiteSpace(configuredUser),
+                            fileHasPassword = !string.IsNullOrWhiteSpace(configuredPassword),
+                            envVarAuthUsernamePresent = envUser is not null,
+                            envVarAuthPasswordPresent = envPassword is not null
+                        },
+                        hint = emptyEnvOverride
+                            ? "An Auth__Username / Auth__Password environment variable exists but is EMPTY — clear it or give it a value."
+                            : "Make sure the file was uploaded AND the app was restarted (touching web.config recycles the app pool)."
+                    });
+                }
+
                 return StatusCode(StatusCodes.Status503ServiceUnavailable, new
                 {
-                    message = "Authentication is not configured on this server. Set Auth:Username and Auth:Password "
-                            + "in appsettings.Production.json (or via Auth__Username / Auth__Password environment variables).",
-                    sources = new
-                    {
-                        appsettingsProduction = "Auth:Username / Auth:Password",
-                        fileHasUsername = !string.IsNullOrWhiteSpace(configuredUser),
-                        fileHasPassword = !string.IsNullOrWhiteSpace(configuredPassword),
-                        envVarAuthUsernamePresent = envUser is not null,
-                        envVarAuthPasswordPresent = envPassword is not null
-                    },
-                    hint = emptyEnvOverride
-                        ? "An Auth__Username / Auth__Password environment variable exists but is EMPTY and overrides appsettings.Production.json - clear it or give it a value."
-                        : "Make sure the file was uploaded AND the app was restarted (touching web.config recycles the app pool; IIS keeps the old process and the old configuration until then)."
+                    message = "Authentication is not configured on this server. Contact the administrator."
                 });
             }
 

@@ -49,3 +49,4 @@ jobs:
 
       - name: Run unit tests
         run: dotnet test PortfolioAPI/tests/PortfolioAPI.UnitTests/PortfolioAPI.UnitTests.csproj --configuration Release
+

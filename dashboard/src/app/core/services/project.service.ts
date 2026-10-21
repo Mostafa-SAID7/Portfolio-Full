@@ -69,9 +69,10 @@ export class ProjectService {
    * /api/files/*). The returned `url` is a relative path — store it on the
    * project as-is; every frontend resolves it through its own /api proxy.
    */
-  uploadCover(file: File): Observable<UploadedImage> {
+  uploadCover(file: File, projectTitle: string): Observable<UploadedImage> {
     const form = new FormData();
     form.append('file', file, file.name);
+    form.append('projectTitle', projectTitle);
     return this.http.post<UploadedImage>(`${API_URL}/upload/image`, form).pipe(
       catchError(err => throwError(() => err))
     );

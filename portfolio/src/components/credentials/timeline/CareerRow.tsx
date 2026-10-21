@@ -83,9 +83,7 @@ export function CareerRow({ item, icon: Icon, open, reduce, onToggle }: CareerRo
             className="overflow-hidden"
           >
             <div
-              className={`border-t pad-card ${
-                featured ? "border-background/20" : "border-border"
-              }`}
+              className={`border-t pad-card ${featured ? "border-background/20" : "border-border"}`}
             >
               <div className="type-body flex flex-wrap items-center gap-4">
                 <span className="inline-flex items-center gap-1.5 opacity-80">

@@ -36,12 +36,24 @@ export function CredentialsCarousel() {
         <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-12 lg:grid-rows-[auto_auto] lg:gap-x-10 lg:gap-y-8">
           {/* Row 1: heading meta only — the right rail starts below it. */}
           <div className="min-w-0 lg:col-span-4 lg:col-start-1 lg:row-start-1">
-            <CredentialSlideMeta slide={slide} activeIdx={activeIdx} total={total} reduce={reduce} part="title" />
+            <CredentialSlideMeta
+              slide={slide}
+              activeIdx={activeIdx}
+              total={total}
+              reduce={reduce}
+              part="title"
+            />
           </div>
 
           {/* Row 2 (left): artwork + controls, aligned with the cards. */}
           <div className="flex min-w-0 flex-col gap-8 lg:col-span-4 lg:col-start-1 lg:row-start-2">
-            <CredentialSlideMeta slide={slide} activeIdx={activeIdx} total={total} reduce={reduce} part="details" />
+            <CredentialSlideMeta
+              slide={slide}
+              activeIdx={activeIdx}
+              total={total}
+              reduce={reduce}
+              part="details"
+            />
             <CredentialVisuals activeIdx={activeIdx} dir={dir} reduce={reduce} />
             <CredentialControls
               total={total}
@@ -97,7 +109,6 @@ export function CredentialsCarousel() {
               </div>
             </motion.div>
           </AnimatePresence>
-
         </div>
       </div>
     </section>

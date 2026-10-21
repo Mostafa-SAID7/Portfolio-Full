@@ -63,6 +63,18 @@ namespace PortfolioAPI.Application.Validators
             RuleFor(p => p.MetricsAr)
                 .Must(list => list == null || list.Count <= 6)
                 .WithMessage("A project can show at most 6 metrics (ar).");
+
+            // Cross-field: both metric lists must have matching counts so the
+            // public site never shows a metric in one language but not the other
+            // (fix for H1). Both null/empty is fine; mismatched non-empty is not.
+            RuleFor(p => p)
+                .Must(p =>
+                {
+                    var enCount = p.MetricsEn?.Count ?? 0;
+                    var arCount = p.MetricsAr?.Count ?? 0;
+                    return enCount == 0 && arCount == 0 || enCount == arCount;
+                })
+                .WithMessage("MetricsEn and MetricsAr must contain the same number of entries.");
         }
     }
 }

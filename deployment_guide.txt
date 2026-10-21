@@ -1,0 +1,84 @@
+## Deployment Guide & Troubleshooting
+
+### MonsterASP Deployment Steps
+
+1. **Upload publish folder** to MonsterASP via WebDeploy/FTP
+2. **Set environment variables** in MonsterASP panel:
+   - `ASPNETCORE_ENVIRONMENT=Production`
+   - `ConnectionStrings__DefaultConnection=Server=...;Database=...;...`
+   - `Cors__AllowedOrigins=https://your-frontend-domain.com`
+3. **Recycle app pool** and verify `/api/v1/health` returns 200
+4. **Change DB collation** from `Latin1_General_CI_AS` to `Arabic_CI_AS` (fixes Arabic text `?????`)
+
+### Common Issues & Fixes
+
+| Issue | Cause | Fix |
+|-------|-------|-----|
+| 500.30 startup crash | DbInitializer failing on schema mismatch | Already fixed with try-catch + startupTimeLimit=300 |
+| Arabic text shows `?????` | DB collation is Latin1_General_CI_AS | Change to Arabic_CI_AS on MonsterASP panel |
+| 400 Bad Request on Skills PUT | DTO format mismatch (name vs NameEn) | Fixed - all bilingual fields now sent |
+| TypeScript compile errors | Property name casing mismatch | Fixed - all use PascalCase (NameEn, Proficiency, etc.) |
+
+### Local Development Setup
+
+```bash
+# Backend
+cd PortfolioAPI
+dotnet build
+dotnet run --project src/PortfolioAPI/PortfolioAPI.csproj
+
+# Frontend (Dashboard)
+cd dashboard
+npm install
+npm start  # http://localhost:4200
+
+# Frontend (Portfolio)
+cd portfolio
+npm install
+npm run dev
+```
+
+### Testing
+
+```bash
+# Backend unit tests
+cd PortfolioAPI
+dotnet test --filter "FullyQualifiedName~PortfolioAPI.UnitTests"
+
+# Frontend build
+cd dashboard
+npm run build
+
+# Portfolio build
+cd portfolio
+npm run build
+```
+
+### Key Files Reference
+
+| File | Purpose |
+|------|---------|
+| `PortfolioAPI/src/PortfolioAPI/PortfolioAPI.csproj` | Main API project (net9.0) |
+| `PortfolioAPI/src/PortfolioAPI.Infrastructure/Data/DbInitializer.cs` | Database seeding & schema compatibility |
+| `PortfolioAPI/src/PortfolioAPI.Infrastructure/Migrations/` | EF Core migrations |
+| `dashboard/src/app/core/models/skill.model.ts` | Skill DTO (bilingual) |
+| `dashboard/src/app/core/services/skill.service.ts` | Skill API service |
+| `dashboard/src/app/features/content/content.component.ts` | Content management UI |
+| `portfolio/src/lib/content.ts` | Content fetching (React) |
+
+### Architecture Decisions
+
+1. **Bilingual support** — All entities (Projects, Skills, Experience, Categories) have En/Ar fields
+2. **DbInitializer resilience** — Schema checks wrapped in try-catch, non-throwing in production
+3. **Environment-aware seeding** — Only seeds in non-production environments
+4. **Output caching** — Public endpoints cached for performance
+5. **OutputCache policies** — 60s default, 300s for static data
+
+### Useful Links
+- **Backend API:** http://portfolio-market.runasp.net
+- **Frontend Portfolio:** https://portfolio-market.vercel.app
+- **Dashboard:** https://dashboard-portfolio-ms.vercel.app
+- **GitHub Repo:** https://github.com/Mostafa-SAID7/Portfolio-Full
+- **MonsterASP Panel:** https://panel.monsterasp.net
+
+Feel free to ask questions or share your experience deploying this project!

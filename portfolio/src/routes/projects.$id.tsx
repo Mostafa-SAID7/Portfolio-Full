@@ -98,9 +98,7 @@ function ProjectNotFound() {
 
         {projects.length > 0 && (
           <div className="mt-10 w-full max-w-2xl text-left">
-            <p className="mb-4 text-center text-sm text-soft">
-              These projects are live right now:
-            </p>
+            <p className="mb-4 text-center text-sm text-soft">These projects are live right now:</p>
             <ul className="grid gap-2 sm:grid-cols-2">
               {projects.slice(0, 8).map((item) => (
                 <li key={item.id}>

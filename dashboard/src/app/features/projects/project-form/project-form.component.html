@@ -148,12 +148,13 @@
           <svg class="h-8 w-8 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16v1a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-1m-5-4-4-4m0 0-4 4m4-4v12"/></svg>
           <span class="text-sm font-semibold text-ink">{{ coverPreview() ? 'Drop a new image here to replace the current cover' : 'Drop an image here, or click to browse' }}</span>
           <span class="text-xs text-muted">JPEG, PNG, WebP, GIF or AVIF · up to 10 MiB</span>
+          <span class="text-xs text-muted">Covers are resized and compressed to WebP before upload; animated images use their first frame.</span>
         </div>
         <input #coverInput type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/avif" class="hidden" [disabled]="inputBlocked() || uploading()" (change)="onFileSelected($event)" />
         @if (uploading()) {
           <div class="mt-2 flex items-center gap-2 text-xs text-muted" role="status">
             <span class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-accent/30 border-t-accent"></span>
-            Uploading to the Portfolio API…
+            {{ optimizingCover() ? 'Compressing the image before upload…' : 'Uploading the optimized image to the Portfolio API…' }}
             <button type="button" class="btn-ghost" (click)="clearCover()">Cancel upload and clear cover</button>
           </div>
         }

@@ -82,6 +82,9 @@ namespace PortfolioAPI.Application.Services
         /// <summary>
         /// Builds a URL-safe slug from a title and makes it unique
         /// ("haxel footwear" -&gt; "haxel-footwear", "haxel-footwear-2").
+        /// Uses targeted SQL EXISTS checks (fix for C1) instead of loading
+        /// the full projects table. The UNIQUE index on Slug acts as the
+        /// final race-condition guard (fix for C2).
         /// </summary>
         private async Task<string> GenerateUniqueSlugAsync(string? title, int? excludeId = null)
         {
@@ -91,14 +94,7 @@ namespace PortfolioAPI.Application.Services
                 baseSlug = "project";
             }
 
-            var candidates = await _unitOfWork.Projects.GetAllAsync() ?? Enumerable.Empty<Project>();
-            var taken = candidates
-                .Where(p => excludeId == null || p.Id != excludeId)
-                .Select(p => p.Slug)
-                .Where(s => !string.IsNullOrWhiteSpace(s))
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-            if (!taken.Contains(baseSlug))
+            if (!await _unitOfWork.Projects.SlugExistsAsync(baseSlug, excludeId))
             {
                 return baseSlug;
             }
@@ -106,16 +102,24 @@ namespace PortfolioAPI.Application.Services
             for (var suffix = 2; suffix < 500; suffix++)
             {
                 var candidate = $"{baseSlug}-{suffix}";
-                if (!taken.Contains(candidate))
+                if (!await _unitOfWork.Projects.SlugExistsAsync(candidate, excludeId))
                 {
                     return candidate;
                 }
             }
 
+            // Guaranteed-unique fallback: append a short random hex segment.
             return $"{baseSlug}-{Guid.NewGuid().ToString("N")[..6]}";
         }
 
-        /// <summary>Lowercase, dash-separated, ASCII-only version of a title.</summary>
+        /// <summary>
+        /// Lowercase, dash-separated, ASCII-only version of a title.
+        /// Applies NFD Unicode normalization first so accented/diacritic
+        /// characters (e.g. é → e) survive — non-ASCII characters that
+        /// have no ASCII equivalent (e.g. Arabic script) are dropped,
+        /// producing a safe empty-string that the caller turns into "project"
+        /// rather than a garbage slug (fix for M2).
+        /// </summary>
         private static string Slugify(string? title)
         {
             if (string.IsNullOrWhiteSpace(title))
@@ -123,10 +127,18 @@ namespace PortfolioAPI.Application.Services
                 return string.Empty;
             }
 
-            var builder = new System.Text.StringBuilder(title.Length);
+            // NFD breaks composite characters (e.g. é) into base + combining
+            // mark; the loop then keeps only ASCII letters/digits, so accented
+            // Latin characters survive while pure non-Latin scripts (Arabic,
+            // CJK, etc.) are dropped gracefully.
+            var normalized = title.Trim()
+                .Normalize(System.Text.NormalizationForm.FormD)
+                .ToLowerInvariant();
+
+            var builder = new System.Text.StringBuilder(normalized.Length);
             var lastWasDash = false;
 
-            foreach (var ch in title.Trim().ToLowerInvariant())
+            foreach (var ch in normalized)
             {
                 if ((ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9'))
                 {
@@ -219,6 +231,9 @@ namespace PortfolioAPI.Application.Services
                 return Result<ProjectDto>.NotFound($"Project with id {id} was not found.");
             }
 
+            // Capture the original category BEFORE the update so we only call
+            // EnsureCategoryAsync when the value actually changed (fix for M1).
+            var previousCategoryEn = project.CategoryEn;
             project.TitleEn = dto.TitleEn?.Trim() ?? string.Empty;
             project.TitleAr = dto.TitleAr?.Trim() ?? string.Empty;
             // The slug is NOT touched by a rename - that is the whole point:
@@ -272,7 +287,11 @@ namespace PortfolioAPI.Application.Services
             }
 
             await _unitOfWork.Projects.UpdateAsync(project);
-            await _categoryService.EnsureCategoryAsync(project.CategoryEn);
+            // Only sync the category when it actually changed (fix for M1).
+            if (!string.Equals(previousCategoryEn, project.CategoryEn, StringComparison.OrdinalIgnoreCase))
+            {
+                await _categoryService.EnsureCategoryAsync(project.CategoryEn);
+            }
             await _unitOfWork.SaveChangesAsync();
             return Result<ProjectDto>.Ok(EntityMappings.ToDto(project), "Project updated.");
         }
