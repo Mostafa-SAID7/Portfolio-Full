@@ -10,6 +10,8 @@ namespace PortfolioAPI.Core.DTOs
         public string DescriptionEn { get; set; } = string.Empty;
         public string DescriptionAr { get; set; } = string.Empty;
         public string? ImageUrl { get; set; }
+        public string? StorageProvider { get; set; }
+        public string? StoragePublicId { get; set; }
         public List<string> Technologies { get; set; } = new();
         public string? GithubUrl { get; set; }
         public string? LiveUrl { get; set; }

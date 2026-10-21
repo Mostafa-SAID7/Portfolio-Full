@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using PortfolioAPI.Application.Exceptions;
 using System.Text;
@@ -289,7 +290,76 @@ builder.Services.AddScoped<ICategoryService, CategoryService>();
 
 // Add infrastructure services
 builder.Services.AddScoped<IEmailService, EmailService>();
-builder.Services.AddScoped<IFileStorageService, FileStorageService>();
+
+// --- Storage (local disk or Cloudinary) ------------------------------------
+builder.Services.Configure<FileStorageOptions>(builder.Configuration.GetSection(FileStorageOptions.SectionName));
+builder.Services.Configure<StorageOptions>(builder.Configuration.GetSection(StorageOptions.SectionName));
+
+// Cloudinary settings come from the Cloudinary:* section, with the documented
+// CLOUDINARY_* environment variables accepted as an alternative (explicit
+// config values win). The merged instance is registered once so DI, the
+// fail-fast check below and the gateway all see the same values.
+var cloudinaryOptions = builder.Configuration
+    .GetSection(CloudinaryOptions.SectionName)
+    .Get<CloudinaryOptions>() ?? new CloudinaryOptions();
+
+string PreferSetting(string configured, string environmentVariable) =>
+    string.IsNullOrWhiteSpace(configured)
+        ? Environment.GetEnvironmentVariable(environmentVariable) ?? string.Empty
+        : configured;
+
+cloudinaryOptions.CloudName = PreferSetting(cloudinaryOptions.CloudName, "CLOUDINARY_CLOUD_NAME");
+cloudinaryOptions.ApiKey = PreferSetting(cloudinaryOptions.ApiKey, "CLOUDINARY_API_KEY");
+cloudinaryOptions.ApiSecret = PreferSetting(cloudinaryOptions.ApiSecret, "CLOUDINARY_API_SECRET");
+
+// Cloudinary's own console hands out a single CLOUDINARY_URL variable; accept
+// it as well, but only for credentials not already set (it carries no folder).
+if (!cloudinaryOptions.IsConfigured &&
+    CloudinaryOptions.TryParseCloudinaryUrl(Environment.GetEnvironmentVariable("CLOUDINARY_URL"), out var fromUrl))
+{
+    if (string.IsNullOrWhiteSpace(cloudinaryOptions.CloudName))
+        cloudinaryOptions.CloudName = fromUrl.CloudName;
+    if (string.IsNullOrWhiteSpace(cloudinaryOptions.ApiKey))
+        cloudinaryOptions.ApiKey = fromUrl.ApiKey;
+    if (string.IsNullOrWhiteSpace(cloudinaryOptions.ApiSecret))
+        cloudinaryOptions.ApiSecret = fromUrl.ApiSecret;
+}
+
+var cloudinaryFolder = PreferSetting(cloudinaryOptions.Folder, "CLOUDINARY_FOLDER");
+cloudinaryOptions.Folder = string.IsNullOrWhiteSpace(cloudinaryFolder) ? "portfolio" : cloudinaryFolder;
+
+builder.Services.AddSingleton(cloudinaryOptions);
+
+builder.Services.AddSingleton<IImageValidator, ImageValidator>();
+builder.Services.AddSingleton<ICloudinaryGateway, CloudinaryGateway>();
+builder.Services.AddScoped<IMediaMigrationService, MediaMigrationService>();
+
+// Provider selection: Storage:Provider explicitly, otherwise production runs
+// on the CDN and development stays on local disk. appsettings.Production.json
+// or env vars override either way.
+var storageProvider = builder.Configuration["Storage:Provider"];
+if (string.IsNullOrWhiteSpace(storageProvider))
+{
+    storageProvider = builder.Environment.IsProduction()
+        ? MediaProvider.Cloudinary
+        : MediaProvider.Local;
+}
+builder.Services.AddScoped<FileStorageService>();
+builder.Services.AddScoped<CloudinaryStorageService>();
+
+if (string.Equals(storageProvider, MediaProvider.Cloudinary, StringComparison.OrdinalIgnoreCase))
+{
+    // Fail fast on incomplete Cloudinary configuration - the message must not
+    // print values (requirement 21). Uses the same merged instance as DI.
+    if (!cloudinaryOptions.IsConfigured)
+        throw new InvalidOperationException("Cloudinary configuration is incomplete.");
+
+    builder.Services.AddScoped<IFileStorageService>(sp => sp.GetRequiredService<CloudinaryStorageService>());
+}
+else
+{
+    builder.Services.AddScoped<IFileStorageService>(sp => sp.GetRequiredService<FileStorageService>());
+}
 
 // Add FluentValidation
 builder.Services.AddValidatorsFromAssembly(typeof(PortfolioAPI.Application.Services.ProjectService).Assembly);
@@ -307,6 +377,52 @@ builder.Configuration["FileStorage:Path"] =
             : Path.Combine(builder.Environment.ContentRootPath, configuredStoragePath);
 
 var app = builder.Build();
+
+// --- Media migration command -------------------------------------------------
+// `dotnet run --project PortfolioAPI -- migrate-media [--dry-run]`
+// Re-points every local cover at Cloudinary. Idempotent, keeps the local files
+// as the rollback source, and prints a report instead of failing silently.
+if (args.Contains("migrate-media", StringComparer.OrdinalIgnoreCase))
+{
+    var dryRun = args.Any(a => string.Equals(a, "--dry-run", StringComparison.OrdinalIgnoreCase));
+    var migrationLogger = app.Logger;
+    var exitCode = 0;
+
+    try
+    {
+        using (var scope = app.Services.CreateScope())
+        {
+            var services = scope.ServiceProvider;
+            var db = services.GetRequiredService<PortfolioDbContext>();
+
+            // The storage columns must exist before rows are updated.
+            await DbInitializer.InitializeAsync(db);
+
+            var report = await services
+                .GetRequiredService<IMediaMigrationService>()
+                .RunAsync(dryRun);
+
+            foreach (var line in report.ToLines())
+            {
+                Console.WriteLine(line);
+            }
+
+            if (report.Failed > 0)
+            {
+                exitCode = 1;
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        migrationLogger.LogError(ex, "Media migration failed.");
+        Console.Error.WriteLine($"Media migration failed: {ex.Message}");
+        exitCode = 1;
+    }
+
+    Environment.ExitCode = exitCode;
+    return;
+}
 
 // Restore real client IP/scheme behind the hosting reverse proxy — first,
 // since everything downstream (rate limiting, redirects) reads them.

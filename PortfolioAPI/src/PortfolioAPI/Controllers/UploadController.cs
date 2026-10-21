@@ -1,17 +1,18 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using PortfolioAPI.Infrastructure.Services;
+using PortfolioAPI.Core.Interfaces;
 
 namespace PortfolioAPI.Controllers
 {
     /// <summary>
-    /// Backend-owned file uploads (project cover images) — admin only
+    /// Backend-owned image uploads (project covers) — admin only
     /// (issue #7: unauthenticated uploads allowed disk/content abuse).
     ///
-    /// Uploaded files are stored under App_Data/uploads and served back at
-    /// /api/files/*, and the returned URL is a RELATIVE path — each frontend
-    /// resolves it through its own /api proxy, so the database never contains
-    /// an environment-specific host and images load over HTTPS everywhere.
+    /// The response carries BOTH the delivery URLs the frontends consume and
+    /// the storage metadata (provider + public id) that must be persisted with
+    /// the entity, so a later replace/delete can name the exact asset. No
+    /// provider detail leaks here: the controller only talks to
+    /// <see cref="IFileStorageService"/>.
     /// </summary>
     [Authorize]
     [ApiController]
@@ -27,14 +28,24 @@ namespace PortfolioAPI.Controllers
         }
 
         /// <summary>
-        /// Upload an optimized WebP cover image (max 10MB). The dashboard converts
-        /// and resizes supported image selections to WebP before sending them here.
-        /// Returns <c>{ url, fileName, size }</c> where <c>url</c> is the
-        /// relative path to store on the entity (e.g. /api/files/project-title-hash.webp).
+        /// Upload a cover image (max 10MB). The dashboard converts and resizes
+        /// supported selections to WebP before sending them here.
+        ///
+        /// Returns <c>{ url, url640, url1280, fileName, size, provider, publicId, width, height }</c>.
+        /// <c>url</c> is what goes on the entity; for Cloudinary it is an
+        /// absolute HTTPS CDN URL, for local storage a relative /api/files path.
+        /// <paramref name="oldImageUrl"/> is accepted for backward compatibility
+        /// only — replacing an asset is owned by the project update, which
+        /// removes the previous cover only after the new record is committed.
         /// </summary>
         [HttpPost("image")]
         [RequestSizeLimit(12 * 1024 * 1024)]
-        public async Task<IActionResult> UploadImage(IFormFile? file, [FromForm] string? projectTitle, [FromForm] string? slug, [FromForm] string? oldImageUrl)
+        public async Task<IActionResult> UploadImage(
+            IFormFile? file,
+            [FromForm] string? projectTitle,
+            [FromForm] string? slug,
+            [FromForm] string? oldImageUrl,
+            CancellationToken cancellationToken)
         {
             if (file is null || file.Length == 0)
             {
@@ -44,9 +55,31 @@ namespace PortfolioAPI.Controllers
             try
             {
                 await using var stream = file.OpenReadStream();
-                var (url640, url1280) = await _storage.SaveOptimizedResponsiveImageAsync(stream, slug ?? projectTitle, oldImageUrl);
-                var storedSize = await _storage.GetFileSizeAsync(url1280);
-                return Ok(new { url = url1280, url640, url1280, fileName = Path.GetFileName(url1280), size = storedSize });
+
+                var stored = await _storage.UploadImageAsync(
+                    new ImageUploadRequest
+                    {
+                        Content = stream,
+                        FileName = file.FileName,
+                        // The project slug scopes the stored asset id; the title
+                        // is the fallback when the dashboard has no slug yet.
+                        Slug = slug ?? projectTitle,
+                        AssetType = "cover"
+                    },
+                    cancellationToken);
+
+                return Ok(new
+                {
+                    url = stored.Url,
+                    url640 = stored.Url640,
+                    url1280 = stored.Url1280,
+                    fileName = stored.FileName,
+                    size = stored.Bytes,
+                    provider = stored.Provider,
+                    publicId = stored.PublicId,
+                    width = stored.Width,
+                    height = stored.Height
+                });
             }
             catch (InvalidOperationException ex)
             {

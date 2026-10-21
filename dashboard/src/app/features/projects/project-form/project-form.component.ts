@@ -11,10 +11,12 @@ import { TagsInputComponent } from '../../../shared/tags-input.component';
 import { Project, ProjectMetric, ProjectPayload } from '../../../core/models/project.model';
 import { isApiHostedImage, resolvePortfolioImage } from '../../../core/portfolio-origin';
 import { SelectFieldComponent } from '../../../shared/select-field.component';
-import { optimizeProjectImage } from '../../../core/project-image-optimizer';
 
 const MAX_COVER_BYTES = 10 * 1024 * 1024;
-const COVER_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif']);
+// Mirrors the API's ImageValidator allowlist (JPEG, PNG, GIF, WebP — no AVIF:
+// ImageSharp on the server cannot decode AVIF, so an original .avif upload
+// would be rejected with HTTP 400 anyway).
+const COVER_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
 const splitList = (value: string): string[] => value.split(',').map(item => item.trim()).filter(Boolean);
 const requiredText: ValidatorFn = control =>
   typeof control.value === 'string' && control.value.trim() ? null : { required: true };
@@ -66,6 +68,11 @@ export class ProjectFormComponent implements OnInit, OnDestroy {
   private loadedMetricsEn: ProjectMetric[] = [];
   private loadedMetricsAr: ProjectMetric[] = [];
   private loadedImageUrl = '';
+  private loadedProvider: string | null = null;
+  private loadedPublicId: string | null = null;
+  private uploadedUrl = '';
+  private uploadedProvider: string | null = null;
+  private uploadedPublicId: string | null = null;
   private readonly editMode = signal(false);
 
   readonly fetching = signal(false);
@@ -158,6 +165,11 @@ export class ProjectFormComponent implements OnInit, OnDestroy {
         this.loadedMetricsEn = [];
         this.loadedMetricsAr = [];
         this.loadedImageUrl = '';
+        this.loadedProvider = null;
+        this.loadedPublicId = null;
+        this.uploadedUrl = '';
+        this.uploadedProvider = null;
+        this.uploadedPublicId = null;
         this.coverBroken.set(false);
         this.errorMessage.set(null);
         this.serverErrors.set({});
@@ -260,8 +272,28 @@ export class ProjectFormComponent implements OnInit, OnDestroy {
     if (this.inputBlocked() || this.stopped) return;
     this.invalidateUpload();
     this.projectForm.patchValue({ imageUrl: '' });
+    // No cover -> nothing for the backend to replace or delete.
+    this.uploadedUrl = '';
+    this.uploadedProvider = null;
+    this.uploadedPublicId = null;
     this.coverBroken.set(false);
     this.uploadError.set(null);
+  }
+
+  /**
+   * Storage identity for the cover being saved. It is only attached when the
+   * URL actually belongs to that identity — either the cover that was uploaded
+   * during this session or the unchanged stored one — so a hand-typed external
+   * URL never inherits a stale Cloudinary public id.
+   */
+  private storageMetadataFor(imageUrl: string | null): { storageProvider: string | null; storagePublicId: string | null } {
+    if (imageUrl && this.uploadedUrl && imageUrl === this.uploadedUrl) {
+      return { storageProvider: this.uploadedProvider, storagePublicId: this.uploadedPublicId };
+    }
+    if (imageUrl && imageUrl === this.loadedImageUrl) {
+      return { storageProvider: this.loadedProvider, storagePublicId: this.loadedPublicId };
+    }
+    return { storageProvider: null, storagePublicId: null };
   }
 
   private invalidateUpload(): void {
@@ -275,19 +307,16 @@ export class ProjectFormComponent implements OnInit, OnDestroy {
   }
 
   private uploadCover(file: File): void {
-    console.log('uploadCover called, inputBlocked:', this.inputBlocked(), 'uploading:', this.uploading(), 'stopped:', this.stopped, 'ready:', this.ready());
     if (this.inputBlocked() || this.uploading() || this.stopped) return;
     this.uploadError.set(null);
-    console.log('MIME check:', COVER_MIME_TYPES.has(file.type), file.type);
     if (!COVER_MIME_TYPES.has(file.type)) {
-      this.uploadError.set('Choose a JPEG, PNG, GIF, WebP or AVIF image.');
+      this.uploadError.set('Choose a JPEG, PNG, GIF or WebP image.');
       return;
     }
     if (file.size > MAX_COVER_BYTES) {
       this.uploadError.set('That image is larger than 10 MiB — pick a smaller one.');
       return;
     }
-    console.log('Passed MIME and size checks');
     const version = ++this.uploadVersion;
     this.uploading.set(true);
     this.projectForm.controls.imageUrl.disable({ emitEvent: false });
@@ -295,7 +324,10 @@ export class ProjectFormComponent implements OnInit, OnDestroy {
       || this.projectForm.controls.titleAr.value.trim()
       || file.name.replace(/\.[^.]+$/, '');
     this.optimizingCover.set(true);
-    this.uploadSubscription = this.projectService.uploadCover(file, projectTitle).pipe(
+    // The slug scopes the stored asset id on the backend; in edit mode the
+    // project already has one, in create mode the title is the fallback.
+    const slug = this.isEditMode ? this.slug() : null;
+    this.uploadSubscription = this.projectService.uploadCover(file, projectTitle, slug).pipe(
       takeUntil(this.stop$),
       finalize(() => {
         if (!this.stopped && version === this.uploadVersion) {
@@ -308,6 +340,11 @@ export class ProjectFormComponent implements OnInit, OnDestroy {
       next: uploaded => {
         if (this.stopped || version !== this.uploadVersion) return;
         this.projectForm.patchValue({ imageUrl: uploaded.url });
+        // Keep the provider identity with the row: it is what lets the API
+        // replace or delete the exact asset later (never re-derived from URL).
+        this.uploadedUrl = uploaded.url;
+        this.uploadedProvider = uploaded.provider ?? null;
+        this.uploadedPublicId = uploaded.publicId ?? null;
         this.coverBroken.set(false);
       },
       error: (error: unknown) => {
@@ -334,7 +371,9 @@ export class ProjectFormComponent implements OnInit, OnDestroy {
       technologies: splitList(value.technologies),
       liveUrl: optional(value.liveUrl), githubUrl: optional(value.githubUrl),
       // Keep server-owned and legacy cover paths unchanged, not preview-resolved.
-      imageUrl: optional(value.imageUrl), order: value.order,
+      imageUrl: optional(value.imageUrl),
+      ...this.storageMetadataFor(optional(value.imageUrl)),
+      order: value.order,
       featured: value.featured, isActive: value.isActive,
       categoryEn: optional(value.category), categoryAr: optional(value.categoryAr),
       clientEn: optional(value.client), clientAr: optional(value.clientAr),
@@ -413,6 +452,13 @@ export class ProjectFormComponent implements OnInit, OnDestroy {
     this.loadedMetricsEn = (project.metricsEn ?? []).map(metric => ({ ...metric }));
     this.loadedMetricsAr = (project.metricsAr ?? []).map(metric => ({ ...metric }));
     this.loadedImageUrl = project.imageUrl ?? '';
+    // The stored row carries the asset's provider identity; an edit that does
+    // not re-upload must pass it back so the backend never loses track of it.
+    this.loadedProvider = project.storageProvider ?? null;
+    this.loadedPublicId = project.storagePublicId ?? null;
+    this.uploadedUrl = '';
+    this.uploadedProvider = null;
+    this.uploadedPublicId = null;
     this.slug.set(project.slug);
     this.projectForm.patchValue({
       title: project.titleEn, titleAr: project.titleAr,

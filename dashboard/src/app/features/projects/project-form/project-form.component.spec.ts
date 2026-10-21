@@ -17,7 +17,8 @@ function projectFixture(id = 1): Project {
     id, slug: `stable-project-${id}`,
     titleEn: 'Inventory', titleAr: 'المخزون',
     descriptionEn: 'English description', descriptionAr: 'وصف عربي مستقل',
-    imageUrl: '/projects/react/E-Inventory.png', technologies: ['Angular', '.NET'],
+    imageUrl: '/projects/react/E-Inventory.png', storageProvider: null, storagePublicId: null,
+    technologies: ['Angular', '.NET'],
     liveUrl: 'https://example.com/live', githubUrl: 'https://github.com/example/project',
     order: 17, featured: true, isActive: false,
     categoryEn: 'Dashboard', categoryAr: 'لوحة التحكم',
@@ -270,7 +271,7 @@ describe('ProjectFormComponent', () => {
     expect(component.projectForm.enabled).toBeTrue();
   });
 
-  for (const mime of ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif']) {
+  for (const mime of ['image/jpeg', 'image/png', 'image/gif', 'image/webp']) {
     it(`accepts backend-supported ${mime} uploads`, () => {
       startCreate();
       const image = file(mime);
@@ -282,11 +283,11 @@ describe('ProjectFormComponent', () => {
     });
   }
 
-  it('rejects SVG and every non-allowlisted MIME rather than accepting all image types', () => {
+  it('rejects AVIF along with SVG and every non-allowlisted MIME (the API cannot decode AVIF)', () => {
     startCreate();
-    for (const mime of ['image/svg+xml', 'image/bmp', 'image/tiff', 'image/x-icon', 'image/jpg', 'text/plain', 'application/pdf', '']) {
+    for (const mime of ['image/avif', 'image/svg+xml', 'image/bmp', 'image/tiff', 'image/x-icon', 'image/jpg', 'text/plain', 'application/pdf', '']) {
       selectFile(file(mime));
-      expect(component.uploadError()).withContext(mime).toContain('JPEG, PNG, GIF, WebP or AVIF');
+      expect(component.uploadError()).withContext(mime).toContain('JPEG, PNG, GIF or WebP');
     }
     expect(projects.uploadCover).not.toHaveBeenCalled();
   });

@@ -10,6 +10,7 @@ using PortfolioAPI.Controllers;
 using PortfolioAPI.Core.Common;
 using PortfolioAPI.Core.DTOs;
 using PortfolioAPI.Core.Entities;
+using PortfolioAPI.Core.Interfaces;
 using PortfolioAPI.Core.Interfaces.Services;
 using PortfolioAPI.Infrastructure.Services;
 using Xunit;
@@ -292,7 +293,45 @@ namespace PortfolioAPI.UnitTests
 
             // Assert
             result.Should().BeOfType<NoContentResult>();
-            mockFileStorage.Verify(f => f.DeleteFileAsync("/api/files/old-cover.png"), Times.Once);
+            mockFileStorage.Verify(
+                f => f.DeleteImageAsync(
+                    It.Is<MediaReference>(r => r.Url == "/api/files/old-cover.png"),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task AdminMediaController_Migrate_PassesThroughDryRunAndReturnsTheReport()
+        {
+            var mockMigration = new Mock<IMediaMigrationService>();
+            mockMigration
+                .Setup(m => m.RunAsync(true, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new MediaMigrationReport(
+                    MediaProvider.Cloudinary, 10, 4, 6, 0, 0, true, Array.Empty<string>()));
+
+            var controller = new AdminMediaController(mockMigration.Object);
+
+            var result = await controller.Migrate(dryRun: true, CancellationToken.None);
+
+            result.Should().BeOfType<OkObjectResult>();
+            mockMigration.Verify(
+                m => m.RunAsync(true, It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task AdminMediaController_Migrate_ReportsFailuresWithoutLeakingProviderDetails()
+        {
+            var mockMigration = new Mock<IMediaMigrationService>();
+            mockMigration
+                .Setup(m => m.RunAsync(false, It.IsAny<CancellationToken>()))
+                .Throws(new InvalidOperationException("cloudinary: HTTP 418"));
+
+            var controller = new AdminMediaController(mockMigration.Object);
+
+            var result = await controller.Migrate(dryRun: false, CancellationToken.None);
+
+            var status = result.Should().BeOfType<ObjectResult>().Which.StatusCode;
+            status.Should().Be(500);
         }
 
         #endregion

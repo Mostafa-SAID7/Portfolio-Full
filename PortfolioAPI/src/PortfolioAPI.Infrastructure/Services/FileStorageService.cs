@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Configuration;
+using PortfolioAPI.Core.Interfaces;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Webp;
 using SixLabors.ImageSharp.Processing;
@@ -50,8 +51,21 @@ namespace PortfolioAPI.Infrastructure.Services
             !url.Contains("..", StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Local-disk implementation of <see cref="IFileStorageService"/>.
+    ///
+    /// Each cover becomes two physical WebP files (640px and 1280px) named after
+    /// the project slug, and is served back from the API origin at a relative
+    /// <c>/api/files/...</c> path.
+    ///
+    /// The Cloudinary provider is the production default; this one remains the
+    /// development/fallback provider and the source of the local files that the
+    /// media migration moves to Cloudinary.
+    /// </summary>
     public class FileStorageService : IFileStorageService
     {
+        private const string FallbackSlug = "project";
+
         /// <summary>
         /// Extension → content type + magic-byte sniffers. Uploads are
         /// validated against the actual bytes, so a renamed executable or an
@@ -67,21 +81,114 @@ namespace PortfolioAPI.Infrastructure.Services
                 [".webp"] = ("image/webp", IsWebp),
             };
 
-        private const long DefaultMaxFileSize = 10 * 1024 * 1024; // 10MB
         private readonly string _storagePath;
         private readonly string _baseUrl;
         private readonly long _maxFileSize;
+        private readonly IImageValidator _validator;
 
-        public FileStorageService(IConfiguration configuration)
+        /// <param name="validator">
+        /// Injected by DI; tests may omit it and get one built from the same
+        /// configuration, so the validation rules never diverge between paths.
+        /// </param>
+        public FileStorageService(IConfiguration configuration, IImageValidator? validator = null)
         {
             _storagePath = UploadStorage.ResolveRoot(configuration);
             _baseUrl = UploadStorage.PublicBase(configuration);
-
-            var configuredMax = configuration["FileStorage:MaxFileSize"];
-            _maxFileSize = long.TryParse(configuredMax, out var parsed) && parsed > 0
-                ? parsed
-                : DefaultMaxFileSize;
+            _validator = validator ?? new ImageValidator(configuration);
+            _maxFileSize = _validator.Limits.MaxBytes;
         }
+
+        public string Provider => MediaProvider.Local;
+
+        // ------------------------------------------------------------------
+        // Provider-agnostic media operations
+        // ------------------------------------------------------------------
+
+        /// <summary>
+        /// Validates, then writes a 640px and a 1280px WebP of the image named
+        /// after the project slug. No previous asset is removed here: the
+        /// caller owns the database commit, so it deletes the old cover only
+        /// once the new one is safely referenced.
+        /// </summary>
+        public async Task<StoredImage> UploadImageAsync(ImageUploadRequest request, CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(request);
+            ArgumentNullException.ThrowIfNull(request.Content);
+
+            var validated = await _validator.ValidateAsync(request.Content, request.FileName, null, cancellationToken);
+
+            var safeSlug = SanitizeSegment(request.Slug, FallbackSlug);
+            using var image = Image.Load(validated.Content);
+
+            var (fileName640, fileName1280) = GetUniqueResponsiveFileNames(safeSlug);
+            var bytes640 = await WriteVariantAsync(image, fileName640, 640, cancellationToken);
+            var bytes1280 = await WriteVariantAsync(image, fileName1280, 1280, cancellationToken);
+
+            var url640 = $"{_baseUrl}/{fileName640}";
+            var url1280 = $"{_baseUrl}/{fileName1280}";
+
+            return new StoredImage(
+                MediaProvider.Local,
+                null,
+                url1280,
+                url640,
+                url1280,
+                fileName1280,
+                bytes1280,
+                image.Width,
+                image.Height);
+        }
+
+        public async Task<StoredImage> ReplaceImageAsync(
+            ImageUploadRequest request,
+            MediaReference previous,
+            CancellationToken cancellationToken = default)
+        {
+            // Upload first — the previous asset is only removed once the new
+            // one is on disk, so a failed upload leaves the old cover intact.
+            var stored = await UploadImageAsync(request, cancellationToken);
+
+            if (previous.ResolvedProvider == MediaProvider.Local)
+            {
+                await DeleteImageAsync(previous, cancellationToken);
+            }
+
+            return stored;
+        }
+
+        /// <summary>
+        /// Removes the file behind the URL and the responsive sibling that was
+        /// written with it (they always share a counter). Deletion is
+        /// idempotent: a file that is already gone is not an error.
+        /// </summary>
+        public Task<bool> DeleteImageAsync(MediaReference reference, CancellationToken cancellationToken = default)
+        {
+            if (reference.IsEmpty || reference.ResolvedProvider != MediaProvider.Local || reference.Url is null)
+                return Task.FromResult(false);
+
+            LocalUploadFiles.TryDeleteStoredImage(reference.Url, _storagePath);
+            return Task.FromResult(true);
+        }
+
+        /// <summary>
+        /// Resolves a stored reference to the URL the browser should call. A
+        /// reference that only carries a file name is still usable.
+        /// </summary>
+        public string GetImageUrl(MediaReference reference)
+        {
+            if (!string.IsNullOrWhiteSpace(reference.Url))
+                return reference.Url!;
+
+            if (string.IsNullOrWhiteSpace(reference.PublicId))
+                return string.Empty;
+
+            var fileName = Path.GetFileName(reference.PublicId);
+            return string.IsNullOrWhiteSpace(fileName) ? string.Empty : $"{_baseUrl}/{fileName}";
+        }
+
+        // ------------------------------------------------------------------
+        // Legacy file-oriented surface (kept for compatibility)
+        // ------------------------------------------------------------------
 
         public async Task<string> SaveFileAsync(Stream fileStream, string fileName, string contentType)
         {
@@ -129,188 +236,22 @@ namespace PortfolioAPI.Infrastructure.Services
         {
             ArgumentNullException.ThrowIfNull(imageStream);
 
-            var sourceBytes = await ReadCappedAsync(imageStream);
-            if (sourceBytes.Length == 0)
-                throw new InvalidOperationException("The uploaded file is empty.");
+            // The same validator the Cloudinary path runs, so dimension and
+            // pixel limits apply no matter where the bytes end up.
+            var validated = await _validator.ValidateAsync(imageStream, fileName: null, contentType: null);
 
-            // Validate magic bytes against allowed image types
-            var (contentType, sniff) = DetectImageType(sourceBytes);
-            if (sniff is null)
-                throw new InvalidOperationException("Only JPG, PNG, GIF and WebP image files are allowed.");
-            if (!sniff(sourceBytes))
-                throw new InvalidOperationException("The file content does not match its extension.");
-
-            // Delete old image files if oldImageUrl is provided
+            // Legacy contract: the old pair is removed BEFORE the new files are
+            // written, so the new upload can reuse the base names.
             if (!string.IsNullOrWhiteSpace(oldImageUrl))
-            {
-                DeleteOldImageFiles(oldImageUrl);
-            }
+                LocalUploadFiles.TryDeleteStoredImage(oldImageUrl, _storagePath);
 
-            // Sanitize slug: empty/null/after-sanitize-empty → "project"
-            var safeSlug = SanitizeSlug(projectSlug);
+            using var image = Image.Load(validated.Content);
 
-            // Load image once for both sizes
-            using var image = Image.Load(sourceBytes);
-
-            // Generate 640px version (mobile)
-            var fileName640 = GetUniqueResponsiveFileName(safeSlug, 640);
-            var filePath640 = Path.Combine(_storagePath, fileName640);
-            using (var resized640 = image.Clone(x =>
-            {
-                if (image.Width > 640)
-                {
-                    var scale = 640.0 / image.Width;
-                    var newHeight = (int)Math.Round(image.Height * scale);
-                    x.Resize(640, newHeight);
-                }
-            }))
-            {
-                using var outputStream = new MemoryStream();
-                var encoder = new WebpEncoder { Quality = 80 };
-                await resized640.SaveAsync(outputStream, encoder);
-                await File.WriteAllBytesAsync(filePath640, outputStream.ToArray());
-            }
-
-            // Generate 1280px version (desktop)
-            var fileName1280 = GetUniqueResponsiveFileName(safeSlug, 1280);
-            var filePath1280 = Path.Combine(_storagePath, fileName1280);
-            using (var resized1280 = image.Clone(x =>
-            {
-                if (image.Width > 1280)
-                {
-                    var scale = 1280.0 / image.Width;
-                    var newHeight = (int)Math.Round(image.Height * scale);
-                    x.Resize(1280, newHeight);
-                }
-            }))
-            {
-                using var outputStream = new MemoryStream();
-                var encoder = new WebpEncoder { Quality = 80 };
-                await resized1280.SaveAsync(outputStream, encoder);
-                await File.WriteAllBytesAsync(filePath1280, outputStream.ToArray());
-            }
+            var (fileName640, fileName1280) = GetUniqueResponsiveFileNames(SanitizeSegment(projectSlug, FallbackSlug));
+            await WriteVariantAsync(image, fileName640, 640);
+            await WriteVariantAsync(image, fileName1280, 1280);
 
             return ($"{_baseUrl}/{fileName640}", $"{_baseUrl}/{fileName1280}");
-        }
-
-        private static (string ContentType, Func<byte[], bool>? Sniff) DetectImageType(byte[] bytes)
-        {
-            if (IsJpeg(bytes)) return ("image/jpeg", IsJpeg);
-            if (IsPng(bytes)) return ("image/png", IsPng);
-            if (IsGif(bytes)) return ("image/gif", IsGif);
-            if (IsWebp(bytes)) return ("image/webp", IsWebp);
-            return (string.Empty, null);
-        }
-
-        private static string SanitizeSlug(string? slug)
-        {
-            if (string.IsNullOrWhiteSpace(slug))
-                return "project";
-
-            // Normalize to FormD, lowercase, replace non-alphanumeric with -
-            var normalized = slug.Normalize(System.Text.NormalizationForm.FormD).ToLowerInvariant();
-            var slugified = System.Text.RegularExpressions.Regex.Replace(normalized, @"[^a-z0-9]+", "-").Trim('-');
-            return string.IsNullOrWhiteSpace(slugified) ? "project" : slugified;
-        }
-
-        private void DeleteOldImageFiles(string oldImageUrl)
-        {
-            // Security: ensure the URL points to a managed file in our uploads folder
-            if (string.IsNullOrWhiteSpace(oldImageUrl))
-                return;
-
-            var fileName = Path.GetFileName(oldImageUrl);
-            if (string.IsNullOrWhiteSpace(fileName))
-                return;
-
-            // Path traversal protection: ensure file name doesn't contain path separators
-            if (fileName.Contains("..", StringComparison.Ordinal) ||
-                fileName.Contains(Path.DirectorySeparatorChar) ||
-                fileName.Contains(Path.AltDirectorySeparatorChar))
-                return;
-
-            // IsManagedFile check: ensure the resolved path is within _storagePath
-            var exactPath = Path.Combine(_storagePath, fileName);
-            var fullPath = Path.GetFullPath(exactPath);
-            var storageRoot = Path.GetFullPath(_storagePath);
-            if (!fullPath.StartsWith(storageRoot, StringComparison.OrdinalIgnoreCase))
-                return;
-
-            // 1. Delete the exact file from the URL (best-effort, silent if not exists)
-            try
-            {
-                if (File.Exists(exactPath))
-                    File.Delete(exactPath);
-            }
-            catch { /* best effort */ }
-
-            // 2. Try to extract base slug and delete related 640/1280 files (best-effort)
-            var nameWithoutExt = Path.GetFileNameWithoutExtension(fileName);
-            string baseSlug;
-
-            if (nameWithoutExt.EndsWith("-640", StringComparison.Ordinal))
-                baseSlug = nameWithoutExt[..^4];
-            else if (nameWithoutExt.EndsWith("-1280", StringComparison.Ordinal))
-                baseSlug = nameWithoutExt[..^5];
-            else
-                baseSlug = nameWithoutExt;
-
-            // Skip slug-based deletion for old GUID/hash filenames
-            // GUIDs: 36 chars with hyphens at positions 8,13,18,23
-            // Hashes: 16 hex chars (no hyphens)
-            // Slugs: contain only lowercase letters, digits, hyphens (from SanitizeSlug)
-            if (string.IsNullOrWhiteSpace(baseSlug) || baseSlug.Length < 2)
-                return;
-
-            // Only attempt slug-based deletion if baseSlug looks like a valid slug
-            // (contains only lowercase letters, digits, hyphens)
-            if (!System.Text.RegularExpressions.Regex.IsMatch(baseSlug, @"^[a-z0-9-]+$"))
-                return;
-
-            // Delete files matching the base slug pattern (best-effort)
-            try
-            {
-                foreach (var file in Directory.GetFiles(_storagePath))
-                {
-                    var name = Path.GetFileName(file);
-                    // Match: {baseSlug}-640.webp, {baseSlug}-1280.webp, {baseSlug}.webp
-                    // Also match numbered variants: {baseSlug}-640-2.webp, {baseSlug}-1280-2.webp, {baseSlug}-2.webp
-                    if (name.StartsWith(baseSlug + "-", StringComparison.OrdinalIgnoreCase) ||
-                        name.Equals(baseSlug + ".webp", StringComparison.OrdinalIgnoreCase))
-                    {
-                        // Ensure the file is within storage root (IsManagedFile check)
-                        var filePath = Path.GetFullPath(file);
-                        if (!filePath.StartsWith(storageRoot, StringComparison.OrdinalIgnoreCase))
-                            continue;
-
-                        try { File.Delete(file); } catch { /* best effort */ }
-                    }
-                }
-            }
-            catch { /* ignore directory errors */ }
-        }
-
-        private string GetUniqueResponsiveFileName(string baseSlug, int size)
-        {
-            var suffix = $"-{size}.webp";
-            var fileName = $"{baseSlug}{suffix}";
-            var filePath = Path.Combine(_storagePath, fileName);
-            if (!File.Exists(filePath))
-                return fileName;
-
-            var counter = 2;
-            while (true)
-            {
-                fileName = $"{baseSlug}{suffix.Replace(".webp", $"-{counter}.webp", StringComparison.Ordinal)}";
-                // Actually: {baseSlug}-{size}-{counter}.webp  → but spec says {slug}-640-2.webp
-                // Re-read: "haxel-footwear-640.webp → haxel-footwear-640-2.webp"
-                // So the counter goes after the size suffix
-                fileName = $"{baseSlug}-{size}-{counter}.webp";
-                filePath = Path.Combine(_storagePath, fileName);
-                if (!File.Exists(filePath))
-                    return fileName;
-                counter++;
-            }
         }
 
         public async Task<string> SaveDocumentAsync(Stream documentStream, string fileName)
@@ -329,55 +270,6 @@ namespace PortfolioAPI.Infrastructure.Services
             };
 
             return await SaveValidatedAsync(documentStream, extension, sniff);
-        }
-
-        /// <summary>Buffers with a hard cap, validates bytes, and writes the file with a safe unique name.</summary>
-        private async Task<string> SaveValidatedAsync(Stream fileStream, string extension, Func<byte[], bool> sniff, string? preferredName = null)
-        {
-            var bytes = await ReadCappedAsync(fileStream);
-            if (bytes.Length == 0)
-                throw new InvalidOperationException("The uploaded file is empty.");
-            if (!sniff(bytes))
-                throw new InvalidOperationException("The file content does not match its extension.");
-
-            return await SaveBytesAsync(bytes, extension, preferredName);
-        }
-
-        private async Task<string> SaveBytesAsync(byte[] bytes, string extension, string? preferredName)
-        {
-            var contentHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes))[..16].ToLowerInvariant();
-            var uniqueFileName = string.IsNullOrWhiteSpace(preferredName)
-                ? $"{Guid.NewGuid()}{extension}"
-                : $"{ToSafeFileName(preferredName)}-{contentHash}{extension}";
-            var filePath = Path.Combine(_storagePath, uniqueFileName);
-            if (!File.Exists(filePath))
-                await File.WriteAllBytesAsync(filePath, bytes);
-            return $"{_baseUrl}/{uniqueFileName}";
-        }
-
-        private static string ToSafeFileName(string value)
-        {
-            var slug = System.Text.RegularExpressions.Regex.Replace(
-                value.Normalize(System.Text.NormalizationForm.FormD).ToLowerInvariant(),
-                @"[^a-z0-9]+", "-").Trim('-');
-            return string.IsNullOrWhiteSpace(slug) ? "project-image" : slug[..Math.Min(slug.Length, 64)];
-        }
-
-        private async Task<byte[]> ReadCappedAsync(Stream fileStream)
-        {
-            await using var buffer = new MemoryStream();
-            var chunk = new byte[81920];
-            long total = 0;
-            int read;
-            while ((read = await fileStream.ReadAsync(chunk.AsMemory(0, chunk.Length))) > 0)
-            {
-                total += read;
-                if (total > _maxFileSize)
-                    throw new InvalidOperationException(
-                        $"File size exceeds the maximum allowed size of {_maxFileSize / 1024 / 1024}MB.");
-                await buffer.WriteAsync(chunk.AsMemory(0, read));
-            }
-            return buffer.ToArray();
         }
 
         public async Task<Stream> GetFileAsync(string fileUrl)
@@ -434,6 +326,137 @@ namespace PortfolioAPI.Infrastructure.Services
             return Task.FromResult(new FileInfo(filePath).Length);
         }
 
+        // ------------------------------------------------------------------
+        // Internals
+        // ------------------------------------------------------------------
+
+        /// <summary>
+        /// Encodes one responsive variant and returns its byte length. The
+        /// source is only resized when it is actually wider than the target, so
+        /// a small upload is never upscaled.
+        /// </summary>
+        private async Task<long> WriteVariantAsync(Image source, string fileName, int size, CancellationToken cancellationToken = default)
+        {
+            var filePath = Path.Combine(_storagePath, fileName);
+
+            using var output = new MemoryStream();
+            using (var resized = source.Clone(x =>
+            {
+                if (source.Width > size)
+                {
+                    var scale = (double)size / source.Width;
+                    x.Resize(size, (int)Math.Round(source.Height * scale));
+                }
+            }))
+            {
+                await resized.SaveAsync(output, new WebpEncoder { Quality = 80 }, cancellationToken);
+            }
+
+            var bytes = output.ToArray();
+            await File.WriteAllBytesAsync(filePath, bytes, cancellationToken);
+            return bytes.LongLength;
+        }
+
+        /// <summary>
+        /// Picks the 640/1280 file names as a pair so both carry the SAME
+        /// counter. That is what makes "delete the old pair" exact: the files
+        /// written by one upload are always <c>{slug}-640[-n].webp</c> and
+        /// <c>{slug}-1280[-n].webp</c> with the same n, so removing one never
+        /// removes a newer replacement.
+        /// </summary>
+        private (string FileName640, string FileName1280) GetUniqueResponsiveFileNames(string baseSlug)
+        {
+            for (var counter = 1; counter < int.MaxValue; counter++)
+            {
+                var suffix = counter == 1 ? string.Empty : $"-{counter}";
+                var name640 = $"{baseSlug}-640{suffix}.webp";
+                var name1280 = $"{baseSlug}-1280{suffix}.webp";
+
+                if (!File.Exists(Path.Combine(_storagePath, name640)) &&
+                    !File.Exists(Path.Combine(_storagePath, name1280)))
+                    return (name640, name1280);
+            }
+
+            throw new InvalidOperationException("Could not find a free file name for the uploaded image.");
+        }
+
+        private static (string ContentType, Func<byte[], bool>? Sniff) DetectImageType(byte[] bytes)
+        {
+            if (IsJpeg(bytes)) return ("image/jpeg", IsJpeg);
+            if (IsPng(bytes)) return ("image/png", IsPng);
+            if (IsGif(bytes)) return ("image/gif", IsGif);
+            if (IsWebp(bytes)) return ("image/webp", IsWebp);
+            return (string.Empty, null);
+        }
+
+        /// <summary>
+        /// Reduces any user-supplied text to <c>a-z0-9-</c>. An empty result
+        /// becomes <paramref name="fallback"/>, so a title in a non-Latin script
+        /// still produces a usable, path-safe name instead of an empty one.
+        /// </summary>
+        private static string SanitizeSegment(string? value, string fallback)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return fallback;
+
+            var normalized = value.Normalize(System.Text.NormalizationForm.FormD).ToLowerInvariant();
+            var sanitized = System.Text.RegularExpressions.Regex.Replace(normalized, @"[^a-z0-9]+", "-").Trim('-');
+
+            if (string.IsNullOrWhiteSpace(sanitized))
+                return fallback;
+
+            return sanitized.Length > 100 ? sanitized[..100].TrimEnd('-') : sanitized;
+        }
+
+        /// <summary>Buffers with a hard cap, validates bytes, and writes the file with a safe unique name.</summary>
+        private async Task<string> SaveValidatedAsync(Stream fileStream, string extension, Func<byte[], bool> sniff, string? preferredName = null)
+        {
+            var bytes = await ReadCappedAsync(fileStream);
+            if (bytes.Length == 0)
+                throw new InvalidOperationException("The uploaded file is empty.");
+            if (!sniff(bytes))
+                throw new InvalidOperationException("The file content does not match its extension.");
+
+            return await SaveBytesAsync(bytes, extension, preferredName);
+        }
+
+        private async Task<string> SaveBytesAsync(byte[] bytes, string extension, string? preferredName)
+        {
+            var contentHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes))[..16].ToLowerInvariant();
+            var uniqueFileName = string.IsNullOrWhiteSpace(preferredName)
+                ? $"{Guid.NewGuid()}{extension}"
+                : $"{ToSafeFileName(preferredName)}-{contentHash}{extension}";
+            var filePath = Path.Combine(_storagePath, uniqueFileName);
+            if (!File.Exists(filePath))
+                await File.WriteAllBytesAsync(filePath, bytes);
+            return $"{_baseUrl}/{uniqueFileName}";
+        }
+
+        private static string ToSafeFileName(string value)
+        {
+            var slug = System.Text.RegularExpressions.Regex.Replace(
+                value.Normalize(System.Text.NormalizationForm.FormD).ToLowerInvariant(),
+                @"[^a-z0-9]+", "-").Trim('-');
+            return string.IsNullOrWhiteSpace(slug) ? "project-image" : slug[..Math.Min(slug.Length, 64)];
+        }
+
+        private async Task<byte[]> ReadCappedAsync(Stream fileStream)
+        {
+            await using var buffer = new MemoryStream();
+            var chunk = new byte[81920];
+            long total = 0;
+            int read;
+            while ((read = await fileStream.ReadAsync(chunk.AsMemory(0, chunk.Length))) > 0)
+            {
+                total += read;
+                if (total > _maxFileSize)
+                    throw new InvalidOperationException(
+                        $"File size exceeds the maximum allowed size of {_maxFileSize / 1024 / 1024}MB.");
+                await buffer.WriteAsync(chunk.AsMemory(0, read));
+            }
+            return buffer.ToArray();
+        }
+
         private static bool IsJpeg(byte[] b) =>
             b.Length > 3 && b[0] == 0xFF && b[1] == 0xD8 && b[2] == 0xFF;
 
@@ -451,18 +474,5 @@ namespace PortfolioAPI.Infrastructure.Services
             b.Length > 12 &&
             b[0] == 'R' && b[1] == 'I' && b[2] == 'F' && b[3] == 'F' &&
             b[8] == 'W' && b[9] == 'E' && b[10] == 'B' && b[11] == 'P';
-
-    }
-
-    public interface IFileStorageService
-    {
-        Task<string> SaveFileAsync(Stream fileStream, string fileName, string contentType);
-        Task<Stream> GetFileAsync(string fileUrl);
-        Task DeleteFileAsync(string fileUrl);
-        Task<bool> FileExistsAsync(string fileUrl);
-        Task<long> GetFileSizeAsync(string fileUrl);
-        Task<string> SaveImageAsync(Stream imageStream, string fileName, string? projectTitle = null);
-        Task<(string Url640, string Url1280)> SaveOptimizedResponsiveImageAsync(Stream imageStream, string? projectSlug = null, string? oldImageUrl = null);
-        Task<string> SaveDocumentAsync(Stream documentStream, string fileName);
     }
 }

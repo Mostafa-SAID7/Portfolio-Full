@@ -40,6 +40,12 @@ namespace PortfolioAPI.Infrastructure.Data.Configurations
             builder.Property(p => p.ImageUrl)
                 .HasMaxLength(500);
 
+            builder.Property(p => p.StorageProvider)
+                .HasMaxLength(32);
+
+            builder.Property(p => p.StoragePublicId)
+                .HasMaxLength(300);
+
             builder.Property(p => p.Technologies)
                 .HasMaxLength(500)
                 .HasConversion(StringListConverter.CommaSeparated, StringListConverter.ListComparer);

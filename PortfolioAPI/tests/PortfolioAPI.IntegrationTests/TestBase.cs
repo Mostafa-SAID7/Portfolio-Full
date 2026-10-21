@@ -231,6 +231,66 @@ namespace PortfolioAPI.IntegrationTests
             Directory.CreateDirectory(_testDirectory);
         }
 
+        public string Provider => MediaProvider.Local;
+
+        public Task<StoredImage> UploadImageAsync(ImageUploadRequest request, CancellationToken cancellationToken = default)
+        {
+            var fileName = $"test-{Guid.NewGuid():N}.webp";
+            var filePath = Path.Combine(_testDirectory, fileName);
+
+            using (var fileStreamToWrite = File.Create(filePath))
+            {
+                request.Content.CopyTo(fileStreamToWrite);
+            }
+
+            var url = $"/api/files/{fileName}";
+            _storedFiles[fileName] = (File.OpenRead(filePath), "image/webp");
+
+            return Task.FromResult(new StoredImage(
+                MediaProvider.Local,
+                null,
+                url,
+                url,
+                url,
+                fileName,
+                new FileInfo(filePath).Length,
+                1280,
+                640));
+        }
+
+        public async Task<StoredImage> ReplaceImageAsync(
+            ImageUploadRequest request,
+            MediaReference previous,
+            CancellationToken cancellationToken = default)
+        {
+            var stored = await UploadImageAsync(request, cancellationToken);
+
+            if (!previous.IsEmpty && !string.IsNullOrWhiteSpace(previous.Url))
+            {
+                await DeleteImageAsync(previous, cancellationToken);
+            }
+
+            return stored;
+        }
+
+        public Task<bool> DeleteImageAsync(MediaReference reference, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(reference.Url))
+            {
+                return Task.FromResult(false);
+            }
+
+            var fileId = Path.GetFileName(reference.Url);
+            if (_storedFiles.Remove(fileId))
+            {
+                return Task.FromResult(true);
+            }
+
+            return Task.FromResult(false);
+        }
+
+        public string GetImageUrl(MediaReference reference) => reference.Url ?? string.Empty;
+
         public Task<string> SaveFileAsync(Stream fileStream, string fileName, string contentType)
         {
             var fileId = Guid.NewGuid().ToString();

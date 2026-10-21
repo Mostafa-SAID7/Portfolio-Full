@@ -1,10 +1,29 @@
 import { isDevMode } from '@angular/core';
 
-/** Response of POST api/upload/image (backend-owned file storage). */
+/** Response of POST api/upload/image (backend-owned media storage). */
 export interface UploadedImage {
   url: string;
   fileName: string;
   size: number;
+  /** "local" or "cloudinary" — stored on the project so it can be replaced later. */
+  provider?: string | null;
+  /** Cloudinary public id (null for local files). Persist with the project. */
+  publicId?: string | null;
+}
+
+/**
+ * True when a stored imageUrl points at the Cloudinary CDN. Scoped to
+ * res.cloudinary.com — a foreign domain carrying the marker is still just an
+ * external image to render as-is.
+ */
+export function isCloudinaryImage(imageUrl: string | null | undefined): boolean {
+  if (!imageUrl) return false;
+  try {
+    const url = new URL(imageUrl);
+    return url.protocol === 'https:' && url.hostname === 'res.cloudinary.com' && url.pathname.includes('/image/upload/');
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -52,10 +71,11 @@ const stripExtension = (path: string) => path.replace(/\.(png|jpe?g|webp|avif)$/
  * uploading again. A bundled portfolio cover (e.g. `/projects/angular/zyro-electric.png`)
  * is served by the portfolio app itself - the dashboard cannot even fetch it
  * (different app in production), so a failed preview there says nothing about
- * the live site and must not raise an alarm.
+ * the live site and must not raise an alarm. Cloudinary covers are served by
+ * the CDN and are equally out of the dashboard's control.
  */
 export function isApiHostedImage(imageUrl: string | null | undefined): boolean {
-  return !!imageUrl && imageUrl.startsWith('/api/files/');
+  return !!imageUrl && imageUrl.startsWith('/api/files/') && !isCloudinaryImage(imageUrl);
 }
 
 /**
@@ -76,6 +96,10 @@ export function resolvePortfolioImage(
 ): string | null {
   // No cover yet -> the shared placeholder image.
   if (!imageUrl) return PLACEHOLDER_COVER;
+
+  // Cloudinary URLs are absolute and self-contained: the CDN does the
+  // resizing, so the stored URL is consumed exactly as the API returned it.
+  if (isCloudinaryImage(imageUrl)) return imageUrl;
   if (/^(https?:)?\/\//.test(imageUrl) || imageUrl.startsWith('data:')) return imageUrl;
 
   // Backend-owned uploads (`/api/files/...`) are served by the Portfolio API.

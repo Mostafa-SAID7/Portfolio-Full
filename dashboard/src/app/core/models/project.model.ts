@@ -18,6 +18,10 @@ export interface Project {
   descriptionEn: string;
   descriptionAr: string;
   imageUrl: string | null;
+  /** "local" or "cloudinary" — which backend owns the cover (null = legacy local). */
+  storageProvider: string | null;
+  /** Provider-native identity of the cover (Cloudinary public id); required for replace/delete. */
+  storagePublicId: string | null;
   technologies: string[];
   githubUrl: string | null;
   liveUrl: string | null;
@@ -51,6 +55,9 @@ export interface ProjectPayload {
   descriptionEn: string;
   descriptionAr: string;
   imageUrl?: string | null;
+  /** Set from the upload response so the API can replace/delete the exact asset. */
+  storageProvider?: string | null;
+  storagePublicId?: string | null;
   technologies?: string[];
   githubUrl?: string | null;
   liveUrl?: string | null;
