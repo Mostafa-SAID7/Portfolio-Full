@@ -1,12 +1,15 @@
-/** Mirrors PortfolioAPI.Core.DTOs.SkillDto (api/Skills, api/public/skills). */
+/** Mirrors PortfolioAPI.Core.DTOs.SkillDto (api/Skills, api/public/skills) — camelCase JSON. */
 export interface Skill {
   id: number;
-  name: string;
-  category: string;
+  nameEn: string;
+  nameAr: string;
+  categoryEn: string;
+  categoryAr: string;
   /** 0-100. */
   proficiency: number;
   iconUrl: string | null;
-  description: string | null;
+  descriptionEn: string | null;
+  descriptionAr: string | null;
   order: number;
   isActive: boolean;
   createdAt: string;
@@ -15,11 +18,14 @@ export interface Skill {
 
 /** Payload accepted by POST/PUT api/Skills (CreateSkillDto/UpdateSkillDto on the API). */
 export interface SkillPayload {
-  name: string;
-  category: string;
+  nameEn: string;
+  nameAr: string;
+  categoryEn: string;
+  categoryAr: string;
   proficiency: number;
   iconUrl?: string | null;
-  description?: string | null;
+  descriptionEn?: string | null;
+  descriptionAr?: string | null;
   order?: number;
   isActive?: boolean;
 }

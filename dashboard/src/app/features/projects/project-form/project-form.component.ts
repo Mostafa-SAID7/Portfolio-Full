@@ -1,560 +1,450 @@
-import { Component, ElementRef, OnInit, ViewChild, computed, inject, signal } from '@angular/core';
+import { Component, ElementRef, OnDestroy, OnInit, ViewChild, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { HttpErrorResponse } from '@angular/common/http';
+import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidatorFn, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { Observable, firstValueFrom } from 'rxjs';
+import { EMPTY, Observable, Subject, Subscription, catchError, finalize, switchMap, takeUntil, tap } from 'rxjs';
 import { ProjectService } from '../../../core/services/project.service';
 import { CategoryService } from '../../../core/services/category.service';
 import { SkillService } from '../../../core/services/skill.service';
 import { TagsInputComponent } from '../../../shared/tags-input.component';
-import { ProjectMetric, ProjectPayload } from '../../../core/models/project.model';
+import { Project, ProjectMetric, ProjectPayload } from '../../../core/models/project.model';
 import { isApiHostedImage, resolvePortfolioImage } from '../../../core/portfolio-origin';
 import { SelectFieldComponent } from '../../../shared/select-field.component';
 
-const MAX_COVER_BYTES = 10 * 1024 * 1024; // API-side cap is 10MB.
+const MAX_COVER_BYTES = 10 * 1024 * 1024;
+const COVER_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif']);
+const splitList = (value: string): string[] => value.split(',').map(item => item.trim()).filter(Boolean);
+const requiredText: ValidatorFn = control =>
+  typeof control.value === 'string' && control.value.trim() ? null : { required: true };
+const listLimit = (maximum: number): ValidatorFn => control =>
+  splitList(control.value as string).length <= maximum ? null : { listLimit: { maximum } };
+const httpUrl: ValidatorFn = control => {
+  const value = (control.value as string).trim();
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return /^https?:\/\//i.test(value) && ['http:', 'https:'].includes(url.protocol) && !!url.hostname
+      ? null : { httpUrl: true };
+  } catch {
+    return { httpUrl: true };
+  }
+};
+
+type ServerErrors = Record<string, string[]>;
+type FormControlName = keyof ProjectFormComponent['projectForm']['controls'];
+const SERVER_CONTROL_NAMES: Record<string, FormControlName> = {
+  titleen: 'title', titlear: 'titleAr', descriptionen: 'description', descriptionar: 'descriptionAr',
+  categoryen: 'category', categoryar: 'categoryAr', clienten: 'client', clientar: 'clientAr',
+  typeen: 'type', typear: 'typeAr', databaseen: 'database', databasear: 'databaseAr',
+  statusen: 'status', statusar: 'statusAr', badgesen: 'badges', badgesar: 'badgesAr',
+  technologies: 'technologies', liveurl: 'liveUrl', githuburl: 'githubUrl', imageurl: 'imageUrl',
+  order: 'order', featured: 'featured', isactive: 'isActive'
+};
 
 @Component({
   selector: 'app-project-form',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, RouterLink, SelectFieldComponent, TagsInputComponent],
-  template: `
-    <div class="mx-auto max-w-3xl">
-      <div class="mb-8">
-        <a routerLink="/projects" class="text-xs font-semibold text-accent-text hover:underline">← Back to projects</a>
-        <p class="eyebrow mb-2 mt-3">{{ isEditMode ? 'Editing' : 'New entry' }}</p>
-        <h2 class="font-display text-3xl font-semibold tracking-[-0.05em] text-ink">
-          {{ isEditMode ? 'Edit project' : 'Create project' }}
-        </h2>
-        <p class="mt-2 text-sm text-soft">Saved directly to the Portfolio API — visible on the public site instantly.</p>
-      </div>
-
-      <form [formGroup]="projectForm" (ngSubmit)="onSubmit()" class="card space-y-6 p-6" novalidate>
-        @if (errorMessage()) {
-          <div role="alert" class="rounded-xl border border-danger/30 bg-danger/10 p-3 text-sm text-danger">
-            {{ errorMessage() }}
-          </div>
-        }
-
-        <div>
-          <label for="title" class="field-label">Title <span class="text-danger">*</span></label>
-          <input
-            id="title"
-            type="text"
-            formControlName="title"
-            class="input"
-            placeholder="E-Inventory platform"
-            [attr.aria-invalid]="invalid('title')"
-          />
-          @if (invalid('title')) { <p class="field-error" role="alert">Title is required (max 100 characters).</p> }
-          @if (slug()) {
-            <p class="field-hint">
-              Public link: <code>/projects/{{ slug() }}</code> — generated once, it does not change when you rename the project.
-            </p>
-          }
-        </div>
-
-        <div>
-          <label for="description" class="field-label">Description <span class="text-danger">*</span></label>
-          <textarea
-            id="description"
-            formControlName="description"
-            rows="4"
-            class="input resize-y"
-            placeholder="What the project is, who it was for, the outcome..."
-            [attr.aria-invalid]="invalid('description')"
-          ></textarea>
-          @if (invalid('description')) { <p class="field-error" role="alert">Description is required (max 500 characters).</p> }
-        </div>
-
-        <div>
-          <app-tags-input
-            formControlName="technologies"
-            label="Technologies"
-            placeholder="Angular, .NET 9, SQL Server"
-            [suggestions]="technologySuggestions()"
-            hint="Press Enter or a comma to add a tag - the suggestions come from your skills and the other projects."
-          />
-        </div>
-
-        <div class="border-t border-line/10 pt-5">
-          <p class="eyebrow mb-1">Portfolio presentation</p>
-          <p class="mb-4 text-xs text-muted">
-            These fields drive the category filters, client and status chips on the public portfolio.
-          </p>
-          <div class="grid gap-5 sm:grid-cols-2">
-            <div>
-              <app-select-field
-                formControlName="category"
-                label="Category"
-                [options]="categoryOptions()"
-                [allowCustom]="true"
-                placeholder="Clothing"
-              />
-            </div>
-            <div>
-              <label for="client" class="field-label">Client</label>
-              <input id="client" type="text" formControlName="client" class="input" placeholder="Under Armour" />
-            </div>
-            <div>
-              <app-select-field formControlName="type" label="Type" [options]="typeOptions" />
-            </div>
-            <div>
-              <label for="database" class="field-label">Database</label>
-              <input id="database" type="text" formControlName="database" class="input" placeholder="PostgreSQL" />
-            </div>
-            <div>
-              <app-select-field formControlName="status" label="Build status" [options]="statusOptions" />
-            </div>
-            <div>
-              <label for="badges" class="field-label">Badges</label>
-              <input id="badges" type="text" formControlName="badges" class="input" placeholder="Done, Deployed" />
-              <p class="mt-2 text-xs text-muted">Separate with commas — small chips on the project card.</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="grid gap-5 sm:grid-cols-2">
-          <div>
-            <label for="liveUrl" class="field-label">Live URL</label>
-            <input id="liveUrl" type="url" formControlName="liveUrl" class="input" placeholder="https://..." />
-          </div>
-          <div>
-            <label for="githubUrl" class="field-label">GitHub URL</label>
-            <input id="githubUrl" type="url" formControlName="githubUrl" class="input" placeholder="https://github.com/..." />
-          </div>
-        </div>
-
-        <!-- ---------------- Cover image ---------------- -->
-        <div>
-          <label class="field-label">Cover image</label>
-
-          @if (coverPreview(); as preview) {
-            <div class="relative overflow-hidden rounded-xl border border-line/10 bg-line/[0.06]">
-              <img
-                [src]="preview"
-                [alt]="(projectForm.getRawValue().title || 'Project') + ' cover preview'"
-                class="h-48 w-full object-cover"
-                (error)="onPreviewError($event)"
-              />
-              <button
-                type="button"
-                class="icon-btn absolute right-2 top-2 bg-surface/90"
-                (click)="clearCover()"
-                aria-label="Remove cover image"
-                title="Remove cover"
-              >
-                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 6l12 12M18 6 6 18"/></svg>
-              </button>
-            </div>
-            @if (coverBroken()) {
-              <p class="mt-2 rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">
-                The cover file is referenced by the database but missing on the server — upload it again.
-                (Common cause: it was uploaded through a different deployment, or the API's
-                <code>App_Data/uploads</code> folder was replaced during a redeploy.)
-              </p>
-            }
-          }
-
-          <!-- The upload control is ALWAYS available: a project that still points at a
-               bundled cover (e.g. /projects/angular/zyro-electric.png) must be
-               replaceable, otherwise the admin can never change it. -->
-          <div
-            class="mt-3 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-line/20 bg-line/[0.03] px-6 py-8 text-center transition"
-            [class.border-accent/50]="dragActive()"
-            role="button"
-            tabindex="0"
-            aria-label="Upload cover image"
-            (click)="coverInput.click()"
-            (keydown.enter)="coverInput.click()"
-            (keydown.space)="$event.preventDefault(); coverInput.click()"
-            (dragover)="$event.preventDefault(); dragActive.set(true)"
-            (dragleave)="dragActive.set(false)"
-            (drop)="onDrop($event)"
-          >
-            <svg class="h-8 w-8 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16v1a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-1m-5-4-4-4m0 0-4 4m4-4v12"/></svg>
-            <span class="text-sm font-semibold text-ink">
-              {{ coverPreview() ? 'Drop a new image here to replace the current cover' : 'Drop an image here, or click to browse' }}
-            </span>
-            <span class="text-xs text-muted">JPG, PNG, WebP, GIF or AVIF · up to 10MB</span>
-          </div>
-          <input
-            #coverInput
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
-            class="hidden"
-            (change)="onFileSelected($event)"
-          />
-
-          @if (uploading()) {
-            <p class="mt-2 flex items-center gap-2 text-xs text-muted">
-              <span class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-accent/30 border-t-accent"></span>
-              Uploading to the Portfolio API…
-            </p>
-          }
-          @if (uploadError()) {
-            <p class="mt-2 text-xs text-danger" role="alert">{{ uploadError() }}</p>
-          }
-          @if (projectForm.getRawValue().imageUrl; as stored) {
-            <p class="mt-2 truncate text-xs text-muted">Stored as: {{ stored }}</p>
-          }
-
-          <details class="mt-3">
-            <summary class="cursor-pointer text-xs font-semibold text-accent-text">Or use an external image URL instead</summary>
-            <input id="imageUrl" type="url" formControlName="imageUrl" class="input mt-2" placeholder="https://..." />
-          </details>
-        </div>
-
-        <div class="grid gap-5 sm:grid-cols-2">
-          <div>
-            <label for="order" class="field-label">Display order</label>
-            <input id="order" type="number" formControlName="order" class="input" min="0" />
-            <p class="mt-2 text-xs text-muted">Lower numbers appear first on the portfolio.</p>
-          </div>
-          <div class="flex flex-col justify-center gap-3 pt-1">
-            <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-line/10 bg-line/[0.03] p-4">
-              <input type="checkbox" formControlName="featured" class="h-4 w-4 accent-[rgb(var(--accent))]" />
-              <span>
-                <span class="block text-sm font-semibold text-ink">Featured</span>
-                <span class="block text-xs text-muted">Shown in the highlighted section.</span>
-              </span>
-            </label>
-            <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-line/10 bg-line/[0.03] p-4">
-              <input type="checkbox" formControlName="isActive" class="h-4 w-4 accent-[rgb(var(--accent))]" />
-              <span>
-                <span class="block text-sm font-semibold text-ink">Visible on site</span>
-                <span class="block text-xs text-muted">Uncheck to keep it as a hidden draft.</span>
-              </span>
-            </label>
-          </div>
-        </div>
-
-        <div class="flex justify-end gap-3 border-t border-line/10 pt-5">
-          <button type="button" (click)="cancel()" class="btn-ghost">Cancel</button>
-          <button type="submit" [disabled]="projectForm.invalid || isLoading()" class="btn-primary" [attr.aria-busy]="isLoading()">
-            @if (isLoading()) {
-              <span class="h-4 w-4 animate-spin rounded-full border-2 border-on-accent/30 border-t-on-accent"></span>
-              Saving…
-            } @else {
-              {{ isEditMode ? 'Update project' : 'Create project' }}
-            }
-          </button>
-        </div>
-      </form>
-    </div>
-  `
+  templateUrl: './project-form.component.html'
 })
-export class ProjectFormComponent implements OnInit {
+export class ProjectFormComponent implements OnInit, OnDestroy {
   private readonly fb = inject(FormBuilder);
   private readonly projectService = inject(ProjectService);
   private readonly categoryService = inject(CategoryService);
   private readonly skillService = inject(SkillService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly stop$ = new Subject<void>();
+  private readonly contextChanged$ = new Subject<void>();
+  private stopped = false;
+  private uploadSubscription?: Subscription;
+  private uploadVersion = 0;
+  private projectId: number | null = null;
+  private loadedGradient: string | null = null;
+  private loadedMetricsEn: ProjectMetric[] = [];
+  private loadedMetricsAr: ProjectMetric[] = [];
+  private loadedImageUrl = '';
+  private readonly editMode = signal(false);
 
-  readonly isLoading = signal(false);
-  /** True when the stored cover file could not be loaded (missing on the server). */
-  readonly coverBroken = signal(false);
+  readonly fetching = signal(false);
+  readonly saving = signal(false);
+  readonly ready = signal(false);
   readonly errorMessage = signal<string | null>(null);
-  readonly isEditMode = this.route.snapshot.url.some(segment => segment.path === 'edit');
-
-  /** Cover upload state. */
+  readonly serverErrors = signal<ServerErrors>({});
+  readonly categoryError = signal<string | null>(null);
+  readonly skillError = signal<string | null>(null);
+  readonly coverBroken = signal(false);
   readonly uploading = signal(false);
   readonly uploadError = signal<string | null>(null);
   readonly dragActive = signal(false);
-
-  /** Public link id of the edited project (owned by the API). */
   readonly slug = signal('');
-
-  @ViewChild('coverInput') coverInput?: ElementRef<HTMLInputElement>;
-
-  private projectId: number | null = null;
-
-  /** Presentation data kept out of the form UI but round-tripped on save. */
-  private loadedGradient: string | null = null;
-  private loadedMetrics: ProjectMetric[] = [];
-
-  /** Fallback list when the API has no categories yet (first run). */
-  private static readonly FALLBACK_CATEGORIES = [
-    'Clothing',
-    'Beauty',
-    'Jewelry',
-    'Furniture',
-    'Dashboard',
-    'Web3',
-    'Sports',
-    'Tech Accessories',
-    'Backend',
-    'Other'
-  ];
-
-  /** Category names offered in the dropdown - managed on the Content page. */
-  readonly categoryOptions = computed<string[]>(() => {
-    const fromApi = this.categoryService.names();
-    return fromApi.length ? fromApi : [...ProjectFormComponent.FALLBACK_CATEGORIES];
-  });
-
-  /**
-   * Technology suggestions for the tag input: the skill names (the same
-   * vocabulary the portfolio shows as tech chips) plus the technologies the
-   * other projects already use.
-   */
+  readonly inputBlocked = computed(() => !this.ready() || this.fetching() || this.saving());
+  readonly categoryOptions = computed(() => this.categoryService.names());
+  readonly categoryOptionsAr = computed(() => this.categoryService.categories()
+    .filter(category => category.isActive).map(category => category.nameAr));
   readonly technologySuggestions = computed<string[]>(() => {
-    const fromSkills = this.skillService.skills().map(skill => skill.name);
-    const fromProjects = this.projectService
-      .projects()
-      .flatMap(project => project.technologies ?? []);
-
-    return [...new Set(
-      [...fromSkills, ...fromProjects]
-        .map(name => name.trim())
-        .filter(name => name.length > 0)
-    )].sort((a, b) => a.localeCompare(b));
+    const fromSkills = this.skillService.skills().map(skill => skill.nameEn || skill.nameAr);
+    const fromProjects = this.projectService.projects().flatMap(project => project.technologies ?? []);
+    return [...new Set([...fromSkills, ...fromProjects]
+      .filter((name): name is string => typeof name === 'string')
+      .map(name => name.trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b));
   });
   readonly typeOptions = ['Team', 'Freelance', 'Self'];
   readonly statusOptions = ['In Progress', 'Completed', 'Deployed'];
 
+  @ViewChild('coverInput') coverInput?: ElementRef<HTMLInputElement>;
+
   readonly projectForm = this.fb.nonNullable.group({
-    title: ['', [Validators.required, Validators.maxLength(100)]],
-    description: ['', [Validators.required, Validators.maxLength(500)]],
-    technologies: [''],
-    liveUrl: [''],
-    githubUrl: [''],
-    imageUrl: [''],
-    order: [0, [Validators.min(0), Validators.max(9999)]],
+    title: ['', [requiredText, Validators.maxLength(100)]],
+    titleAr: ['', [requiredText, Validators.maxLength(100)]],
+    description: ['', [requiredText, Validators.maxLength(500)]],
+    descriptionAr: ['', [requiredText, Validators.maxLength(500)]],
+    technologies: ['', listLimit(20)],
+    liveUrl: ['', httpUrl],
+    githubUrl: ['', httpUrl],
+    imageUrl: ['', [Validators.maxLength(500), (control: AbstractControl<string>) => {
+      const value = control.value.trim();
+      if (!value || !httpUrl(control)) return null;
+      // Only API uploads and the unchanged legacy cover may be relative paths.
+      // Protocol-relative URLs, schemes and backslashes cannot cross this boundary.
+      const local = !/^[a-z][a-z\d+.-]*:|^\/\/|[\\\u0000-\u001f]/i.test(value);
+      return local && (value === this.loadedImageUrl || value.startsWith('/api/files/'))
+        ? null : { httpUrl: true };
+    }]],
+    order: [0, [Validators.required, Validators.min(0), (control: AbstractControl<number>) =>
+      Number.isInteger(control.value) ? null : { integer: true }]],
     featured: [false],
     isActive: [true],
-    category: [''],
-    client: [''],
-    type: [''],
-    database: [''],
-    status: [''],
-    badges: ['']
-  });
+    category: ['', Validators.maxLength(100)],
+    categoryAr: ['', Validators.maxLength(100)],
+    client: ['', Validators.maxLength(100)],
+    clientAr: ['', Validators.maxLength(100)],
+    type: ['', Validators.maxLength(50)],
+    typeAr: ['', Validators.maxLength(50)],
+    database: ['', Validators.maxLength(100)],
+    databaseAr: ['', Validators.maxLength(100)],
+    status: ['', Validators.maxLength(50)],
+    statusAr: ['', Validators.maxLength(50)],
+    badges: ['', listLimit(5)],
+    badgesAr: ['', listLimit(5)]
+  }, { validators: () => {
+    if (this.loadedMetricsEn.length > 6 || this.loadedMetricsAr.length > 6) {
+      return { presentation: 'The stored project exceeds the limit of 6 metrics per language. Correct it before saving.' };
+    }
+    if (this.loadedMetricsEn.length !== this.loadedMetricsAr.length) {
+      return { presentation: 'The stored English and Arabic metric lists must have the same number of entries before saving.' };
+    }
+    return (this.loadedGradient?.length ?? 0) > 200
+      ? { presentation: 'The stored gradient exceeds 200 characters. Correct it before saving.' } : null;
+  }});
+
+  constructor() {
+    this.projectForm.disable({ emitEvent: false });
+  }
+
+  get isEditMode(): boolean { return this.editMode(); }
 
   ngOnInit(): void {
-    const idParam = this.route.snapshot.paramMap.get('id');
-    if (this.isEditMode && idParam) {
-      this.projectId = Number(idParam);
-      this.loadProject(this.projectId);
-    }
+    this.route.paramMap.pipe(
+      switchMap(params => {
+        this.ready.set(false);
+        this.contextChanged$.next();
+        this.invalidateUpload();
+        this.projectForm.disable({ emitEvent: false });
+        this.projectForm.reset();
+        this.projectId = null;
+        this.slug.set('');
+        this.loadedGradient = null;
+        this.loadedMetricsEn = [];
+        this.loadedMetricsAr = [];
+        this.loadedImageUrl = '';
+        this.coverBroken.set(false);
+        this.errorMessage.set(null);
+        this.serverErrors.set({});
+        this.uploadError.set(null);
+        const idParam = params.get('id');
+        const editing = idParam !== null || this.route.snapshot.url.some(segment => segment.path === 'edit');
+        this.editMode.set(editing);
+        if (!editing) {
+          this.ready.set(true);
+          this.projectForm.enable({ emitEvent: false });
+          return EMPTY;
+        }
+        if (!idParam || !/^[1-9]\d*$/.test(idParam) || !Number.isSafeInteger(Number(idParam))) {
+          this.errorMessage.set('Invalid project ID. Use a positive integer project ID.');
+          return EMPTY;
+        }
+        this.projectId = Number(idParam);
+        this.fetching.set(true);
+        // Always fetch the full replacement DTO, never treat a cached list entry as an edit load.
+        return this.projectService.getProject(this.projectId).pipe(
+          tap(project => {
+            this.populateForm(project);
+            this.ready.set(true);
+            this.projectForm.enable({ emitEvent: false });
+          }),
+          catchError((error: unknown) => {
+            this.showFailure(error, 'Failed to load the project.');
+            return EMPTY;
+          }),
+          finalize(() => { if (!this.stopped) this.fetching.set(false); })
+        );
+      }),
+      takeUntil(this.stop$)
+    ).subscribe();
 
-    // The category list comes from the API (managed on the Content page), so a
-    // category added there shows up here without touching the frontend.
     if (this.categoryService.categories().length === 0) {
-      this.categoryService.loadCategories().subscribe({ error: () => undefined });
+      this.categoryService.loadCategories().pipe(takeUntil(this.stop$)).subscribe({
+        error: (error: unknown) => this.categoryError.set(projectFailure(error, 'Failed to load categories. Custom typing is still available.').message)
+      });
     }
-
-    // The skills are the vocabulary behind the technology chips, so they are
-    // the suggestions for the technology tags.
     if (this.skillService.skills().length === 0) {
-      this.skillService.loadSkills().subscribe({ error: () => undefined });
+      this.skillService.loadSkills().pipe(takeUntil(this.stop$)).subscribe({
+        error: (error: unknown) => this.skillError.set(projectFailure(error, 'Failed to load skill suggestions. Technologies can still be entered manually.').message)
+      });
     }
   }
 
-  invalid(control: string): boolean {
-    const field = this.projectForm.get(control);
-    return !!field && field.invalid && field.touched;
+  invalid(control: FormControlName): boolean {
+    const field = this.projectForm.controls[control];
+    return field.invalid && field.touched;
   }
 
-  /** Resolved preview of the current cover (uploaded or external URL). */
+  fieldError(control: FormControlName): string | null {
+    const field = this.projectForm.controls[control];
+    if (!this.invalid(control)) return null;
+    const errors = field.errors;
+    if (errors?.['server']) return (errors['server'] as string[]).join(' ');
+    if (errors?.['required']) return 'This field is required.';
+    if (errors?.['maxlength']) return `Use at most ${errors['maxlength'].requiredLength} characters.`;
+    if (errors?.['listLimit']) return `Use at most ${errors['listLimit'].maximum} entries.`;
+    if (errors?.['httpUrl']) return 'Enter a valid HTTP(S) URL.';
+    return 'Enter a non-negative whole number.';
+  }
+
   coverPreview(): string | null {
-    const imageUrl = this.projectForm.getRawValue().imageUrl;
-    // No cover yet -> null, so the form keeps showing the drop zone (the
-    // placeholder image is for the LIST, not for the upload control).
-    if (!imageUrl) return null;
-    return resolvePortfolioImage(imageUrl);
+    const control = this.projectForm.controls.imageUrl;
+    const value = control.value;
+    if (!value || (control.enabled && control.invalid)) return null;
+    // Disabled controls still need validation before resolving untrusted stored URLs.
+    if (/^[a-z][a-z\d+.-]*:/i.test(value) && !/^https?:\/\//i.test(value)) return null;
+    if (/^\/\/|[\\\u0000-\u001f]/.test(value)) return null;
+    return resolvePortfolioImage(value);
   }
 
-  /**
-   * Hide a broken external image so the fallback surface shows through — and
-   * say so: the file is referenced by the database but missing on the server
-   * (uploaded through another deployment, or the upload folder was wiped by
-   * a redeploy). Silently hiding it left no clue what to fix.
-   */
   onPreviewError(event: Event): void {
+    if (this.stopped) return;
     (event.currentTarget as HTMLImageElement).style.display = 'none';
-    // Only an API-hosted upload can be missing in a way the admin can fix
-    // (upload it again). A bundled portfolio cover is served by the portfolio
-    // app, which the dashboard cannot reach, so a failed preview there says
-    // nothing about the live site and must not raise an alarm.
-    if (isApiHostedImage(this.projectForm.getRawValue().imageUrl)) {
-      this.coverBroken.set(true);
-    }
+    if (isApiHostedImage(this.projectForm.controls.imageUrl.value)) this.coverBroken.set(true);
+  }
+
+  chooseCover(): void {
+    if (!this.inputBlocked() && !this.uploading() && !this.stopped) this.coverInput?.nativeElement.click();
   }
 
   onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
-    input.value = ''; // allow re-selecting the same file after a removal
-    if (file) {
-      void this.uploadCover(file);
-    }
+    input.value = '';
+    if (file) this.uploadCover(file);
   }
 
   onDrop(event: DragEvent): void {
     event.preventDefault();
     this.dragActive.set(false);
     const file = event.dataTransfer?.files?.[0];
-    if (file) {
-      void this.uploadCover(file);
-    }
+    if (file) this.uploadCover(file);
   }
 
   clearCover(): void {
+    if (this.inputBlocked() || this.stopped) return;
+    this.invalidateUpload();
     this.projectForm.patchValue({ imageUrl: '' });
     this.coverBroken.set(false);
+    this.uploadError.set(null);
   }
 
-  /**
-   * Upload the picked file to the backend store; the API answers with a
-   * relative /api/files/... path which becomes the project's imageUrl.
-   */
-  private async uploadCover(file: File): Promise<void> {
-    this.uploadError.set(null);
+  private invalidateUpload(): void {
+    this.uploadVersion++;
+    this.uploadSubscription?.unsubscribe();
+    this.uploadSubscription = undefined;
+    if (!this.stopped) {
+      this.uploading.set(false);
+      if (this.ready() && !this.saving()) this.projectForm.controls.imageUrl.enable({ emitEvent: false });
+    }
+  }
 
-    if (!file.type.startsWith('image/')) {
-      this.uploadError.set('Choose an image file (JPG, PNG, WebP, GIF or AVIF).');
+  private uploadCover(file: File): void {
+    if (this.inputBlocked() || this.uploading() || this.stopped) return;
+    this.uploadError.set(null);
+    if (!COVER_MIME_TYPES.has(file.type)) {
+      this.uploadError.set('Choose a JPEG, PNG, GIF, WebP or AVIF image.');
       return;
     }
     if (file.size > MAX_COVER_BYTES) {
-      this.uploadError.set('That image is larger than 10MB — pick a smaller one.');
+      this.uploadError.set('That image is larger than 10 MiB — pick a smaller one.');
       return;
     }
-
+    const version = ++this.uploadVersion;
     this.uploading.set(true);
-    try {
-      const uploaded = await firstValueFrom(this.projectService.uploadCover(file));
-      this.projectForm.patchValue({ imageUrl: uploaded.url });
-      // A fresh upload replaces the missing file — clear the warning.
-      this.coverBroken.set(false);
-    } catch (err: any) {
-      this.uploadError.set(
-        err?.error?.message ?? 'Upload failed — make sure the Portfolio API is running and try again.'
-      );
-    } finally {
-      this.uploading.set(false);
-    }
+    this.projectForm.controls.imageUrl.disable({ emitEvent: false });
+    this.uploadSubscription = this.projectService.uploadCover(file).pipe(
+      takeUntil(this.contextChanged$),
+      takeUntil(this.stop$),
+      finalize(() => {
+        if (!this.stopped && version === this.uploadVersion) {
+          this.uploading.set(false);
+          this.projectForm.controls.imageUrl.enable({ emitEvent: false });
+        }
+      })
+    ).subscribe({
+      next: uploaded => {
+        if (this.stopped || version !== this.uploadVersion) return;
+        this.projectForm.patchValue({ imageUrl: uploaded.url });
+        this.coverBroken.set(false);
+      },
+      error: (error: unknown) => {
+        if (!this.stopped && version === this.uploadVersion) {
+          this.uploadError.set(projectFailure(error, 'Upload failed — please try again.').message);
+        }
+      }
+    });
   }
 
   onSubmit(): void {
+    if (this.stopped || this.inputBlocked() || this.uploading()) return;
     if (this.projectForm.invalid) {
       this.projectForm.markAllAsTouched();
       return;
     }
-
-    this.isLoading.set(true);
-    this.errorMessage.set(null);
-
     const value = this.projectForm.getRawValue();
+    const optional = (text: string): string | null => text.trim() || null;
     const payload: ProjectPayload = {
-      title: value.title.trim(),
-      description: value.description.trim(),
-      technologies: value.technologies
-        .split(',')
-        .map(item => item.trim())
-        .filter(Boolean),
-      liveUrl: value.liveUrl.trim() || null,
-      githubUrl: value.githubUrl.trim() || null,
-      imageUrl: value.imageUrl.trim() || null,
-      order: value.order,
-      featured: value.featured,
-      isActive: value.isActive,
-      category: value.category.trim() || null,
-      client: value.client.trim() || null,
-      type: value.type || null,
-      database: value.database.trim() || null,
-      status: value.status || null,
-      badges: value.badges
-        .split(',')
-        .map(item => item.trim())
-        .filter(Boolean),
+      titleEn: value.title.trim(), titleAr: value.titleAr.trim(),
+      descriptionEn: value.description.trim(), descriptionAr: value.descriptionAr.trim(),
+      technologies: splitList(value.technologies),
+      liveUrl: optional(value.liveUrl), githubUrl: optional(value.githubUrl),
+      // Keep server-owned and legacy cover paths unchanged, not preview-resolved.
+      imageUrl: optional(value.imageUrl), order: value.order,
+      featured: value.featured, isActive: value.isActive,
+      categoryEn: optional(value.category), categoryAr: optional(value.categoryAr),
+      clientEn: optional(value.client), clientAr: optional(value.clientAr),
+      typeEn: optional(value.type), typeAr: optional(value.typeAr),
+      databaseEn: optional(value.database), databaseAr: optional(value.databaseAr),
+      statusEn: optional(value.status), statusAr: optional(value.statusAr),
+      badgesEn: splitList(value.badges), badgesAr: splitList(value.badgesAr),
       gradient: this.loadedGradient,
-      metrics: this.loadedMetrics
+      metricsEn: this.loadedMetricsEn.map(metric => ({ ...metric })),
+      metricsAr: this.loadedMetricsAr.map(metric => ({ ...metric }))
     };
-
-    const request: Observable<unknown> =
-      this.isEditMode && this.projectId !== null
-        ? this.projectService.updateProject(this.projectId, payload)
-        : this.projectService.createProject(payload);
-
-    request.subscribe({
+    this.saving.set(true);
+    this.errorMessage.set(null);
+    this.serverErrors.set({});
+    this.projectForm.disable({ emitEvent: false });
+    const request: Observable<unknown> = this.isEditMode && this.projectId !== null
+      ? this.projectService.updateProject(this.projectId, payload)
+      : this.projectService.createProject(payload);
+    request.pipe(
+      takeUntil(this.contextChanged$),
+      takeUntil(this.stop$),
+      finalize(() => {
+        if (!this.stopped) {
+          this.saving.set(false);
+          if (this.ready() && this.projectForm.disabled) this.projectForm.enable({ emitEvent: false });
+        }
+      })
+    ).subscribe({
       next: () => {
-        this.isLoading.set(false);
-        this.router.navigate(['/projects']);
+        if (!this.stopped) {
+          this.ready.set(false);
+          void this.router.navigate(['/projects']);
+        }
       },
-      error: err => {
-        this.isLoading.set(false);
-        this.errorMessage.set(err?.error?.message ?? 'Failed to save the project. Please try again.');
+      error: (error: unknown) => {
+        if (this.stopped) return;
+        // Re-enable before mapping server errors: enabling re-runs validators.
+        this.projectForm.enable({ emitEvent: false });
+        this.showFailure(error, 'Failed to save the project. Please try again.');
       }
     });
   }
 
   cancel(): void {
-    this.router.navigate(['/projects']);
+    this.stopRequests();
+    void this.router.navigate(['/projects']);
   }
 
-  private loadProject(id: number): void {
-    const cached = this.projectService.projects().find(project => project.id === id);
-    if (cached) {
-      this.populateForm(cached);
-      return;
-    }
+  ngOnDestroy(): void { this.stopRequests(); }
 
-    this.isLoading.set(true);
-    this.projectService.getProject(id).subscribe({
-      next: project => {
-        this.isLoading.set(false);
-        this.populateForm(project);
-      },
-      error: err => {
-        this.isLoading.set(false);
-        this.errorMessage.set(err?.error?.message ?? 'Failed to load the project.');
+  private stopRequests(): void {
+    if (this.stopped) return;
+    this.stopped = true;
+    this.stop$.next();
+    this.stop$.complete();
+    this.contextChanged$.complete();
+    this.invalidateUpload();
+  }
+
+  private showFailure(error: unknown, fallback: string): void {
+    const failure = projectFailure(error, fallback);
+    this.errorMessage.set(failure.message);
+    this.serverErrors.set(failure.errors);
+    for (const [key, messages] of Object.entries(failure.errors)) {
+      const name = SERVER_CONTROL_NAMES[key.replace(/^\$\.|^project\./i, '').toLowerCase()];
+      if (name) {
+        const control = this.projectForm.controls[name];
+        control.setErrors({ ...control.errors, server: messages });
+        control.markAsTouched();
       }
-    });
+    }
   }
 
-  private populateForm(project: {
-    slug?: string;
-    title: string;
-    description: string;
-    technologies: string[];
-    liveUrl: string | null;
-    githubUrl: string | null;
-    imageUrl: string | null;
-    order: number;
-    featured: boolean;
-    isActive: boolean;
-    category?: string | null;
-    client?: string | null;
-    type?: string | null;
-    database?: string | null;
-    status?: string | null;
-    badges?: string[];
-    gradient?: string | null;
-    metrics?: ProjectMetric[];
-  }): void {
+  private populateForm(project: Project): void {
     this.loadedGradient = project.gradient ?? null;
-    this.loadedMetrics = project.metrics ?? [];
-    // The public link id the API owns - shown to the admin so the address of
-    // the project is never a mystery. It is generated once and survives a
-    // rename, so the link of a project stays valid.
-    this.slug.set(project.slug ?? '');
+    this.loadedMetricsEn = (project.metricsEn ?? []).map(metric => ({ ...metric }));
+    this.loadedMetricsAr = (project.metricsAr ?? []).map(metric => ({ ...metric }));
+    this.loadedImageUrl = project.imageUrl ?? '';
+    this.slug.set(project.slug);
     this.projectForm.patchValue({
-      title: project.title,
-      description: project.description,
-      technologies: project.technologies.join(', '),
-      liveUrl: project.liveUrl ?? '',
-      githubUrl: project.githubUrl ?? '',
-      imageUrl: project.imageUrl ?? '',
-      order: project.order,
-      featured: project.featured,
-      isActive: project.isActive,
-      category: project.category ?? '',
-      client: project.client ?? '',
-      type: project.type ?? '',
-      database: project.database ?? '',
-      status: project.status ?? '',
-      badges: (project.badges ?? []).join(', ')
+      title: project.titleEn, titleAr: project.titleAr,
+      description: project.descriptionEn, descriptionAr: project.descriptionAr,
+      technologies: (project.technologies ?? []).join(', '),
+      liveUrl: project.liveUrl ?? '', githubUrl: project.githubUrl ?? '', imageUrl: project.imageUrl ?? '',
+      order: project.order, featured: project.featured, isActive: project.isActive,
+      category: project.categoryEn ?? '', categoryAr: project.categoryAr ?? '',
+      client: project.clientEn ?? '', clientAr: project.clientAr ?? '',
+      type: project.typeEn ?? '', typeAr: project.typeAr ?? '',
+      database: project.databaseEn ?? '', databaseAr: project.databaseAr ?? '',
+      status: project.statusEn ?? '', statusAr: project.statusAr ?? '',
+      badges: (project.badgesEn ?? []).join(', '), badgesAr: (project.badgesAr ?? []).join(', ')
     });
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/** Accept the interceptor's {message, errors}, ProblemDetails and FluentValidation details. */
+function projectFailure(error: unknown, fallback: string): { message: string; errors: ServerErrors } {
+  const body: unknown = error instanceof HttpErrorResponse ? error.error : error;
+  const errors: ServerErrors = {};
+  const details = isRecord(body) ? body['errors'] : body;
+  if (isRecord(details)) {
+    for (const [field, messages] of Object.entries(details)) {
+      const list = Array.isArray(messages) ? messages : [messages];
+      const text = list.filter((message): message is string => typeof message === 'string');
+      if (text.length) errors[field] = text;
+    }
+  } else if (Array.isArray(details)) {
+    for (const detail of details) {
+      if (isRecord(detail) && typeof detail['errorMessage'] === 'string') {
+        const field = typeof detail['propertyName'] === 'string' ? detail['propertyName'] : 'Project';
+        (errors[field] ??= []).push(detail['errorMessage']);
+      }
+    }
+  }
+  const message = isRecord(body) ? body['message'] ?? body['detail'] ?? body['title'] : body;
+  return { message: typeof message === 'string' && message.trim() ? message : fallback, errors };
 }

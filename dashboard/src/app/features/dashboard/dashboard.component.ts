@@ -1,198 +1,35 @@
-import { Component, computed, inject, OnInit } from '@angular/core';
+import { Component, computed, DestroyRef, inject, OnInit } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { ProjectService } from '../../core/services/project.service';
 import { SkillService } from '../../core/services/skill.service';
 import { ExperienceService } from '../../core/services/experience.service';
 import { ContactService } from '../../core/services/contact.service';
 import { AuthService } from '../../core/services/auth.service';
+import { EmptyStateComponent } from '../../shared/empty-state.component';
+import { ErrorStateComponent } from '../../shared/error-state.component';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterLink],
-  template: `
-    <div class="space-y-7">
-      <!-- Header -->
-      <section class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-        <div>
-          <p class="eyebrow mb-2">{{ todayLabel }}</p>
-          <h2 class="font-display text-3xl font-semibold tracking-[-0.05em] text-ink sm:text-4xl">
-            Welcome back<span class="text-accent">,</span>
-            <span class="text-muted">{{ firstName() }}.</span>
-          </h2>
-        </div>
-        <div class="flex items-center gap-3">
-          <a routerLink="/messages" class="btn-ghost">
-            Inbox
-            @if (unreadCount() > 0) {
-              <span class="badge-accent">{{ unreadCount() }}</span>
-            }
-          </a>
-          <a routerLink="/projects/new" class="btn-primary"><span class="text-lg leading-none">+</span> New project</a>
-        </div>
-      </section>
-
-      @if (loading()) {
-        <div class="card flex min-h-[280px] items-center justify-center">
-          <div class="spinner" role="status" aria-label="Loading dashboard"></div>
-        </div>
-      } @else if (loadError()) {
-        <div class="card empty-state">
-          <p class="text-sm font-semibold text-ink">Could not reach the Portfolio API</p>
-          <p class="max-w-md text-sm leading-6 text-soft">{{ loadError() }}</p>
-          <button type="button" (click)="reload()" class="btn-ghost mt-2">Retry</button>
-        </div>
-      } @else {
-        <!-- Stat cards -->
-        <section class="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-label="Portfolio statistics">
-          @for (stat of stats(); track stat.label) {
-            <div class="card-raised p-4 sm:p-5">
-              <div class="mb-4 flex items-center justify-between">
-                <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-accent/10 text-accent-text" [innerHTML]="stat.icon"></span>
-                <span class="text-[11px] font-semibold text-muted">{{ stat.hint }}</span>
-              </div>
-              <p class="font-display text-3xl font-semibold tracking-[-0.04em] text-ink">{{ stat.value }}</p>
-              <p class="mt-1 text-xs text-soft">{{ stat.label }}</p>
-            </div>
-          }
-        </section>
-
-        <!-- Health + content snapshot -->
-        <section class="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
-          <div class="card relative overflow-hidden p-6 sm:p-8">
-            <div class="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-accent/10 blur-3xl"></div>
-            <div class="relative z-10 flex flex-col gap-6 sm:flex-row sm:items-center">
-              <div class="flex h-32 w-32 shrink-0 items-center justify-center rounded-full border-[10px] border-accent/15">
-                <div class="text-center">
-                  <strong class="font-display text-3xl font-semibold text-ink">{{ healthScore() }}%</strong>
-                  <span class="block text-[10px] font-bold uppercase tracking-widest text-muted">complete</span>
-                </div>
-              </div>
-              <div>
-                <p class="eyebrow mb-2 text-accent-text">Portfolio health</p>
-                <h3 class="font-display text-2xl font-semibold tracking-[-0.04em] text-ink">
-                  {{ healthMessage() }}
-                </h3>
-                <ul class="mt-4 space-y-1.5">
-                  @for (item of healthChecks(); track item.label) {
-                    <li class="flex items-center gap-2 text-xs">
-                      <span [class]="item.ok ? 'text-success' : 'text-faint'" aria-hidden="true">{{ item.ok ? '✓' : '○' }}</span>
-                      <span [class]="item.ok ? 'text-soft' : 'text-muted'">{{ item.label }}</span>
-                    </li>
-                  }
-                </ul>
-              </div>
-            </div>
-          </div>
-
-          <div class="card p-6">
-            <p class="eyebrow mb-2">Content</p>
-            <h3 class="font-display mb-5 text-xl font-semibold tracking-[-0.03em] text-ink">Snapshot</h3>
-            <dl class="space-y-4">
-              <div class="flex items-center justify-between border-b border-line/10 pb-3">
-                <dt class="text-sm text-soft">Visible skills</dt>
-                <dd class="text-sm font-bold text-ink">{{ visibleSkills() }} / {{ skillCount() }}</dd>
-              </div>
-              <div class="flex items-center justify-between border-b border-line/10 pb-3">
-                <dt class="text-sm text-soft">Skill categories</dt>
-                <dd class="text-sm font-bold text-ink">{{ skillCategories() }}</dd>
-              </div>
-              <div class="flex items-center justify-between border-b border-line/10 pb-3">
-                <dt class="text-sm text-soft">Current role</dt>
-                <dd class="max-w-[55%] truncate text-right text-sm font-bold text-ink">{{ currentRole() }}</dd>
-              </div>
-              <div class="flex items-center justify-between">
-                <dt class="text-sm text-soft">Featured projects</dt>
-                <dd class="text-sm font-bold text-ink">{{ featuredCount() }} / {{ projectCount() }}</dd>
-              </div>
-            </dl>
-            <a routerLink="/content" class="btn-ghost mt-6 w-full">Manage content</a>
-          </div>
-        </section>
-
-        <!-- Messages + projects -->
-        <section class="grid gap-5 xl:grid-cols-[1fr_1fr]">
-          <div class="card overflow-hidden">
-            <div class="flex items-center justify-between border-b border-line/10 px-6 py-5">
-              <div>
-                <p class="eyebrow mb-1">Inbox</p>
-                <h3 class="font-display text-xl font-semibold tracking-[-0.03em] text-ink">Latest messages</h3>
-              </div>
-              <a routerLink="/messages" class="text-xs font-semibold text-accent-text transition hover:underline">
-                View inbox <span aria-hidden="true">↗</span>
-              </a>
-            </div>
-            @if (recentMessages().length === 0) {
-              <div class="empty-state border-0">
-                <p class="text-sm text-muted">No messages yet. Visitor contact forms land here.</p>
-              </div>
-            } @else {
-              <div class="divide-y divide-line/10">
-                @for (message of recentMessages(); track message.id) {
-                  <a routerLink="/messages" class="flex items-start gap-4 px-6 py-4 transition hover:bg-line/[0.03]">
-                    <span class="mt-1 h-2 w-2 shrink-0 rounded-full" [class]="message.isRead ? 'bg-faint/50' : 'bg-accent'"></span>
-                    <div class="min-w-0 flex-1">
-                      <div class="flex flex-wrap items-center gap-2">
-                        <h4 class="truncate text-sm font-semibold text-ink">{{ message.name }}</h4>
-                        @if (!message.isRead) { <span class="badge-accent">Unread</span> }
-                      </div>
-                      <p class="mt-0.5 truncate text-xs text-soft">{{ message.subject || message.message }}</p>
-                    </div>
-                    <span class="shrink-0 text-xs text-muted">{{ message.createdAt | date:'MMM d' }}</span>
-                  </a>
-                }
-              </div>
-            }
-          </div>
-
-          <div class="card overflow-hidden">
-            <div class="flex items-center justify-between border-b border-line/10 px-6 py-5">
-              <div>
-                <p class="eyebrow mb-1">Showcase</p>
-                <h3 class="font-display text-xl font-semibold tracking-[-0.03em] text-ink">Recent projects</h3>
-              </div>
-              <a routerLink="/projects" class="text-xs font-semibold text-accent-text transition hover:underline">
-                All projects <span aria-hidden="true">↗</span>
-              </a>
-            </div>
-            @if (recentProjects().length === 0) {
-              <div class="empty-state border-0">
-                <p class="text-sm text-muted">No projects yet — create your first one.</p>
-                <a routerLink="/projects/new" class="btn-primary mt-2">New project</a>
-              </div>
-            } @else {
-              <div class="divide-y divide-line/10">
-                @for (project of recentProjects(); track project.id) {
-                  <a [routerLink]="['/projects', project.id, 'edit']" class="block px-6 py-4 transition hover:bg-line/[0.03]">
-                    <div class="flex items-center justify-between gap-3">
-                      <h4 class="truncate text-sm font-semibold text-ink">{{ project.title }}</h4>
-                      @if (project.featured) { <span class="badge-warning shrink-0">Featured</span> }
-                    </div>
-                    <p class="mt-0.5 line-clamp-1 text-xs text-soft">{{ project.description }}</p>
-                    <div class="mt-2 flex flex-wrap gap-1.5">
-                      @for (tech of project.technologies.slice(0, 4); track tech) {
-                        <span class="badge-muted">{{ tech }}</span>
-                      }
-                    </div>
-                  </a>
-                }
-              </div>
-            }
-          </div>
-        </section>
-      }
-    </div>
-  `
+  imports: [CommonModule, RouterLink, EmptyStateComponent, ErrorStateComponent],
+  templateUrl: "./dashboard.component.html"
 })
 export class DashboardComponent implements OnInit {
-  private readonly projectService = inject(ProjectService);
-  private readonly skillService = inject(SkillService);
-  private readonly experienceService = inject(ExperienceService);
-  private readonly contactService = inject(ContactService);
+  readonly projectService = inject(ProjectService);
+  readonly skillService = inject(SkillService);
+  readonly experienceService = inject(ExperienceService);
+  readonly contactService = inject(ContactService);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly authService = inject(AuthService);
   private readonly sanitizer = inject(DomSanitizer);
+  private readonly router = inject(Router);
+
+  createNewProject(): void {
+    this.router.navigate(['/projects/new']);
+  }
 
   /** Angular's default sanitizer strips <svg> from innerHTML — mark the hardcoded icon strings trusted. */
   private trust(icon: string): SafeHtml {
@@ -222,23 +59,28 @@ export class DashboardComponent implements OnInit {
       this.contactService.loading()
   );
 
-  readonly loadError = computed(
-    () =>
-      this.projectService.error() ??
-      this.skillService.error() ??
-      this.experienceService.error() ??
-      this.contactService.error()
+  readonly sources = [
+    { label: 'Projects', service: this.projectService, retry: () => this.loadProjects() },
+    { label: 'Skills', service: this.skillService, retry: () => this.loadSkills() },
+    { label: 'Experience', service: this.experienceService, retry: () => this.loadExperience() },
+    { label: 'Messages', service: this.contactService, retry: () => this.loadMessages() }
+  ];
+  readonly healthUnavailable = computed(() =>
+    this.projectService.loading() || this.projectService.error() !== null ||
+    this.skillService.loading() || this.skillService.error() !== null ||
+    this.experienceService.loading() || this.experienceService.error() !== null
   );
 
   readonly projectCount = computed(() => this.projects().length);
-  readonly featuredCount = computed(() => this.projects().filter(p => p.featured).length);
+  readonly publishedProjects = computed(() => this.projects().filter(p => p.isActive).length);
+  readonly featuredCount = computed(() => this.projects().filter(p => p.featured && p.isActive).length);
   readonly skillCount = computed(() => this.skills().length);
   readonly visibleSkills = computed(() => this.skills().filter(s => s.isActive).length);
   readonly skillCategories = computed(
-    () => new Set(this.skills().map(s => s.category || 'Uncategorized')).size
+    () => new Set(this.skills().map(s => s.categoryEn || 'Uncategorized')).size
   );
   readonly currentRole = computed(
-    () => this.experience().find(item => item.current)?.company ?? '—'
+    () => this.experienceService.error() || this.experienceService.loading() ? 'Unavailable' : this.experience().find(item => item.current && item.isActive)?.companyEn ?? '—'
   );
 
   readonly recentMessages = computed(() =>
@@ -254,20 +96,20 @@ export class DashboardComponent implements OnInit {
   readonly stats = computed(() => [
     {
       label: 'Projects',
-      value: this.projectCount(),
-      hint: `${this.featuredCount()} featured`,
+      value: this.projectService.loading() ? '…' : this.projectService.error() ? '—' : this.projectCount(),
+      hint: this.projectService.error() ? 'Unavailable' : `${this.featuredCount()} featured`,
       icon: this.trust('<svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M4 7.5a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-10Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>')
     },
     {
       label: 'Skills',
-      value: this.skillCount(),
-      hint: `${this.visibleSkills()} visible`,
+      value: this.skillService.loading() ? '…' : this.skillService.error() ? '—' : this.skillCount(),
+      hint: this.skillService.error() ? 'Unavailable' : `${this.visibleSkills()} visible`,
       icon: this.trust('<svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="m12 4 2.1 4.3 4.7.7-3.4 3.3.8 4.7-4.2-2.2-4.2 2.2.8-4.7-3.4-3.3 4.7-.7L12 4Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>')
     },
     {
       label: 'Unread messages',
-      value: this.unreadCount(),
-      hint: `${this.messages().length} total`,
+      value: this.contactService.loading() ? '…' : this.contactService.error() ? '—' : this.unreadCount(),
+      hint: this.contactService.error() ? 'Unavailable' : `${this.messages().length} total`,
       icon: this.trust('<svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v8a2.5 2.5 0 0 1-2.5 2.5H9l-4 3.5v-3.5A2.5 2.5 0 0 1 4 14.5v-8Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>')
     }
   ]);
@@ -296,10 +138,26 @@ export class DashboardComponent implements OnInit {
     this.reload();
   }
 
+  private loadProjects(): void {
+    this.projectService.loadProjects().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({ error: () => undefined });
+  }
+
+  private loadSkills(): void {
+    this.skillService.loadSkills().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({ error: () => undefined });
+  }
+
+  private loadExperience(): void {
+    this.experienceService.loadExperience().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({ error: () => undefined });
+  }
+
+  private loadMessages(): void {
+    this.contactService.loadMessages({ force: true }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({ error: () => undefined });
+  }
+
   reload(): void {
-    this.projectService.loadProjects().subscribe({ error: () => undefined });
-    this.skillService.loadSkills().subscribe({ error: () => undefined });
-    this.experienceService.loadExperience().subscribe({ error: () => undefined });
-    this.contactService.loadMessages().subscribe({ error: () => undefined });
+    this.loadProjects();
+    this.loadSkills();
+    this.loadExperience();
+    this.loadMessages();
   }
 }

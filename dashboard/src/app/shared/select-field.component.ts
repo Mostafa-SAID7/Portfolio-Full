@@ -39,113 +39,7 @@ let nextFieldId = 0;
 @Component({
   selector: 'app-select-field',
   standalone: true,
-  template: `
-    <div class="relative">
-      <label [attr.for]="inputId" class="field-label">{{ label }}</label>
-
-      @if (allowCustom) {
-        <div class="relative">
-          <input
-            [id]="inputId"
-            type="text"
-            [class]="inputFieldClass"
-            [placeholder]="placeholder"
-            [value]="value"
-            role="combobox"
-            aria-autocomplete="list"
-            [attr.aria-expanded]="open()"
-            [attr.aria-controls]="listId"
-            (input)="onInput($event)"
-            (focus)="open.set(true)"
-            (keydown)="onKeydown($event)"
-          />
-          <button
-            type="button"
-            class="absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-muted transition hover:bg-line/[0.06] hover:text-ink"
-            (click)="toggle()"
-            [attr.aria-label]="'Show options for ' + label"
-            tabindex="-1"
-          >
-            <svg
-              class="h-4 w-4 transition-transform"
-              [class.rotate-180]="open()"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              aria-hidden="true"
-            >
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="m6 9 6 6 6-6" />
-            </svg>
-          </button>
-        </div>
-      } @else {
-        <button
-          [id]="inputId"
-          type="button"
-          role="combobox"
-          [class]="triggerClass"
-          [attr.aria-expanded]="open()"
-          [attr.aria-controls]="listId"
-          (click)="toggle()"
-          (keydown)="onKeydown($event)"
-        >
-          <span class="truncate">{{ value ? selectedLabel() : placeholder }}</span>
-          <svg
-            class="h-4 w-4 shrink-0 text-muted transition-transform"
-            [class.rotate-180]="open()"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            aria-hidden="true"
-          >
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="m6 9 6 6 6-6" />
-          </svg>
-        </button>
-      }
-
-      @if (open()) {
-        <ul
-          [id]="listId"
-          role="listbox"
-          [attr.aria-label]="label"
-          class="absolute z-50 mt-1 max-h-64 w-full overflow-auto rounded-xl border border-line/15 bg-raised py-1 shadow-card"
-        >
-          @for (option of visibleOptions; track option.value) {
-            <li
-              role="option"
-              [id]="optionId(option.value)"
-              [attr.aria-selected]="option.value === value"
-              [class]="optionClass(option)"
-              (mouseenter)="activeValue.set(option.value)"
-              (click)="select(option.value)"
-            >
-              <span class="truncate">{{ option.label }}</span>
-              @if (option.value === value) {
-                <svg class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m5 13 4 4L19 7" />
-                </svg>
-              }
-            </li>
-          }
-
-          @if (allowCustom && customValue) {
-            <li
-              role="option"
-              [class]="customOptionClass"
-              (mouseenter)="activeValue.set(customValue)"
-              (click)="select(customValue)"
-            >
-              <span class="truncate">Use “{{ customValue }}”</span>
-            </li>
-          }
-
-          @if (!visibleOptions.length && !customValue) {
-            <li class="px-4 py-2.5 text-sm text-muted">No options</li>
-          }
-        </ul>
-      }
-    </div>
-  `,
+  templateUrl: "./select-field.component.html",
   providers: [
     {
       provide: NG_VALUE_ACCESSOR,
@@ -166,8 +60,9 @@ export class SelectFieldComponent implements ControlValueAccessor {
   private readonly host = inject(ElementRef<HTMLElement>);
 
   readonly inputId = `select-field-${nextFieldId++}`;
-  readonly listId = `select-list-${nextFieldId}`;
+  readonly listId = `${this.inputId}-list`;
   readonly open = signal(false);
+  readonly disabled = signal<boolean>(false);
   readonly activeValue = signal<string | null>(null);
   /** Filter text while typing in combo-box mode. */
   readonly filter = signal('');
@@ -215,12 +110,24 @@ export class SelectFieldComponent implements ControlValueAccessor {
     return match ? match.label : this.value;
   }
 
-  optionId(value: string): string {
-    return `${this.listId}-option-${value.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
+  private get selectableOptions(): Option[] {
+    const custom = this.customValue;
+    return custom ? [...this.visibleOptions, { value: custom, label: custom }] : this.visibleOptions;
+  }
+
+  get activeDescendant(): string | null {
+    if (!this.open() || this.disabled()) return null;
+    const index = this.selectableOptions.findIndex(option => option.value === this.activeValue());
+    return index >= 0 ? this.optionId(index) : null;
+  }
+
+  optionId(index: number): string {
+    return `${this.listId}-option-${index}`;
   }
 
   /** Tailwind classes for one option row (literal strings so the JIT sees them). */
-  optionClass(option: Option): string {    if (option.value === this.value) {
+  optionClass(option: Option): string {
+    if (option.value === this.value) {
       return 'flex cursor-pointer items-center justify-between gap-2 bg-accent/10 px-4 py-2.5 text-sm font-semibold text-accent-text transition';
     }
     if (option.value === this.activeValue()) {
@@ -230,26 +137,26 @@ export class SelectFieldComponent implements ControlValueAccessor {
   }
 
   get customOptionClass(): string {
-    return 'flex cursor-pointer items-center justify-between gap-2 px-4 py-2.5 text-sm text-accent-text transition hover:bg-line/[0.06]';
+    const base = 'flex cursor-pointer items-center justify-between gap-2 px-4 py-2.5 text-sm text-accent-text transition hover:bg-line/[0.06]';
+    return this.customValue === this.activeValue() ? `${base} bg-line/[0.06]` : base;
   }
 
   /** Combo-box input: the shared field style plus room for the chevron button. */
   get inputFieldClass(): string {
-    return `input pr-10 ${this.inputClass}`.trim();
+    return `input pr-10 disabled:cursor-not-allowed disabled:opacity-60 ${this.inputClass}`.trim();
   }
 
   /** Trigger button: the shared field style, dimmed while nothing is selected. */
   get triggerClass(): string {
-    const base = 'input flex items-center justify-between gap-2 text-left';
+    const base = 'input flex items-center justify-between gap-2 text-left disabled:cursor-not-allowed disabled:opacity-60';
     const tone = this.value ? 'text-ink' : 'text-faint';
     return `${base} ${tone} ${this.inputClass}`.trim();
   }
 
   writeValue(value: string | null): void {
     this.value = value ?? '';
-    if (!this.allowCustom) {
-      this.filter.set('');
-    }
+    this.filter.set('');
+    this.activeValue.set(null);
   }
 
   registerOnChange(handler: (value: string) => void): void {
@@ -260,32 +167,58 @@ export class SelectFieldComponent implements ControlValueAccessor {
     this.touchedHandler = handler;
   }
 
+  setDisabledState(disabled: boolean): void {
+    this.disabled.set(disabled);
+    if (disabled) this.close();
+  }
+
+  onFocus(): void {
+    if (!this.disabled()) this.open.set(true);
+  }
+
+  onBlur(): void {
+    this.close();
+    if (!this.disabled()) this.touchedHandler();
+  }
+
+  setActive(value: string): void {
+    if (!this.disabled()) this.activeValue.set(value);
+  }
+
   toggle(): void {
+    if (this.disabled()) return;
     this.open.update(open => !open);
-    if (this.open()) {
-      this.activeValue.set(this.value || this.visibleOptions[0]?.value || null);
-    }
+    const options = this.selectableOptions;
+    this.activeValue.set(this.open()
+      ? options.find(option => option.value === this.value)?.value ?? options[0]?.value ?? null
+      : null);
   }
 
   onInput(event: Event): void {
+    if (this.disabled()) return;
     const text = (event.target as HTMLInputElement).value;
     this.value = text;
     this.filter.set(text);
+    this.activeValue.set(null);
     this.open.set(true);
     this.changeHandler(text);
   }
 
   select(value: string): void {
+    if (this.disabled()) return;
     this.value = value;
     this.filter.set('');
-    this.open.set(false);
-    this.activeValue.set(null);
+    this.close();
     this.changeHandler(value);
     this.touchedHandler();
+    (this.host.nativeElement.querySelector(`#${this.inputId}`) as HTMLElement | null)?.focus();
+    // Focusing the custom input must not reopen a list just selected by pointer.
+    this.close();
   }
 
   onKeydown(event: KeyboardEvent): void {
-    const options = this.visibleOptions;
+    if (this.disabled()) return;
+    const options = this.selectableOptions;
 
     switch (event.key) {
       case 'ArrowDown':
@@ -314,9 +247,7 @@ export class SelectFieldComponent implements ControlValueAccessor {
         event.preventDefault();
         if (this.open()) {
           const active = this.activeValue();
-          if (active) {
-            this.select(active);
-          }
+          if (active !== null && options.some(option => option.value === active)) this.select(active);
         } else {
           this.toggle();
         }
@@ -324,20 +255,29 @@ export class SelectFieldComponent implements ControlValueAccessor {
       case ' ':
         if (!this.allowCustom) {
           event.preventDefault();
-          this.toggle();
+          const active = this.activeValue();
+          if (this.open() && active !== null && options.some(option => option.value === active)) this.select(active);
+          else this.toggle();
         }
         break;
       case 'Escape':
         if (this.open()) {
           event.preventDefault();
-          this.open.set(false);
-          this.activeValue.set(null);
+          event.stopPropagation();
+          this.close();
         }
         break;
       case 'Tab':
-        this.open.set(false);
+        this.close();
         break;
     }
+    const id = this.activeDescendant;
+    if (id) (this.host.nativeElement.querySelector(`#${id}`) as HTMLElement | null)?.scrollIntoView({ block: 'nearest' });
+  }
+
+  private close(): void {
+    this.open.set(false);
+    this.activeValue.set(null);
   }
 
   private nextActive(options: Option[], step: number): string | null {

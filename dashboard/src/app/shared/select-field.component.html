@@ -1,0 +1,58 @@
+<div class="relative">
+  <label [attr.for]="inputId" class="field-label">{{ label }}</label>
+  @if (allowCustom) {
+    <div class="relative">
+      <input
+        [id]="inputId" type="text" [class]="inputFieldClass" [placeholder]="placeholder" [value]="value"
+        [disabled]="disabled()" role="combobox" aria-autocomplete="list" aria-haspopup="listbox"
+        [attr.aria-expanded]="open()" [attr.aria-controls]="open() ? listId : null"
+        [attr.aria-activedescendant]="activeDescendant"
+        (input)="onInput($event)" (focus)="onFocus()" (blur)="onBlur()" (keydown)="onKeydown($event)"
+      />
+      <button
+        type="button" class="absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-muted transition hover:bg-line/[0.06] hover:text-ink disabled:opacity-60"
+        [disabled]="disabled()" (mousedown)="$event.preventDefault()" (click)="toggle()"
+        [attr.aria-label]="'Show options for ' + label" tabindex="-1"
+      >
+        <svg class="h-4 w-4 transition-transform" [class.rotate-180]="open()" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="m6 9 6 6 6-6" />
+        </svg>
+      </button>
+    </div>
+  } @else {
+    <button
+      [id]="inputId" type="button" role="combobox" aria-haspopup="listbox" [class]="triggerClass"
+      [disabled]="disabled()" [attr.aria-expanded]="open()" [attr.aria-controls]="open() ? listId : null"
+      [attr.aria-activedescendant]="activeDescendant" (click)="toggle()" (blur)="onBlur()" (keydown)="onKeydown($event)"
+    >
+      <span class="truncate">{{ value ? selectedLabel() : placeholder }}</span>
+      <svg class="h-4 w-4 shrink-0 text-muted transition-transform" [class.rotate-180]="open()" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="m6 9 6 6 6-6" />
+      </svg>
+    </button>
+  }
+  @if (open()) {
+    <ul [id]="listId" role="listbox" [attr.aria-label]="label" class="absolute z-50 mt-1 max-h-64 w-full overflow-auto rounded-xl border border-line/15 bg-raised py-1 shadow-card">
+      @for (option of visibleOptions; track $index) {
+        <li role="option" [id]="optionId($index)" [attr.aria-selected]="option.value === value" [class]="optionClass(option)"
+          (mouseenter)="setActive(option.value)" (mousedown)="$event.preventDefault()" (click)="select(option.value)">
+          <span class="truncate">{{ option.label }}</span>
+          @if (option.value === value) {
+            <svg class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m5 13 4 4L19 7" />
+            </svg>
+          }
+        </li>
+      }
+      @if (allowCustom && customValue) {
+        <li role="option" [id]="optionId(visibleOptions.length)" [attr.aria-selected]="customValue === value" [class]="customOptionClass"
+          (mouseenter)="setActive(customValue)" (mousedown)="$event.preventDefault()" (click)="select(customValue)">
+          <span class="truncate">Use “{{ customValue }}”</span>
+        </li>
+      }
+      @if (!visibleOptions.length && !customValue) {
+        <li class="px-4 py-2.5 text-sm text-muted">No options</li>
+      }
+    </ul>
+  }
+</div>

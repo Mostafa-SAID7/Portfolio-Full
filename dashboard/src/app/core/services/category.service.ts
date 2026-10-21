@@ -1,6 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, catchError, tap, throwError } from 'rxjs';
+import { Observable, catchError, defer, finalize, tap, throwError } from 'rxjs';
 import { Category, CategoryPayload } from '../models/category.model';
 import { API_URL } from '../api.config';
 
@@ -28,22 +28,22 @@ export class CategoryService {
   readonly names = signal<string[]>([]);
 
   loadCategories(): Observable<Category[]> {
-    this.loadingSignal.set(true);
-    this.errorSignal.set(null);
-
-    return this.http.get<Category[]>(ENDPOINT).pipe(
-      tap(categories => {
-        const list = categories ?? [];
-        this.categoriesSignal.set(list);
-        this.names.set(list.filter(c => c.isActive).map(c => c.nameEn));
-        this.loadingSignal.set(false);
-      }),
-      catchError(err => {
-        this.errorSignal.set(err?.error?.message ?? err?.message ?? 'Failed to load categories.');
-        this.loadingSignal.set(false);
-        return throwError(() => err);
-      })
-    );
+    return defer(() => {
+      this.loadingSignal.set(true);
+      this.errorSignal.set(null);
+      return this.http.get<Category[]>(ENDPOINT).pipe(
+        tap(categories => {
+          const list = categories ?? [];
+          this.categoriesSignal.set(list);
+          this.names.set(list.filter(c => c.isActive).map(c => c.nameEn));
+        }),
+        catchError(err => {
+          this.errorSignal.set(err?.error?.message ?? err?.message ?? 'Failed to load categories.');
+          return throwError(() => err);
+        }),
+        finalize(() => this.loadingSignal.set(false))
+      );
+    });
   }
 
   createCategory(payload: CategoryPayload): Observable<Category> {

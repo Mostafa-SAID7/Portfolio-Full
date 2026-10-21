@@ -1,6 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, catchError, tap, throwError } from 'rxjs';
+import { Observable, catchError, defer, finalize, tap, throwError } from 'rxjs';
 import { Experience, ExperiencePayload } from '../models/experience.model';
 import { API_URL } from '../api.config';
 
@@ -19,20 +19,18 @@ export class ExperienceService {
   readonly error = this.errorSignal.asReadonly();
 
   loadExperience(): Observable<Experience[]> {
-    this.loadingSignal.set(true);
-    this.errorSignal.set(null);
-
-    return this.http.get<Experience[]>(ENDPOINT).pipe(
-      tap(items => {
-        this.experienceSignal.set(items ?? []);
-        this.loadingSignal.set(false);
-      }),
-      catchError(err => {
-        this.errorSignal.set(err?.error?.message ?? err?.message ?? 'Failed to load experience.');
-        this.loadingSignal.set(false);
-        return throwError(() => err);
-      })
-    );
+    return defer(() => {
+      this.loadingSignal.set(true);
+      this.errorSignal.set(null);
+      return this.http.get<Experience[]>(ENDPOINT).pipe(
+        tap(items => this.experienceSignal.set(items ?? [])),
+        catchError(err => {
+          this.errorSignal.set(err?.error?.message ?? err?.message ?? 'Failed to load experience.');
+          return throwError(() => err);
+        }),
+        finalize(() => this.loadingSignal.set(false))
+      );
+    });
   }
 
   createExperience(payload: ExperiencePayload): Observable<Experience> {
