@@ -24,6 +24,7 @@ appsettings.Production.json
 node_modules/
 dist/
 .angular/
+.pnpm-store/
 *.tsbuildinfo
 
 # ---- Vercel / Nitro build output --------------------------------------
