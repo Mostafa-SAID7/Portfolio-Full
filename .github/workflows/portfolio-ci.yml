@@ -1,0 +1,90 @@
+name: Portfolio CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portfolio-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Changed-source lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: portfolio
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: portfolio/package-lock.json
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Lint changed TypeScript and TSX files
+        shell: bash
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            base="origin/$BASE_REF"
+          elif [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+            base="$BEFORE_SHA"
+            if [[ "$base" =~ ^0+$ ]]; then
+              base="$(git rev-list --max-parents=0 HEAD)"
+            fi
+          else
+            echo "No change range is available for this manual run; the production build remains the full-project check."
+            exit 0
+          fi
+
+          mapfile -t files < <(git diff --name-only --diff-filter=ACMRT "$base"...HEAD -- 'portfolio/src/*.ts' 'portfolio/src/**/*.ts' 'portfolio/src/*.tsx' 'portfolio/src/**/*.tsx')
+          if ((${#files[@]} == 0)); then
+            echo "No changed TypeScript or TSX source files to lint."
+            exit 0
+          fi
+
+          npx eslint "${files[@]}"
+
+  build:
+    name: Production build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: portfolio
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: portfolio/package-lock.json
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Build for production
+        run: npm run build
+

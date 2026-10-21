@@ -1,0 +1,19 @@
+<dialog #dialog class="confirm-dialog card m-auto max-h-[calc(100%-2rem)] w-[calc(100%-2rem)] max-w-md p-6 text-ink"
+  [attr.aria-labelledby]="service.request() ? 'confirm-title-' + service.request()!.id : null"
+  [attr.aria-describedby]="service.request() ? 'confirm-message-' + service.request()!.id : null"
+  (cancel)="onCancel($event)" (close)="onClose()" (click)="onBackdropClick($event)">
+  @if (service.request(); as req) {
+    <h3 [id]="'confirm-title-' + req.id" class="font-display text-xl font-semibold tracking-[-0.03em] text-ink">
+      {{ req.title }}
+    </h3>
+    <p [id]="'confirm-message-' + req.id" class="mt-3 text-sm leading-6 text-soft">{{ req.message }}</p>
+    <div class="mt-6 flex justify-end gap-3">
+      <button #cancelButton type="button" class="btn-ghost" autofocus (click)="service.settle(false)">
+        {{ req.cancelLabel ?? 'Cancel' }}
+      </button>
+      <button type="button" [class]="req.danger === false ? 'btn-primary' : 'btn-danger'" (click)="service.settle(true)">
+        {{ req.confirmLabel ?? 'Delete' }}
+      </button>
+    </div>
+  }
+</dialog>

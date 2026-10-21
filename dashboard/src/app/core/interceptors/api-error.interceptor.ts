@@ -4,59 +4,67 @@ import { catchError, throwError } from 'rxjs';
 import { AuthService } from '../services/auth.service';
 import { ToastService } from '../../shared/toast.component';
 
-/**
- * Normalizes API failures so every screen can show a human-readable
- * message (services read `error.error.message`), turns a dead API
- * (status 0 / network error) into an actionable hint instead of a blank
- * "Http failure response" string, and handles global auth outcomes
- * (issue #20): a 401 anywhere clears the session and sends the user to the
- * login screen with a toast; a 403 surfaces the permission denial.
- *
- * Services are injected at interceptor entry (injection context) — the
- * catchError callback itself runs outside it.
- */
+export interface ApiError {
+  message: string;
+  errors: Record<string, string[]>;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+export function normalizeApiError(error: HttpErrorResponse): ApiError {
+  const body: unknown = error.error;
+  const errors: Record<string, string[]> = {};
+  if (isRecord(body) && isRecord(body['errors'])) {
+    for (const [field, messages] of Object.entries(body['errors'])) {
+      if (Array.isArray(messages)) {
+        errors[field] = messages.filter((message): message is string => typeof message === 'string');
+      }
+    }
+  }
+  if (Array.isArray(body)) {
+    for (const failure of body) {
+      if (!isRecord(failure) || typeof failure['errorMessage'] !== 'string') continue;
+      const field = typeof failure['propertyName'] === 'string' ? failure['propertyName'] : '';
+      errors[field] = [...(errors[field] ?? []), failure['errorMessage']];
+    }
+  }
+  const details = isRecord(body)
+    ? [body['message'], body['detail'], body['title']].find(
+        (value): value is string => typeof value === 'string' && value.trim().length > 0
+      )
+    : undefined;
+  const message = error.status === 0
+    ? 'Cannot reach the Portfolio API. Make sure the API is running and try again.'
+    : typeof body === 'string' && body.trim()
+      ? body
+      : details ?? (Object.values(errors).flat().join(' ') || `Request failed (${error.status} ${error.statusText}).`);
+  return { message, errors };
+}
+
 export const apiErrorInterceptor: HttpInterceptorFn = (req, next) => {
   const auth = inject(AuthService);
   const toast = inject(ToastService);
 
   return next(req).pipe(
     catchError((err: unknown) => {
-      if (err instanceof HttpErrorResponse) {
-        let message: string;
-
-        if (err.status === 0) {
-          message =
-            'Cannot reach the Portfolio API. Make sure it is running (dotnet run, http://localhost:5039) and reload.';
-        } else if (typeof err.error === 'string' && err.error.trim()) {
-          message = err.error;
-        } else if (Array.isArray(err.error) && err.error.length && err.error[0]?.errorMessage) {
-          // ASP.NET model validation errors come back as arrays.
-          message = err.error.map((e: { errorMessage: string }) => e.errorMessage).join(' ');
-        } else {
-          message = err.error?.message ?? `Request failed (${err.status} ${err.statusText}).`;
-        }
-
-        // --- Global auth outcomes (issue #20) -------------------------------
-        const isLoginAttempt = err.url?.includes('/auth/login') ?? false;
-        if (err.status === 401 && !isLoginAttempt) {
-          // Token expired/revoked: drop the session (guard redirects to login)
-          // and explain why — instead of failing silently on every screen.
-          auth.handleAuthFailure();
-          toast.show('Your session has expired — please sign in again.', 'error');
-        } else if (err.status === 403) {
-          toast.show(message || 'You do not have permission to perform this action.', 'error');
-        }
-
-        const normalized = new HttpErrorResponse({
-          url: err.url ?? undefined,
-          status: err.status,
-          statusText: err.statusText,
-          error: { message }
-        });
-        return throwError(() => normalized);
+      if (!(err instanceof HttpErrorResponse)) return throwError(() => err);
+      const error = normalizeApiError(err);
+      const isLoginAttempt = req.url.split('?')[0].endsWith('/auth/login');
+      if (err.status === 401 && !isLoginAttempt) {
+        auth.handleAuthFailure();
+        toast.show('Your session has expired — please sign in again.', 'error');
+      } else if (err.status === 403) {
+        toast.show(error.message, 'error');
       }
-
-      return throwError(() => err);
+      return throwError(() => new HttpErrorResponse({
+        url: err.url ?? undefined,
+        status: err.status,
+        statusText: err.statusText,
+        headers: err.headers,
+        error
+      }));
     })
   );
 };

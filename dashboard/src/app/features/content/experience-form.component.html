@@ -1,0 +1,75 @@
+<form #experienceForm="ngForm" class="card space-y-5 p-5" (ngSubmit)="submit(experienceForm)" novalidate [attr.aria-busy]="busy">
+  <h3 class="font-display text-lg font-semibold text-ink">{{ editing ? 'Edit experience' : 'New experience' }}</h3>
+  <p class="text-sm text-soft">Enter both translations independently. Required fields are marked *.</p>
+  @if (error) {
+    <div role="alert" class="rounded-xl border border-danger/30 bg-danger/10 p-3 text-sm text-danger">{{ error }}</div>
+  }
+  @if ((submitted || experienceForm.dirty) && validationError(); as message) {
+    <p role="alert" class="text-sm text-danger">{{ message }}</p>
+  }
+  <fieldset [disabled]="busy" class="grid gap-4 sm:grid-cols-2">
+    <div>
+      <label for="exp-company-en" class="field-label">Company (English) *</label>
+      <input id="exp-company-en" name="companyEn" class="input" [(ngModel)]="draft.companyEn" required maxlength="100" />
+    </div>
+    <div>
+      <label for="exp-company-ar" class="field-label">Company (Arabic) *</label>
+      <input id="exp-company-ar" name="companyAr" class="input" lang="ar" dir="rtl" [(ngModel)]="draft.companyAr" required maxlength="100" />
+    </div>
+    <div>
+      <label for="exp-position-en" class="field-label">Position (English) *</label>
+      <input id="exp-position-en" name="positionEn" class="input" [(ngModel)]="draft.positionEn" required maxlength="100" />
+    </div>
+    <div>
+      <label for="exp-position-ar" class="field-label">Position (Arabic) *</label>
+      <input id="exp-position-ar" name="positionAr" class="input" lang="ar" dir="rtl" [(ngModel)]="draft.positionAr" required maxlength="100" />
+    </div>
+    <div>
+      <label for="exp-location-en" class="field-label">Location (English)</label>
+      <input id="exp-location-en" name="locationEn" class="input" [(ngModel)]="draft.locationEn" maxlength="100" />
+    </div>
+    <div>
+      <label for="exp-location-ar" class="field-label">Location (Arabic)</label>
+      <input id="exp-location-ar" name="locationAr" class="input" lang="ar" dir="rtl" [(ngModel)]="draft.locationAr" maxlength="100" />
+    </div>
+    <div>
+      <label for="exp-start" class="field-label">Start date *</label>
+      <input id="exp-start" name="startDate" type="date" class="input" [(ngModel)]="draft.startDate" required />
+    </div>
+    <div>
+      <label for="exp-end" class="field-label">End date{{ draft.current ? '' : ' *' }}</label>
+      <input id="exp-end" name="endDate" type="date" class="input" [(ngModel)]="draft.endDate" [required]="!draft.current" [disabled]="draft.current || busy" [min]="draft.startDate" />
+    </div>
+    <div>
+      <label for="exp-description-en" class="field-label">Description (English) *</label>
+      <textarea id="exp-description-en" name="descriptionEn" rows="4" class="input resize-y" [(ngModel)]="draft.descriptionEn" required maxlength="1000"></textarea>
+    </div>
+    <div>
+      <label for="exp-description-ar" class="field-label">Description (Arabic) *</label>
+      <textarea id="exp-description-ar" name="descriptionAr" rows="4" class="input resize-y" lang="ar" dir="rtl" [(ngModel)]="draft.descriptionAr" required maxlength="1000"></textarea>
+    </div>
+    <div class="sm:col-span-2">
+      <label for="exp-tech" class="field-label">Technologies</label>
+      <input id="exp-tech" name="technologies" class="input" [(ngModel)]="draft.technologies" aria-describedby="exp-tech-hint" placeholder=".NET, Angular, SQL Server" />
+      <p id="exp-tech-hint" class="mt-2 text-xs text-muted">Separate with commas (max 20).</p>
+    </div>
+    <div>
+      <label for="exp-order" class="field-label">Display order</label>
+      <input id="exp-order" name="order" type="number" class="input" [(ngModel)]="draft.order" required min="0" step="1" />
+    </div>
+    <div class="flex items-end gap-5 pb-2">
+      <label class="flex items-center gap-2 text-sm text-ink">
+        <input name="current" type="checkbox" [(ngModel)]="draft.current" class="h-4 w-4 accent-[rgb(var(--accent))]" /> Current role
+      </label>
+      <label class="flex items-center gap-2 text-sm text-ink">
+        <input name="isActive" type="checkbox" [(ngModel)]="draft.isActive" class="h-4 w-4 accent-[rgb(var(--accent))]" /> Visible
+      </label>
+    </div>
+  </fieldset>
+  <div class="flex justify-end gap-3 border-t border-line/10 pt-4">
+    <button type="button" class="btn-ghost" [disabled]="busy" (click)="cancel.emit()">Cancel</button>
+    <button type="submit" class="btn-primary" [disabled]="busy || experienceForm.invalid || !!validationError()">
+      {{ busy ? 'Saving…' : (editing ? 'Save changes' : 'Create experience') }}
+    </button>
+  </div>
+</form>
