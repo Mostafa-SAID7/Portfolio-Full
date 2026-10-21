@@ -63,7 +63,7 @@ export class DashboardComponent implements OnInit {
     { label: 'Projects', service: this.projectService, retry: () => this.loadProjects() },
     { label: 'Skills', service: this.skillService, retry: () => this.loadSkills() },
     { label: 'Experience', service: this.experienceService, retry: () => this.loadExperience() },
-    { label: 'Messages', service: this.contactService, retry: () => this.loadMessages() }
+    { label: 'Messages', service: this.contactService, retry: () => this.loadMessages(true) }
   ];
   readonly healthUnavailable = computed(() =>
     this.projectService.loading() || this.projectService.error() !== null ||
