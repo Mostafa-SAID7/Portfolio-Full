@@ -122,7 +122,10 @@ namespace PortfolioAPI.Infrastructure.Services
             return await SaveBytesAsync(sourceBytes, ".webp", descriptiveName);
         }
 
-        public async Task<string> SaveOptimizedImageAsync(Stream imageStream, string? projectSlug = null)
+        public async Task<(string Url640, string Url1280)> SaveOptimizedResponsiveImageAsync(
+            Stream imageStream,
+            string? projectSlug = null,
+            string? oldImageUrl = null)
         {
             ArgumentNullException.ThrowIfNull(imageStream);
 
@@ -137,27 +140,57 @@ namespace PortfolioAPI.Infrastructure.Services
             if (!sniff(sourceBytes))
                 throw new InvalidOperationException("The file content does not match its extension.");
 
-            // Process image: resize if width > 1600px (maintain aspect ratio), convert to WebP quality 80
-            using var image = Image.Load(sourceBytes);
-            if (image.Width > 1600)
+            // Delete old image files if oldImageUrl is provided
+            if (!string.IsNullOrWhiteSpace(oldImageUrl))
             {
-                var scale = 1600.0 / image.Width;
-                var newHeight = (int)Math.Round(image.Height * scale);
-                image.Mutate(x => x.Resize(1600, newHeight));
+                DeleteOldImageFiles(oldImageUrl);
             }
 
-            using var outputStream = new MemoryStream();
-            var encoder = new WebpEncoder { Quality = 80 };
-            await image.SaveAsync(outputStream, encoder);
-            var optimizedBytes = outputStream.ToArray();
-
-            // Sanitize slug for file name
+            // Sanitize slug: empty/null/after-sanitize-empty → "project"
             var safeSlug = SanitizeSlug(projectSlug);
-            var uniqueFileName = GetUniqueFileName(safeSlug);
 
-            var filePath = Path.Combine(_storagePath, uniqueFileName);
-            await File.WriteAllBytesAsync(filePath, optimizedBytes);
-            return $"{_baseUrl}/{uniqueFileName}";
+            // Load image once for both sizes
+            using var image = Image.Load(sourceBytes);
+
+            // Generate 640px version (mobile)
+            var fileName640 = GetUniqueResponsiveFileName(safeSlug, 640);
+            var filePath640 = Path.Combine(_storagePath, fileName640);
+            using (var resized640 = image.Clone(x =>
+            {
+                if (image.Width > 640)
+                {
+                    var scale = 640.0 / image.Width;
+                    var newHeight = (int)Math.Round(image.Height * scale);
+                    x.Resize(640, newHeight);
+                }
+            }))
+            {
+                using var outputStream = new MemoryStream();
+                var encoder = new WebpEncoder { Quality = 80 };
+                await resized640.SaveAsync(outputStream, encoder);
+                await File.WriteAllBytesAsync(filePath640, outputStream.ToArray());
+            }
+
+            // Generate 1280px version (desktop)
+            var fileName1280 = GetUniqueResponsiveFileName(safeSlug, 1280);
+            var filePath1280 = Path.Combine(_storagePath, fileName1280);
+            using (var resized1280 = image.Clone(x =>
+            {
+                if (image.Width > 1280)
+                {
+                    var scale = 1280.0 / image.Width;
+                    var newHeight = (int)Math.Round(image.Height * scale);
+                    x.Resize(1280, newHeight);
+                }
+            }))
+            {
+                using var outputStream = new MemoryStream();
+                var encoder = new WebpEncoder { Quality = 80 };
+                await resized1280.SaveAsync(outputStream, encoder);
+                await File.WriteAllBytesAsync(filePath1280, outputStream.ToArray());
+            }
+
+            return ($"{_baseUrl}/{fileName640}", $"{_baseUrl}/{fileName1280}");
         }
 
         private static (string ContentType, Func<byte[], bool>? Sniff) DetectImageType(byte[] bytes)
@@ -172,17 +205,66 @@ namespace PortfolioAPI.Infrastructure.Services
         private static string SanitizeSlug(string? slug)
         {
             if (string.IsNullOrWhiteSpace(slug))
-                return "image";
+                return "project";
 
             // Normalize to FormD, lowercase, replace non-alphanumeric with -
             var normalized = slug.Normalize(System.Text.NormalizationForm.FormD).ToLowerInvariant();
             var slugified = System.Text.RegularExpressions.Regex.Replace(normalized, @"[^a-z0-9]+", "-").Trim('-');
-            return string.IsNullOrWhiteSpace(slugified) ? "image" : slugified;
+            return string.IsNullOrWhiteSpace(slugified) ? "project" : slugified;
         }
 
-        private string GetUniqueFileName(string baseSlug)
+        private void DeleteOldImageFiles(string oldImageUrl)
         {
-            var fileName = $"{baseSlug}.webp";
+            // Extract the base file name from the URL (e.g., "haxel-footwear-1280.webp" → "haxel-footwear")
+            var fileName = Path.GetFileName(oldImageUrl);
+            if (string.IsNullOrWhiteSpace(fileName))
+                return;
+
+            // Try to extract the slug base from the file name
+            // Patterns: {slug}-640.webp, {slug}-1280.webp, {slug}.webp
+            var nameWithoutExt = Path.GetFileNameWithoutExtension(fileName);
+            string baseSlug;
+
+            if (nameWithoutExt.EndsWith("-640", StringComparison.Ordinal))
+                baseSlug = nameWithoutExt[..^4];
+            else if (nameWithoutExt.EndsWith("-1280", StringComparison.Ordinal))
+                baseSlug = nameWithoutExt[..^5];
+            else
+                baseSlug = nameWithoutExt;
+
+            // Delete both responsive versions
+            foreach (var suffix in new[] { "-640.webp", "-1280.webp", ".webp" })
+            {
+                // For the base slug, try the slug itself
+                var candidateName = baseSlug + suffix.Replace(baseSlug, "", StringComparison.Ordinal).Replace("-", "", StringComparison.Ordinal) == "" ? "" : suffix;
+            }
+
+            // Simpler: delete files matching the base slug pattern
+            var filesToDelete = new List<string>();
+            try
+            {
+                foreach (var file in Directory.GetFiles(_storagePath))
+                {
+                    var name = Path.GetFileName(file);
+                    if (name.StartsWith(baseSlug + "-", StringComparison.OrdinalIgnoreCase) ||
+                        name.Equals(baseSlug + ".webp", StringComparison.OrdinalIgnoreCase))
+                    {
+                        filesToDelete.Add(file);
+                    }
+                }
+            }
+            catch { /* ignore */ }
+
+            foreach (var file in filesToDelete)
+            {
+                try { File.Delete(file); } catch { /* best effort */ }
+            }
+        }
+
+        private string GetUniqueResponsiveFileName(string baseSlug, int size)
+        {
+            var suffix = $"-{size}.webp";
+            var fileName = $"{baseSlug}{suffix}";
             var filePath = Path.Combine(_storagePath, fileName);
             if (!File.Exists(filePath))
                 return fileName;
@@ -190,7 +272,11 @@ namespace PortfolioAPI.Infrastructure.Services
             var counter = 2;
             while (true)
             {
-                fileName = $"{baseSlug}-{counter}.webp";
+                fileName = $"{baseSlug}{suffix.Replace(".webp", $"-{counter}.webp", StringComparison.Ordinal)}";
+                // Actually: {baseSlug}-{size}-{counter}.webp  → but spec says {slug}-640-2.webp
+                // Re-read: "haxel-footwear-640.webp → haxel-footwear-640-2.webp"
+                // So the counter goes after the size suffix
+                fileName = $"{baseSlug}-{size}-{counter}.webp";
                 filePath = Path.Combine(_storagePath, fileName);
                 if (!File.Exists(filePath))
                     return fileName;
@@ -347,7 +433,7 @@ namespace PortfolioAPI.Infrastructure.Services
         Task<bool> FileExistsAsync(string fileUrl);
         Task<long> GetFileSizeAsync(string fileUrl);
         Task<string> SaveImageAsync(Stream imageStream, string fileName, string? projectTitle = null);
-        Task<string> SaveOptimizedImageAsync(Stream imageStream, string? projectSlug = null);
+        Task<(string Url640, string Url1280)> SaveOptimizedResponsiveImageAsync(Stream imageStream, string? projectSlug = null, string? oldImageUrl = null);
         Task<string> SaveDocumentAsync(Stream documentStream, string fileName);
     }
 }
