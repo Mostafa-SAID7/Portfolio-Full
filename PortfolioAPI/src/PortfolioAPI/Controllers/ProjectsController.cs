@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PortfolioAPI.Core.DTOs;
+using PortfolioAPI.Core.Interfaces;
 using PortfolioAPI.Core.Interfaces.Services;
 using PortfolioAPI.Infrastructure.Services;
 
@@ -85,11 +86,20 @@ namespace PortfolioAPI.Controllers
             var existing = await _projectService.GetByIdAsync(id);
             var result = await _projectService.UpdateAsync(id, dto);
 
-            // Cover replaced: drop the old backend-owned file (external URLs
-            // and portfolio-bundled paths are never touched).
-            if (result.Success && existing.Data?.ImageUrl is { } previous && previous != dto.ImageUrl)
+            // Cover replaced: drop the old backend-owned asset AFTER the update
+            // was committed, so a failed save can never leave the row pointing
+            // at a file that no longer exists. The storage reference carries
+            // the provider + public id, which is what makes a Cloudinary asset
+            // (and a legacy local file) deletable without parsing URLs.
+            if (result.Success && existing.Data?.ImageUrl is { } previous &&
+                (previous != dto.ImageUrl ||
+                 existing.Data.StoragePublicId != dto.StoragePublicId ||
+                 existing.Data.StorageProvider != dto.StorageProvider))
             {
-                await TryDeleteStoredCoverAsync(previous);
+                await TryDeleteStoredCoverAsync(new MediaReference(
+                    previous,
+                    existing.Data.StoragePublicId,
+                    existing.Data.StorageProvider));
             }
 
             return result.Success ? NoContent() : Failure(result);
@@ -104,7 +114,10 @@ namespace PortfolioAPI.Controllers
 
             if (result.Success && existing.Data?.ImageUrl is { } cover)
             {
-                await TryDeleteStoredCoverAsync(cover);
+                await TryDeleteStoredCoverAsync(new MediaReference(
+                    cover,
+                    existing.Data.StoragePublicId,
+                    existing.Data.StorageProvider));
             }
 
             return result.Success ? NoContent() : Failure(result);
@@ -119,23 +132,35 @@ namespace PortfolioAPI.Controllers
         }
 
         /// <summary>
-        /// Best-effort cleanup of a cover this API owns (/api/files/*).
-        /// Never fails the CRUD operation on cleanup problems.
+        /// Best-effort cleanup of a cover this API owns — dispatched to the
+        /// storage provider that owns the asset, which may differ from the
+        /// active one (a project written before Cloudinary was enabled still
+        /// points at a local file). External URLs and portfolio-bundled paths
+        /// are never touched. Never fails the CRUD operation on cleanup
+        /// problems.
         /// </summary>
-        private async Task TryDeleteStoredCoverAsync(string imageUrl)
+        private async Task TryDeleteStoredCoverAsync(MediaReference reference)
         {
-            if (!UploadStorage.IsManagedFile(imageUrl, _configuration))
+            if (reference.IsEmpty)
+            {
+                return;
+            }
+
+            // Local-only guard: a /api/files URL that is not one of ours must
+            // not reach the file system. Cloudinary assets are identified by
+            // their public id, which only ever comes from our own uploads.
+            if (!reference.IsCloudinary && !UploadStorage.IsManagedFile(reference.Url, _configuration))
             {
                 return;
             }
 
             try
             {
-                await _fileStorage.DeleteFileAsync(imageUrl);
+                await _fileStorage.DeleteImageAsync(reference);
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Could not delete stored cover {ImageUrl}", imageUrl);
+                _logger.LogWarning(ex, "Could not delete stored cover {ImageUrl}", reference.Url);
             }
         }
     }

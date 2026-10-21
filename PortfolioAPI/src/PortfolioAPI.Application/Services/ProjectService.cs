@@ -166,6 +166,8 @@ namespace PortfolioAPI.Application.Services
                 DescriptionEn = dto.DescriptionEn?.Trim() ?? string.Empty,
                 DescriptionAr = dto.DescriptionAr?.Trim() ?? string.Empty,
                 ImageUrl = dto.ImageUrl,
+                StorageProvider = dto.StorageProvider,
+                StoragePublicId = dto.StoragePublicId,
                 Technologies = Sanitize(dto.Technologies),
                 GithubUrl = dto.GithubUrl,
                 LiveUrl = dto.LiveUrl,
@@ -246,6 +248,8 @@ namespace PortfolioAPI.Application.Services
             project.DescriptionEn = dto.DescriptionEn?.Trim() ?? string.Empty;
             project.DescriptionAr = dto.DescriptionAr?.Trim() ?? string.Empty;
             project.ImageUrl = dto.ImageUrl;
+            project.StorageProvider = dto.StorageProvider;
+            project.StoragePublicId = dto.StoragePublicId;
             project.Technologies = Sanitize(dto.Technologies);
             project.GithubUrl = dto.GithubUrl;
             project.LiveUrl = dto.LiveUrl;

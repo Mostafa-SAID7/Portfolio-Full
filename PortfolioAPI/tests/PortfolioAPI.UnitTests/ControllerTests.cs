@@ -10,6 +10,7 @@ using PortfolioAPI.Controllers;
 using PortfolioAPI.Core.Common;
 using PortfolioAPI.Core.DTOs;
 using PortfolioAPI.Core.Entities;
+using PortfolioAPI.Core.Interfaces;
 using PortfolioAPI.Core.Interfaces.Services;
 using PortfolioAPI.Infrastructure.Services;
 using Xunit;
@@ -292,7 +293,11 @@ namespace PortfolioAPI.UnitTests
 
             // Assert
             result.Should().BeOfType<NoContentResult>();
-            mockFileStorage.Verify(f => f.DeleteFileAsync("/api/files/old-cover.png"), Times.Once);
+            mockFileStorage.Verify(
+                f => f.DeleteImageAsync(
+                    It.Is<MediaReference>(r => r.Url == "/api/files/old-cover.png"),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
         }
 
         #endregion

@@ -65,14 +65,17 @@ export class ProjectService {
   }
 
   /**
-   * Upload a cover image to the backend store (App_Data/uploads, served at
-   * /api/files/*). The returned `url` is a relative path — store it on the
-   * project as-is; every frontend resolves it through its own /api proxy.
+   * Upload a cover image to the active storage provider (Cloudinary in
+   * production, App_Data/uploads locally). The response carries both the
+   * delivery `url` to store on the project and the storage metadata
+   * (`provider`/`publicId`) that must be persisted with it, so a later
+   * replace/delete can name the exact asset instead of parsing URLs.
    */
-  uploadCover(file: File, projectTitle: string): Observable<UploadedImage> {
+  uploadCover(file: File, projectTitle: string, slug?: string | null): Observable<UploadedImage> {
     const form = new FormData();
     form.append('file', file, file.name);
     form.append('projectTitle', projectTitle);
+    if (slug) form.append('slug', slug);
     return this.http.post<UploadedImage>(`${API_URL}/upload/image`, form).pipe(
       catchError(err => throwError(() => err))
     );

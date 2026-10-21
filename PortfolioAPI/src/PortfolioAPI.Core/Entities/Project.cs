@@ -19,6 +19,16 @@ namespace PortfolioAPI.Core.Entities
         public string DescriptionEn { get; set; } = string.Empty;
         public string DescriptionAr { get; set; } = string.Empty;
         public string? ImageUrl { get; set; }
+        /// <summary>
+        /// Which storage backend owns this project's cover image: "local" or "cloudinary".
+        /// Null means unknown/legacy and defaults to local for backward compatibility.
+        /// </summary>
+        public string? StorageProvider { get; set; }
+        /// <summary>
+        /// Provider-native identity of the cover image (Cloudinary public id). Null for local files.
+        /// This is the value that must be passed to delete/replace operations - never derived from the URL.
+        /// </summary>
+        public string? StoragePublicId { get; set; }
         public List<string> Technologies { get; set; } = new();
         public string? GithubUrl { get; set; }
         public string? LiveUrl { get; set; }
