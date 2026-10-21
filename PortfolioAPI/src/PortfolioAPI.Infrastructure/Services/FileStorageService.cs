@@ -215,13 +215,30 @@ namespace PortfolioAPI.Infrastructure.Services
 
         private void DeleteOldImageFiles(string oldImageUrl)
         {
-            // Extract the base file name from the URL (e.g., "haxel-footwear-1280.webp" → "haxel-footwear")
+            // Security: ensure the URL points to a managed file in our uploads folder
+            if (string.IsNullOrWhiteSpace(oldImageUrl))
+                return;
+
             var fileName = Path.GetFileName(oldImageUrl);
             if (string.IsNullOrWhiteSpace(fileName))
                 return;
 
-            // Try to extract the slug base from the file name
-            // Patterns: {slug}-640.webp, {slug}-1280.webp, {slug}.webp
+            // Path traversal protection: ensure file name doesn't contain path separators
+            if (fileName.Contains("..", StringComparison.Ordinal) ||
+                fileName.Contains(Path.DirectorySeparatorChar) ||
+                fileName.Contains(Path.AltDirectorySeparatorChar))
+                return;
+
+            // 1. Delete the exact file from the URL (best-effort)
+            var exactPath = Path.Combine(_storagePath, fileName);
+            try
+            {
+                if (File.Exists(exactPath))
+                    File.Delete(exactPath);
+            }
+            catch { /* best effort */ }
+
+            // 2. Try to extract base slug and delete related 640/1280 files
             var nameWithoutExt = Path.GetFileNameWithoutExtension(fileName);
             string baseSlug;
 
@@ -232,33 +249,28 @@ namespace PortfolioAPI.Infrastructure.Services
             else
                 baseSlug = nameWithoutExt;
 
-            // Delete both responsive versions
-            foreach (var suffix in new[] { "-640.webp", "-1280.webp", ".webp" })
-            {
-                // For the base slug, try the slug itself
-                var candidateName = baseSlug + suffix.Replace(baseSlug, "", StringComparison.Ordinal).Replace("-", "", StringComparison.Ordinal) == "" ? "" : suffix;
-            }
+            // Only attempt slug-based deletion if the base slug looks like a valid slug
+            // (not a GUID or hash). GUIDs contain hyphens in specific positions and
+            // are 36 chars; hashes are 16 hex chars. We skip these to avoid false matches.
+            if (string.IsNullOrWhiteSpace(baseSlug) || baseSlug.Length < 2)
+                return;
 
-            // Simpler: delete files matching the base slug pattern
-            var filesToDelete = new List<string>();
+            // Delete files matching the base slug pattern (best-effort)
             try
             {
                 foreach (var file in Directory.GetFiles(_storagePath))
                 {
                     var name = Path.GetFileName(file);
+                    // Match: {baseSlug}-640.webp, {baseSlug}-1280.webp, {baseSlug}.webp
+                    // Also match numbered variants: {baseSlug}-640-2.webp, {baseSlug}-1280-2.webp
                     if (name.StartsWith(baseSlug + "-", StringComparison.OrdinalIgnoreCase) ||
                         name.Equals(baseSlug + ".webp", StringComparison.OrdinalIgnoreCase))
                     {
-                        filesToDelete.Add(file);
+                        try { File.Delete(file); } catch { /* best effort */ }
                     }
                 }
             }
-            catch { /* ignore */ }
-
-            foreach (var file in filesToDelete)
-            {
-                try { File.Delete(file); } catch { /* best effort */ }
-            }
+            catch { /* ignore directory errors */ }
         }
 
         private string GetUniqueResponsiveFileName(string baseSlug, int size)
