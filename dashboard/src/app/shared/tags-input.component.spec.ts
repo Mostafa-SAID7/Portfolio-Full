@@ -69,6 +69,19 @@ describe('TagsInputComponent', () => {
     expect(field.open()).toBeFalse();
   });
 
+  it('preserves a typed draft when Escape is pressed with the suggestion list closed', () => {
+    type('Vue');
+    field.onDocumentClick(new MouseEvent('click'));
+    expect(field.open()).toBeFalse();
+
+    const escape = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    input.dispatchEvent(escape);
+    fixture.detectChanges();
+
+    expect(escape.defaultPrevented).toBeFalse();
+    expect(field.draft()).toBe('Vue');
+  });
+
   it('commits comma-separated drafts and marks even an unchanged blur touched', () => {
     input.dispatchEvent(new Event('blur'));
     expect(fixture.componentInstance.control.touched).toBeTrue();

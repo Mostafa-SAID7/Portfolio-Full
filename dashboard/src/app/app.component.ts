@@ -116,7 +116,7 @@ export class AppComponent {
 
     // Cancel a pending destructive action as soon as its originating route leaves.
     this.router.events.pipe(
-      filter(event => event instanceof NavigationStart || event instanceof NavigationEnd),
+      filter(event => event instanceof NavigationStart),
       takeUntilDestroyed(this.destroyRef)
     ).subscribe(() => {
       this.closeDrawer();

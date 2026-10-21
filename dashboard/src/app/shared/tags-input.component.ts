@@ -125,9 +125,9 @@ export class TagsInputComponent implements ControlValueAccessor {
         if (this.open()) {
           event.preventDefault();
           event.stopPropagation();
+          this.close();
+          this.draft.set('');
         }
-        this.close();
-        this.draft.set('');
         break;
       case 'Tab':
         this.close();
