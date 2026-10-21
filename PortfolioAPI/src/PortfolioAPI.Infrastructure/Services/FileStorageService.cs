@@ -229,8 +229,14 @@ namespace PortfolioAPI.Infrastructure.Services
                 fileName.Contains(Path.AltDirectorySeparatorChar))
                 return;
 
-            // 1. Delete the exact file from the URL (best-effort)
+            // IsManagedFile check: ensure the resolved path is within _storagePath
             var exactPath = Path.Combine(_storagePath, fileName);
+            var fullPath = Path.GetFullPath(exactPath);
+            var storageRoot = Path.GetFullPath(_storagePath);
+            if (!fullPath.StartsWith(storageRoot, StringComparison.OrdinalIgnoreCase))
+                return;
+
+            // 1. Delete the exact file from the URL (best-effort, silent if not exists)
             try
             {
                 if (File.Exists(exactPath))
@@ -238,7 +244,7 @@ namespace PortfolioAPI.Infrastructure.Services
             }
             catch { /* best effort */ }
 
-            // 2. Try to extract base slug and delete related 640/1280 files
+            // 2. Try to extract base slug and delete related 640/1280 files (best-effort)
             var nameWithoutExt = Path.GetFileNameWithoutExtension(fileName);
             string baseSlug;
 
@@ -249,10 +255,16 @@ namespace PortfolioAPI.Infrastructure.Services
             else
                 baseSlug = nameWithoutExt;
 
-            // Only attempt slug-based deletion if the base slug looks like a valid slug
-            // (not a GUID or hash). GUIDs contain hyphens in specific positions and
-            // are 36 chars; hashes are 16 hex chars. We skip these to avoid false matches.
+            // Skip slug-based deletion for old GUID/hash filenames
+            // GUIDs: 36 chars with hyphens at positions 8,13,18,23
+            // Hashes: 16 hex chars (no hyphens)
+            // Slugs: contain only lowercase letters, digits, hyphens (from SanitizeSlug)
             if (string.IsNullOrWhiteSpace(baseSlug) || baseSlug.Length < 2)
+                return;
+
+            // Only attempt slug-based deletion if baseSlug looks like a valid slug
+            // (contains only lowercase letters, digits, hyphens)
+            if (!System.Text.RegularExpressions.Regex.IsMatch(baseSlug, @"^[a-z0-9-]+$"))
                 return;
 
             // Delete files matching the base slug pattern (best-effort)
@@ -262,10 +274,15 @@ namespace PortfolioAPI.Infrastructure.Services
                 {
                     var name = Path.GetFileName(file);
                     // Match: {baseSlug}-640.webp, {baseSlug}-1280.webp, {baseSlug}.webp
-                    // Also match numbered variants: {baseSlug}-640-2.webp, {baseSlug}-1280-2.webp
+                    // Also match numbered variants: {baseSlug}-640-2.webp, {baseSlug}-1280-2.webp, {baseSlug}-2.webp
                     if (name.StartsWith(baseSlug + "-", StringComparison.OrdinalIgnoreCase) ||
                         name.Equals(baseSlug + ".webp", StringComparison.OrdinalIgnoreCase))
                     {
+                        // Ensure the file is within storage root (IsManagedFile check)
+                        var filePath = Path.GetFullPath(file);
+                        if (!filePath.StartsWith(storageRoot, StringComparison.OrdinalIgnoreCase))
+                            continue;
+
                         try { File.Delete(file); } catch { /* best effort */ }
                     }
                 }
