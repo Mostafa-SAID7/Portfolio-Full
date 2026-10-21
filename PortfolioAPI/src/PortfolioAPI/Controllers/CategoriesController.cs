@@ -68,6 +68,19 @@ namespace PortfolioAPI.Controllers
             return NoContent();
         }
 
+        /// <summary>Updates only supplied fields to preserve unrelated concurrent edits.</summary>
+        [HttpPatch("{id:int}")]
+        public async Task<IActionResult> PatchCategory(int id, [FromBody] UpdateCategoryPatchDto dto)
+        {
+            if (dto.NameEn is null && dto.NameAr is null && !dto.Order.HasValue && !dto.IsActive.HasValue)
+            {
+                return BadRequest("At least one category field must be supplied.");
+            }
+
+            await _categoryService.PatchCategoryAsync(id, dto);
+            return NoContent();
+        }
+
         /// <summary>Deletes a category (refused while projects still use it).</summary>
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> DeleteCategory(int id)

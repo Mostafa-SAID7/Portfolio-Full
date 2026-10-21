@@ -1,7 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, catchError, defer, finalize, tap, throwError } from 'rxjs';
-import { Category, CategoryPayload } from '../models/category.model';
+import { Category, CategoryPatch, CategoryPayload } from '../models/category.model';
 import { API_URL } from '../api.config';
 
 const ENDPOINT = `${API_URL}/Categories`;
@@ -56,8 +56,8 @@ export class CategoryService {
     );
   }
 
-  updateCategory(id: number, payload: CategoryPayload): Observable<void> {
-    return this.http.put<void>(`${ENDPOINT}/${id}`, payload).pipe(
+  updateCategory(id: number, payload: CategoryPatch): Observable<void> {
+    return this.http.patch<void>(`${ENDPOINT}/${id}`, payload).pipe(
       tap(() => {
         this.categoriesSignal.update(list =>
           list.map(category => (category.id === id ? { ...category, ...payload } : category)).sort(byOrder)

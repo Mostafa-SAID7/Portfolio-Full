@@ -114,7 +114,7 @@ describe('ContentComponent', () => {
     component.categoryDraftNameAr = 'الأتمتة';
     await render();
     component.saveCategory(category, fixture.debugElement.queryAll(By.directive(NgForm))[1].injector.get(NgForm));
-    expect(categories.updateCategory).toHaveBeenCalledOnceWith(1, { nameEn: 'Automation', nameAr: 'الأتمتة', order: 7, isActive: false });
+    expect(categories.updateCategory).toHaveBeenCalledOnceWith(1, { nameEn: 'Automation', nameAr: 'الأتمتة' });
   });
 
   it('does not submit category names with a missing translation or more than 100 characters', async () => {
@@ -292,7 +292,7 @@ describe('ContentComponent', () => {
     categories.loadCategories.and.returnValue(of(authoritative).pipe(tap(list => categories.categories.set(list))));
     component.selectTab('categories');
     component.moveCategory(category, 1);
-    expect(categories.updateCategory).toHaveBeenCalledOnceWith(1, { nameEn: category.nameEn, nameAr: category.nameAr, order: 12, isActive: false });
+    expect(categories.updateCategory).toHaveBeenCalledOnceWith(1, { order: 12 });
     component.moveCategory(category, 1);
     component.toggleCategory(neighbour);
     await render();
@@ -300,7 +300,7 @@ describe('ContentComponent', () => {
     expect(move.disabled).toBeTrue();
     expect(categories.updateCategory.calls.count()).toBe(1);
     first.next();
-    expect(categories.updateCategory.calls.argsFor(1)).toEqual([2, { nameEn: 'Web', nameAr: 'ويب', order: 7, isActive: true }]);
+    expect(categories.updateCategory.calls.argsFor(1)).toEqual([2, { order: 7 }]);
     expect(categories.loadCategories).toHaveBeenCalledTimes(1);
     expect(categories.categories()).toEqual(authoritative);
     expect(component.categoriesBusy()).toBeFalse();

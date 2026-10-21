@@ -19,6 +19,8 @@ namespace PortfolioAPI.Core.Interfaces.Services
 
         Task UpdateCategoryAsync(Category category);
 
+        Task PatchCategoryAsync(int id, PortfolioAPI.Core.DTOs.UpdateCategoryPatchDto patch);
+
         Task DeleteCategoryAsync(int id);
 
         /// <summary>

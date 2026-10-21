@@ -169,16 +169,14 @@ export class ContentComponent implements OnInit {
     this.categoryFormError = this.categoryNamesError(this.categoryDraftName, this.categoryDraftNameAr);
     if (form.invalid || this.categoryFormError) { form.control.markAllAsTouched(); return; }
     this.mutate('categories', this.categoryService.updateCategory(category.id, {
-      nameEn: this.categoryDraftName.trim(), nameAr: this.categoryDraftNameAr.trim(),
-      order: category.order, isActive: category.isActive
+      nameEn: this.categoryDraftName.trim(), nameAr: this.categoryDraftNameAr.trim()
     }), () => { this.editingCategoryId = null; }, 'Could not rename the category.');
   }
 
   toggleCategory(category: Category): void {
     if (this.unavailable('categories')) return;
-    this.mutate('categories', this.categoryService.updateCategory(category.id, {
-      nameEn: category.nameEn, nameAr: category.nameAr, order: category.order, isActive: !category.isActive
-    }), () => undefined, 'Could not update the category.');
+    this.mutate('categories', this.categoryService.updateCategory(category.id, { isActive: !category.isActive }),
+      () => undefined, 'Could not update the category.');
   }
 
   moveCategory(category: Category, direction: -1 | 1): void {
@@ -188,14 +186,10 @@ export class ContentComponent implements OnInit {
     const target = index + direction;
     if (index < 0 || target < 0 || target >= list.length) return;
     // Snapshot both entries before the service updates/sorts its local list.
-    const original = { ...list[index] };
-    const neighbour = { ...list[target] };
-    const request = this.categoryService.updateCategory(original.id, {
-      nameEn: original.nameEn, nameAr: original.nameAr, order: neighbour.order, isActive: original.isActive
-    }).pipe(
-      concatMap(() => this.categoryService.updateCategory(neighbour.id, {
-        nameEn: neighbour.nameEn, nameAr: neighbour.nameAr, order: original.order, isActive: neighbour.isActive
-      })),
+    const original = list[index];
+    const neighbour = list[target];
+    const request = this.categoryService.updateCategory(original.id, { order: neighbour.order }).pipe(
+      concatMap(() => this.categoryService.updateCategory(neighbour.id, { order: original.order })),
       catchError((error: unknown) => {
         this.reportMutationError('categories', error, 'Could not reorder the categories.');
         // A two-request swap is not atomic. Re-fetch truth, never pretend rollback succeeded.
