@@ -34,7 +34,8 @@ describe('portfolio-origin image resolution', () => {
   describe('isCloudinaryImage', () => {
     it('detects Cloudinary delivery URLs and rejects everything else', () => {
       expect(isCloudinaryImage('https://res.cloudinary.com/demo/image/upload/v1/a/b.png')).toBeTrue();
-      expect(isCloudinaryImage('https://api.example.com/image/upload/v1/a.png')).toBeTrue();
+      expect(isCloudinaryImage('https://api.example.com/image/upload/v1/a.png')).toBeFalse();
+      expect(isCloudinaryImage('http://res.cloudinary.com/demo/image/upload/v1/a.png')).toBeFalse();
       expect(isCloudinaryImage('/api/files/cover-1280.webp')).toBeFalse();
       expect(isCloudinaryImage('https://example.com/cover.png')).toBeFalse();
       expect(isCloudinaryImage(null)).toBeFalse();

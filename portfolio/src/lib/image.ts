@@ -64,11 +64,18 @@ const CLOUDINARY_UPLOAD = "/image/upload/";
 /** Width ladder for Cloudinary candidates (cards get 320-768, heroes go wider). */
 const CLOUDINARY_WIDTHS = [320, 640, 768, 1024, 1280] as const;
 
-/** True when an absolute URL points at Cloudinary's image delivery endpoint. */
+/** True when an absolute URL points at Cloudinary's image delivery endpoint.
+ *  Scoped to res.cloudinary.com so a foreign domain that merely contains the
+ *  marker is not mistaken for a transformable delivery URL. */
 export function isCloudinaryUrl(path: string | undefined): boolean {
   if (!path) return false;
   try {
-    return new URL(path).pathname.includes(CLOUDINARY_UPLOAD);
+    const url = new URL(path);
+    return (
+      url.protocol === "https:" &&
+      url.hostname === "res.cloudinary.com" &&
+      url.pathname.includes(CLOUDINARY_UPLOAD)
+    );
   } catch {
     return false;
   }

@@ -194,27 +194,20 @@ namespace PortfolioAPI.Infrastructure.Services
             if (string.IsNullOrWhiteSpace(publicId))
                 return null;
 
-            try
-            {
-                var resource = await _cloudinary.GetResourceAsync(publicId, cancellationToken);
-                if (resource is null || !string.Equals(resource.PublicId, publicId, StringComparison.Ordinal))
-                    return null;
-
-                return new CloudinaryAssetInfo(
-                    resource.PublicId,
-                    resource.SecureUrl?.ToString(),
-                    resource.Bytes,
-                    resource.Width,
-                    resource.Height);
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                // "Not found" and a transient API error look the same from
-                // here; both read as "nothing stored under this id" and the
-                // caller decides what that means.
-                _logger.LogDebug(ex, "Cloudinary lookup failed for public id {PublicId}", publicId);
+            // No try/catch on purpose: a transient API failure must abort the
+            // caller rather than look like "nothing stored under this id" — a
+            // misread there could influence id reservation. Only a *confirmed*
+            // miss (missing resource, or an id mismatch) reads as null.
+            var resource = await _cloudinary.GetResourceAsync(publicId, cancellationToken);
+            if (resource is null || !string.Equals(resource.PublicId, publicId, StringComparison.Ordinal))
                 return null;
-            }
+
+            return new CloudinaryAssetInfo(
+                resource.PublicId,
+                resource.SecureUrl?.ToString(),
+                resource.Bytes,
+                resource.Width,
+                resource.Height);
         }
     }
 }

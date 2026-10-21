@@ -12,13 +12,15 @@ export interface UploadedImage {
 }
 
 /**
- * True when a stored imageUrl points at the Cloudinary CDN. Such URLs are
- * delivered by Cloudinary itself — no API proxy, no portfolio origin.
+ * True when a stored imageUrl points at the Cloudinary CDN. Scoped to
+ * res.cloudinary.com — a foreign domain carrying the marker is still just an
+ * external image to render as-is.
  */
 export function isCloudinaryImage(imageUrl: string | null | undefined): boolean {
   if (!imageUrl) return false;
   try {
-    return new URL(imageUrl).pathname.includes('/image/upload/');
+    const url = new URL(imageUrl);
+    return url.protocol === 'https:' && url.hostname === 'res.cloudinary.com' && url.pathname.includes('/image/upload/');
   } catch {
     return false;
   }

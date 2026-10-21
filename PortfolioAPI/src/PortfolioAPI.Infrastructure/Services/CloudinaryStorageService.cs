@@ -59,8 +59,18 @@ namespace PortfolioAPI.Infrastructure.Services
             // Reserve an id this upload can own. The base is deterministic
             // (project slug + asset name), and a counter is appended only when
             // something else already owns it - so a second project can never
-            // silently overwrite the first one's cover.
-            var publicId = await ReservePublicIdAsync(BuildPublicId(request), cancellationToken);
+            // silently overwrite the first one's cover. A transient lookup
+            // failure aborts here (the raw exception becomes the generic
+            // message) instead of silently misjudging the id.
+            string publicId;
+            try
+            {
+                publicId = await ReservePublicIdAsync(BuildPublicId(request), cancellationToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException and not InvalidOperationException)
+            {
+                throw new InvalidOperationException(AssetUnavailable, ex);
+            }
 
             var outcome = await _gateway.UploadAsync(new MemoryStream(validated.Content), publicId, overwrite: false, cancellationToken);
             if (!outcome.Success || string.IsNullOrWhiteSpace(outcome.SecureUrl))
@@ -132,12 +142,19 @@ namespace PortfolioAPI.Infrastructure.Services
                     ? TryGetPublicId(reference.Url)
                     : null;
 
-            // A URL we cannot resolve back to a public id is left alone rather
-            // than guessed at - an unrecognised URL must never turn into a
-            // delete request for the wrong asset.
-            return string.IsNullOrWhiteSpace(publicId)
-                ? false
-                : await _gateway.DeleteAsync(publicId, cancellationToken);
+            if (string.IsNullOrWhiteSpace(publicId))
+                return false;
+
+            // A delete request can only ever target THIS folder. Public ids
+            // are minted by BuildPublicId under it, and a stale/foreign value
+            // that travelled through a client payload must not name an
+            // arbitrary asset in the account.
+            var managedPrefix = SanitizeSegment(_options.Folder, DefaultFolder) + "/";
+            if (!publicId.StartsWith(managedPrefix, StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            // (publicId resolved and scoped: issue the delete)
+            return await _gateway.DeleteAsync(publicId, cancellationToken);
         }
 
         public string GetImageUrl(MediaReference reference) => reference.Url ?? string.Empty;

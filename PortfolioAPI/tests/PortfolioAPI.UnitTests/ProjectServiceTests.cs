@@ -347,6 +347,45 @@ namespace PortfolioAPI.UnitTests
         }
 
         [Fact]
+        public async Task UpdateAsync_WhenTheCoverIsReplacedWithoutMetadata_DoesNotInheritTheOldIdentity()
+        {
+            // An older client swaps in a NEW cover url but knows nothing about
+            // the storage columns. The new asset is unmanaged until an upload
+            // writes new metadata; tagging it with the OLD public id would aim
+            // a later delete at the wrong (already removed) asset.
+            var existingProject = new Project
+            {
+                Id = 1,
+                TitleEn = "Haxel",
+                TitleAr = "هاكسل",
+                DescriptionEn = "D",
+                DescriptionAr = "و",
+                ImageUrl = "https://res.cloudinary.com/demo/image/upload/v1/portfolio/projects/haxel/cover.png",
+                StorageProvider = MediaProvider.Cloudinary,
+                StoragePublicId = "portfolio/projects/haxel/cover"
+            };
+            _unitOfWorkMock.Setup(u => u.Projects.GetByIdAsync(1)).ReturnsAsync(existingProject);
+            _unitOfWorkMock.Setup(u => u.Projects.UpdateAsync(It.IsAny<Project>())).Returns(Task.CompletedTask);
+            _unitOfWorkMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
+            ValidatorSucceeds();
+
+            var dto = new UpdateProjectDto
+            {
+                TitleEn = "Haxel",
+                TitleAr = "هاكسل",
+                DescriptionEn = "D",
+                DescriptionAr = "و",
+                ImageUrl = "/projects/react/haxel-v2.png" // a bundled cover, no storage metadata sent
+            };
+
+            var result = await _projectService.UpdateAsync(1, dto);
+
+            result.Success.Should().BeTrue();
+            existingProject.StorageProvider.Should().BeNull();
+            existingProject.StoragePublicId.Should().BeNull();
+        }
+
+        [Fact]
         public async Task UpdateAsync_WhenTheCoverIsCleared_ClearsTheStoredProviderIdentity()
         {
             var existingProject = new Project

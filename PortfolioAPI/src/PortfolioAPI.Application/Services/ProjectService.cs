@@ -247,18 +247,26 @@ namespace PortfolioAPI.Application.Services
             }
             project.DescriptionEn = dto.DescriptionEn?.Trim() ?? string.Empty;
             project.DescriptionAr = dto.DescriptionAr?.Trim() ?? string.Empty;
+            // Storage identity: the stored values survive only while the cover
+            // itself is unchanged (a payload that omits the fields must not
+            // strip them). A REPLACE without metadata leaves the new asset
+            // unmanaged instead of tagging it with the old asset's identity —
+            // a stale public id would aim later deletes at the wrong asset.
+            // Clearing the cover clears the identity.
+            var previousImageUrl = project.ImageUrl;
             project.ImageUrl = dto.ImageUrl;
-            // Storage identity: only a cleared cover empties it. When the
-            // payload omits the fields (a client predating the storage
-            // columns) the stored values are kept, so an unchanged cover
-            // cannot be silently stripped of its provider/public id — and
-            // therefore of its replace/delete ability.
-            project.StorageProvider = string.IsNullOrWhiteSpace(project.ImageUrl)
-                ? null
-                : dto.StorageProvider ?? project.StorageProvider;
-            project.StoragePublicId = string.IsNullOrWhiteSpace(project.ImageUrl)
-                ? null
-                : dto.StoragePublicId ?? project.StoragePublicId;
+            project.StorageProvider =
+                string.IsNullOrWhiteSpace(project.ImageUrl)
+                    ? null
+                    : string.Equals(project.ImageUrl, previousImageUrl, StringComparison.Ordinal)
+                        ? dto.StorageProvider ?? project.StorageProvider
+                        : dto.StorageProvider;
+            project.StoragePublicId =
+                string.IsNullOrWhiteSpace(project.ImageUrl)
+                    ? null
+                    : string.Equals(project.ImageUrl, previousImageUrl, StringComparison.Ordinal)
+                        ? dto.StoragePublicId ?? project.StoragePublicId
+                        : dto.StoragePublicId;
             project.Technologies = Sanitize(dto.Technologies);
             project.GithubUrl = dto.GithubUrl;
             project.LiveUrl = dto.LiveUrl;

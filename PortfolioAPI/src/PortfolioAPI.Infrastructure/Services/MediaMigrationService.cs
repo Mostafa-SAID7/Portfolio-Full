@@ -144,10 +144,23 @@ namespace PortfolioAPI.Infrastructure.Services
                         continue;
                     }
 
-                    project.StorageProvider = MediaProvider.Cloudinary;
-                    project.StoragePublicId = CloudinaryStorageService.TryGetPublicId(project.ImageUrl);
-                    await _db.SaveChangesAsync(cancellationToken);
-                    alreadyMigrated++;
+                    try
+                    {
+                        project.StorageProvider = MediaProvider.Cloudinary;
+                        project.StoragePublicId = CloudinaryStorageService.TryGetPublicId(project.ImageUrl);
+                        await _db.SaveChangesAsync(cancellationToken);
+                        alreadyMigrated++;
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        // Same row-by-row resilience as the upload path: one
+                        // broken write is reported and the run continues.
+                        DetachFailedRow(project);
+                        failed++;
+                        failures.Add($"Project {project.Id} ({project.Slug}): back-fill failed: {ex.Message}");
+                        _logger.LogWarning(ex, "Failed to back-fill Cloudinary metadata for project {ProjectId} ({Slug})", project.Id, project.Slug);
+                    }
+
                     continue;
                 }
 
@@ -219,6 +232,11 @@ namespace PortfolioAPI.Infrastructure.Services
                 }
                 catch (Exception ex)
                 {
+                    // Detach first: the row is still mutated in this shared
+                    // context, and a pending broken entity would ride along
+                    // with the next successful SaveChanges (failing everything
+                    // after it).
+                    DetachFailedRow(project);
                     failed++;
                     failures.Add($"Project {project.Id} ({project.Slug}): {ex.Message}");
                     _logger.LogWarning(ex, "Failed to migrate cover of project {ProjectId} ({Slug})", project.Id, project.Slug);
@@ -227,6 +245,25 @@ namespace PortfolioAPI.Infrastructure.Services
 
             return new MediaMigrationReport(
                 _storage.Provider, examined, alreadyMigrated, migrated, external, failed, dryRun, failures);
+        }
+
+        /// <summary>Drops a row whose mutation could not be saved, so its
+        /// broken state cannot leak into another row's commit.</summary>
+        private void DetachFailedRow(Project project)
+        {
+            try
+            {
+                var entry = _db.Entry(project);
+                if (entry.State != EntityState.Detached)
+                {
+                    entry.State = EntityState.Detached;
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                // The context is already in a state that cannot track this
+                // row; nothing else to clean up here.
+            }
         }
 
         /// <summary>
