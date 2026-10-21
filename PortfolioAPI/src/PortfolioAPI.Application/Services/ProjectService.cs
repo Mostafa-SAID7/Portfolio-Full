@@ -248,8 +248,17 @@ namespace PortfolioAPI.Application.Services
             project.DescriptionEn = dto.DescriptionEn?.Trim() ?? string.Empty;
             project.DescriptionAr = dto.DescriptionAr?.Trim() ?? string.Empty;
             project.ImageUrl = dto.ImageUrl;
-            project.StorageProvider = dto.StorageProvider;
-            project.StoragePublicId = dto.StoragePublicId;
+            // Storage identity: only a cleared cover empties it. When the
+            // payload omits the fields (a client predating the storage
+            // columns) the stored values are kept, so an unchanged cover
+            // cannot be silently stripped of its provider/public id — and
+            // therefore of its replace/delete ability.
+            project.StorageProvider = string.IsNullOrWhiteSpace(project.ImageUrl)
+                ? null
+                : dto.StorageProvider ?? project.StorageProvider;
+            project.StoragePublicId = string.IsNullOrWhiteSpace(project.ImageUrl)
+                ? null
+                : dto.StoragePublicId ?? project.StoragePublicId;
             project.Technologies = Sanitize(dto.Technologies);
             project.GithubUrl = dto.GithubUrl;
             project.LiveUrl = dto.LiveUrl;

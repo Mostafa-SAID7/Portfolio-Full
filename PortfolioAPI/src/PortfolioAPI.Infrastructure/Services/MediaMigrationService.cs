@@ -74,9 +74,7 @@ namespace PortfolioAPI.Infrastructure.Services
         private readonly IImageValidator _validator;
         private readonly IConfiguration _configuration;
         private readonly string _localUploadPath;
-        private readonly ILogger<MediaMigrationService> _logger;
-
-        public MediaMigrationService(
+        private readonly ILogger<MediaMigrationService> _logger;        public MediaMigrationService(
             PortfolioDbContext db,
             IFileStorageService storage,
             IImageValidator validator,
@@ -135,8 +133,10 @@ namespace PortfolioAPI.Infrastructure.Services
 
                 // A Cloudinary URL without stored metadata predates the public
                 // id column: backfilling it makes the row manageable without
-                // re-uploading anything.
-                if (CloudinaryStorageService.LooksLikeCloudinaryUrl(project.ImageUrl))
+                // re-uploading anything. The host check is scoped to THIS
+                // cloud, so a foreign domain is treated as external media the
+                // API does not own.
+                if (CloudinaryStorageService.LooksLikeCloudinaryUrl(project.ImageUrl, ResolveCloudName()))
                 {
                     if (dryRun)
                     {
@@ -227,6 +227,23 @@ namespace PortfolioAPI.Infrastructure.Services
 
             return new MediaMigrationReport(
                 _storage.Provider, examined, alreadyMigrated, migrated, external, failed, dryRun, failures);
+        }
+
+        /// <summary>
+        /// The cloud the migration must scope classifications to. Reads the
+        /// same sources the startup resolver does (config section with the
+        /// CLOUDINARY_* variable as a fallback).
+        /// </summary>
+        private string? ResolveCloudName()
+        {
+            var configured = _configuration["Cloudinary:CloudName"];
+            if (!string.IsNullOrWhiteSpace(configured))
+            {
+                return configured;
+            }
+
+            var fromEnvironment = Environment.GetEnvironmentVariable("CLOUDINARY_CLOUD_NAME");
+            return string.IsNullOrWhiteSpace(fromEnvironment) ? null : fromEnvironment;
         }
     }
 }

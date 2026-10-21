@@ -271,8 +271,7 @@ namespace PortfolioAPI.UnitTests
         }
 
         [Fact]
-        public async Task DeleteImageAsync_KeepsLocalFilesCoveredByTheLocalProvider()
-        {
+        public async Task DeleteImageAsync_KeepsLocalFilesCoveredByTheLocalProvider()        {
             // Local rows are cleaned up by the local store; the Cloudinary
             // service must not turn a /api/files URL into a delete call.
             var service = CreateService();
@@ -297,6 +296,23 @@ namespace PortfolioAPI.UnitTests
             var deleted = await service.DeleteImageAsync(reference);
 
             deleted.Should().BeFalse();
+        }
+
+        [Fact]
+        public async Task DeleteImageAsync_NeverResolvesThePublicIdFromAForeignCloudinaryUrl()
+        {
+            // Same marker, different account: the recovered id could collide
+            // with one of OUR assets, so the URL must never reach a delete.
+            var service = CreateService();
+            var reference = new MediaReference(
+                "https://res.cloudinary.com/other/image/upload/v1/portfolio/projects/haxel-footwear/cover.png",
+                null,
+                MediaProvider.Cloudinary);
+
+            var deleted = await service.DeleteImageAsync(reference);
+
+            deleted.Should().BeFalse();
+            _gateway.Verify(g => g.DeleteAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
         }
 
         // -- constructor ------------------------------------------------------

@@ -62,9 +62,10 @@ Provider selection (`Storage:Provider`) — first non-empty wins:
 
 Cloudinary settings can also come from env vars:
 `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`,
-`CLOUDINARY_FOLDER`. If the selected provider is Cloudinary but the
-configuration is incomplete, **startup fails immediately** with
-`Cloudinary configuration is incomplete.` — the message never prints values.
+`CLOUDINARY_FOLDER` (an explicitly configured value wins). If the selected
+provider is Cloudinary but the merged configuration is incomplete, **startup
+fails immediately** with `Cloudinary configuration is incomplete.` — the
+message never prints values.
 
 Secret handling: `Cloudinary:ApiSecret` lives only in env vars or the
 git-ignored `appsettings.Production.json`. Upload/delete errors are reported to
@@ -159,7 +160,10 @@ Rules:
 - **Idempotent** — rows already marked `cloudinary` are skipped; the command
   can simply be re-run if it was interrupted. A Cloudinary URL without stored
   metadata (pre-public-id rows) is recognised and back-filled with the
-  recovered public id, without re-uploading anything.
+  recovered public id, without re-uploading anything. Recognition is scoped to
+  the configured cloud (`res.cloudinary.com/{cloud}/image/upload/…`); a URL
+  from any other account is treated as external media the API does not own —
+  it can never acquire a public id that a later delete would aim at.
 - **`--dry-run`** — classifies every project and reports what *would* happen;
   nothing is uploaded or written.
 - **Rollback source kept** — the local files are never deleted; until the CDN

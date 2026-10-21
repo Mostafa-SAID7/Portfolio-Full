@@ -279,6 +279,110 @@ namespace PortfolioAPI.UnitTests
         }
 
         [Fact]
+        public async Task UpdateAsync_WhenThePayloadOmitsStorageMetadata_KeepsTheStoredProviderIdentity()
+        {
+            // Regressions guard: an older client (or a manual API call) PUTs the
+            // project without the storage fields. The unchanged cover must not
+            // lose its provider/public id — that would make the asset
+            // unmanageable and could trigger a spurious delete.
+            var existingProject = new Project
+            {
+                Id = 1,
+                TitleEn = "Haxel",
+                TitleAr = "هاكسل",
+                DescriptionEn = "D",
+                DescriptionAr = "و",
+                ImageUrl = "https://res.cloudinary.com/demo/image/upload/v1/portfolio/projects/haxel/cover.png",
+                StorageProvider = MediaProvider.Cloudinary,
+                StoragePublicId = "portfolio/projects/haxel/cover"
+            };
+            _unitOfWorkMock.Setup(u => u.Projects.GetByIdAsync(1)).ReturnsAsync(existingProject);
+            _unitOfWorkMock.Setup(u => u.Projects.UpdateAsync(It.IsAny<Project>())).Returns(Task.CompletedTask);
+            _unitOfWorkMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
+            ValidatorSucceeds();
+
+            var dto = new UpdateProjectDto
+            {
+                TitleEn = "Haxel",
+                TitleAr = "هاكسل",
+                DescriptionEn = "D",
+                DescriptionAr = "و",
+                // Same cover as stored, but a client predating the storage
+                // columns sends no provider/public id with it.
+                ImageUrl = "https://res.cloudinary.com/demo/image/upload/v1/portfolio/projects/haxel/cover.png"
+            };
+
+            var result = await _projectService.UpdateAsync(1, dto);
+
+            result.Success.Should().BeTrue();
+            existingProject.StorageProvider.Should().Be(MediaProvider.Cloudinary);
+            existingProject.StoragePublicId.Should().Be("portfolio/projects/haxel/cover");
+        }
+
+        [Fact]
+        public async Task UpdateAsync_WhenThePayloadCarriesStorageMetadata_AppliesIt()
+        {
+            var existingProject = new Project { Id = 1, TitleEn = "Haxel", TitleAr = "هاكسل", DescriptionEn = "D", DescriptionAr = "و" };
+            _unitOfWorkMock.Setup(u => u.Projects.GetByIdAsync(1)).ReturnsAsync(existingProject);
+            _unitOfWorkMock.Setup(u => u.Projects.UpdateAsync(It.IsAny<Project>())).Returns(Task.CompletedTask);
+            _unitOfWorkMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
+            ValidatorSucceeds();
+
+            var dto = new UpdateProjectDto
+            {
+                TitleEn = "Haxel",
+                TitleAr = "هاكسل",
+                DescriptionEn = "D",
+                DescriptionAr = "و",
+                ImageUrl = "https://res.cloudinary.com/demo/image/upload/v2/portfolio/projects/haxel/cover.png",
+                StorageProvider = MediaProvider.Cloudinary,
+                StoragePublicId = "portfolio/projects/haxel/cover"
+            };
+
+            var result = await _projectService.UpdateAsync(1, dto);
+
+            result.Success.Should().BeTrue();
+            existingProject.StorageProvider.Should().Be(MediaProvider.Cloudinary);
+            existingProject.StoragePublicId.Should().Be("portfolio/projects/haxel/cover");
+        }
+
+        [Fact]
+        public async Task UpdateAsync_WhenTheCoverIsCleared_ClearsTheStoredProviderIdentity()
+        {
+            var existingProject = new Project
+            {
+                Id = 1,
+                TitleEn = "Haxel",
+                TitleAr = "هاكسل",
+                DescriptionEn = "D",
+                DescriptionAr = "و",
+                ImageUrl = "/api/files/haxel-footwear-1280.webp",
+                StorageProvider = MediaProvider.Local,
+                StoragePublicId = "haxel-footwear-1280.webp"
+            };
+            _unitOfWorkMock.Setup(u => u.Projects.GetByIdAsync(1)).ReturnsAsync(existingProject);
+            _unitOfWorkMock.Setup(u => u.Projects.UpdateAsync(It.IsAny<Project>())).Returns(Task.CompletedTask);
+            _unitOfWorkMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
+            ValidatorSucceeds();
+
+            var dto = new UpdateProjectDto
+            {
+                TitleEn = "Haxel",
+                TitleAr = "هاكسل",
+                DescriptionEn = "D",
+                DescriptionAr = "و",
+                ImageUrl = "" // admin removed the cover in the dashboard
+            };
+
+            var result = await _projectService.UpdateAsync(1, dto);
+
+            result.Success.Should().BeTrue();
+            existingProject.ImageUrl.Should().BeEmpty();
+            existingProject.StorageProvider.Should().BeNull();
+            existingProject.StoragePublicId.Should().BeNull();
+        }
+
+        [Fact]
         public async Task UpdateAsync_ShouldReturnNotFoundResult_WhenProjectDoesNotExist()
         {
             // Arrange

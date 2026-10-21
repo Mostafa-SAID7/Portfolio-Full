@@ -198,8 +198,28 @@ namespace PortfolioAPI.UnitTests
         }
 
         [Fact]
-        public void Limits_ComefromConfiguration()
+        public async Task ValidateAsync_DecodesAnimatedGifs_WithAOneFrameCap()
         {
+            // An animated GIF declares 3 frames. Only the first is decoded —
+            // so a tiny file carrying dozens of full-size frames can never
+            // multiply the pixel budget on the server.
+            using var animated = new Image<Rgba32>(4, 4);
+            for (var frame = 0; frame < 2; frame++)
+            {
+                animated.Frames.CreateFrame();
+            }
+            using var buffer = new MemoryStream();
+            animated.Save(buffer, new GifEncoder());
+
+            var validated = await ValidateAsync(buffer.ToArray(), "animated.gif");
+
+            validated.Width.Should().Be(4);
+            validated.Height.Should().Be(4);
+            validated.ContentType.Should().Be("image/gif");
+        }
+
+        [Fact]
+        public void Limits_ComefromConfiguration()        {
             var validator = ValidatorWith(new Dictionary<string, string?>
             {
                 ["FileStorage:MaxFileSize"] = "1048576",

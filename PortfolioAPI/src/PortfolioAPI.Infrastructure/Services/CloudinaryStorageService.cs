@@ -126,7 +126,11 @@ namespace PortfolioAPI.Infrastructure.Services
 
             var publicId = !string.IsNullOrWhiteSpace(reference.PublicId)
                 ? reference.PublicId!
-                : TryGetPublicId(reference.Url);
+                : // URL recovery only for URLs that belong to THIS cloud:
+                  // the id a foreign domain yields must never reach a delete.
+                  LooksLikeCloudinaryUrl(reference.Url, _options.CloudName)
+                    ? TryGetPublicId(reference.Url)
+                    : null;
 
             // A URL we cannot resolve back to a public id is left alone rather
             // than guessed at - an unrecognised URL must never turn into a
@@ -139,15 +143,26 @@ namespace PortfolioAPI.Infrastructure.Services
         public string GetImageUrl(MediaReference reference) => reference.Url ?? string.Empty;
 
         /// <summary>
-        /// Structural check for a Cloudinary delivery URL
-        /// (<c>.../image/upload/...</c>). Used by the media migration to
-        /// recognise rows that already point at the CDN — never as a
-        /// substitute for the stored public id.
+        /// Structural check for a Cloudinary delivery URL belonging to THIS
+        /// cloud (<c>res.cloudinary.com/{cloudName}/image/upload/...</c>).
+        /// Used by the media migration to recognise rows that already point at
+        /// our CDN. Fails closed: without a configured cloud name nothing is
+        /// classified as ours, so a foreign domain that merely contains the
+        /// marker can never inherit a public id that a later delete could aim
+        /// at one of our assets.
         /// </summary>
-        public static bool LooksLikeCloudinaryUrl(string? url) =>
-            !string.IsNullOrWhiteSpace(url) &&
-            url.StartsWith("https://", StringComparison.OrdinalIgnoreCase) &&
-            url.Contains(UploadMarker, StringComparison.OrdinalIgnoreCase);
+        public static bool LooksLikeCloudinaryUrl(string? url, string? cloudName)
+        {
+            if (string.IsNullOrWhiteSpace(cloudName) || string.IsNullOrWhiteSpace(url))
+            {
+                return false;
+            }
+
+            return Regex.IsMatch(
+                url,
+                $@"^https://res\.cloudinary\.com/{Regex.Escape(cloudName)}/image/upload/",
+                RegexOptions.IgnoreCase);
+        }
 
         /// <summary>
         /// Recovers the public id from a URL this API produced. Last resort for

@@ -68,7 +68,11 @@ namespace PortfolioAPI.UnitTests
 
         private IConfiguration Configuration() =>
             new ConfigurationBuilder()
-                .AddInMemoryCollection(new Dictionary<string, string?> { ["FileStorage:Path"] = _tempUploadRoot })
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["FileStorage:Path"] = _tempUploadRoot,
+                    ["Cloudinary:CloudName"] = "demo"
+                })
                 .Build();
 
         private MediaMigrationService CreateService(PortfolioDbContext db, Mock<IFileStorageService> storage) =>
@@ -202,6 +206,28 @@ namespace PortfolioAPI.UnitTests
             var report = await CreateService(db, storage).RunAsync(dryRun: false);
 
             report.External.Should().Be(1);
+            storage.Verify(s => s.UploadImageAsync(It.IsAny<ImageUploadRequest>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task RunAsync_TreatsAForeignCloudinaryUrlAsExternalMedia_OursIsNotTouched()
+        {
+            // A different account under the same marker: the row predates the
+            // storage columns, but back-filling it with the recovered public id
+            // would make a later delete aim at one of OUR assets.
+            var storage = CloudinaryStorageMock();
+            _projects.Add(new Project
+            {
+                Id = 1,
+                Slug = "haxel",
+                ImageUrl = "https://res.cloudinary.com/other/image/upload/v1/portfolio/projects/haxel/cover.png"
+            });
+            using var db = CreateDbContext();
+
+            var report = await CreateService(db, storage).RunAsync(dryRun: false);
+
+            report.External.Should().Be(1);
+            report.AlreadyOnProvider.Should().Be(0);
             storage.Verify(s => s.UploadImageAsync(It.IsAny<ImageUploadRequest>(), It.IsAny<CancellationToken>()), Times.Never);
         }
 

@@ -293,16 +293,29 @@ builder.Services.AddScoped<IEmailService, EmailService>();
 
 // --- Storage (local disk or Cloudinary) ------------------------------------
 builder.Services.Configure<FileStorageOptions>(builder.Configuration.GetSection(FileStorageOptions.SectionName));
-builder.Services.Configure<CloudinaryOptions>(builder.Configuration.GetSection(CloudinaryOptions.SectionName));
 builder.Services.Configure<StorageOptions>(builder.Configuration.GetSection(StorageOptions.SectionName));
 
-builder.Services.AddSingleton<CloudinaryOptions>(sp =>
-{
-    var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<CloudinaryOptions>>().Value;
-    if (string.IsNullOrWhiteSpace(options.Folder))
-        options.Folder = "portfolio";
-    return options;
-});
+// Cloudinary settings come from the Cloudinary:* section, with the documented
+// CLOUDINARY_* environment variables accepted as an alternative (explicit
+// config values win). The merged instance is registered once so DI, the
+// fail-fast check below and the gateway all see the same values.
+var cloudinaryOptions = builder.Configuration
+    .GetSection(CloudinaryOptions.SectionName)
+    .Get<CloudinaryOptions>() ?? new CloudinaryOptions();
+
+string PreferSetting(string configured, string environmentVariable) =>
+    string.IsNullOrWhiteSpace(configured)
+        ? Environment.GetEnvironmentVariable(environmentVariable) ?? string.Empty
+        : configured;
+
+cloudinaryOptions.CloudName = PreferSetting(cloudinaryOptions.CloudName, "CLOUDINARY_CLOUD_NAME");
+cloudinaryOptions.ApiKey = PreferSetting(cloudinaryOptions.ApiKey, "CLOUDINARY_API_KEY");
+cloudinaryOptions.ApiSecret = PreferSetting(cloudinaryOptions.ApiSecret, "CLOUDINARY_API_SECRET");
+
+var cloudinaryFolder = PreferSetting(cloudinaryOptions.Folder, "CLOUDINARY_FOLDER");
+cloudinaryOptions.Folder = string.IsNullOrWhiteSpace(cloudinaryFolder) ? "portfolio" : cloudinaryFolder;
+
+builder.Services.AddSingleton(cloudinaryOptions);
 
 builder.Services.AddSingleton<IImageValidator, ImageValidator>();
 builder.Services.AddSingleton<ICloudinaryGateway, CloudinaryGateway>();
@@ -324,8 +337,7 @@ builder.Services.AddScoped<CloudinaryStorageService>();
 if (string.Equals(storageProvider, MediaProvider.Cloudinary, StringComparison.OrdinalIgnoreCase))
 {
     // Fail fast on incomplete Cloudinary configuration - the message must not
-    // print values (requirement 21).
-    var cloudinaryOptions = builder.Configuration.GetSection(CloudinaryOptions.SectionName).Get<CloudinaryOptions>() ?? new CloudinaryOptions();
+    // print values (requirement 21). Uses the same merged instance as DI.
     if (!cloudinaryOptions.IsConfigured)
         throw new InvalidOperationException("Cloudinary configuration is incomplete.");
 

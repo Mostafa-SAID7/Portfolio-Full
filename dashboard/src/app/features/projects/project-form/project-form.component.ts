@@ -13,7 +13,10 @@ import { isApiHostedImage, resolvePortfolioImage } from '../../../core/portfolio
 import { SelectFieldComponent } from '../../../shared/select-field.component';
 
 const MAX_COVER_BYTES = 10 * 1024 * 1024;
-const COVER_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif']);
+// Mirrors the API's ImageValidator allowlist (JPEG, PNG, GIF, WebP — no AVIF:
+// ImageSharp on the server cannot decode AVIF, so an original .avif upload
+// would be rejected with HTTP 400 anyway).
+const COVER_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
 const splitList = (value: string): string[] => value.split(',').map(item => item.trim()).filter(Boolean);
 const requiredText: ValidatorFn = control =>
   typeof control.value === 'string' && control.value.trim() ? null : { required: true };
@@ -307,7 +310,7 @@ export class ProjectFormComponent implements OnInit, OnDestroy {
     if (this.inputBlocked() || this.uploading() || this.stopped) return;
     this.uploadError.set(null);
     if (!COVER_MIME_TYPES.has(file.type)) {
-      this.uploadError.set('Choose a JPEG, PNG, GIF, WebP or AVIF image.');
+      this.uploadError.set('Choose a JPEG, PNG, GIF or WebP image.');
       return;
     }
     if (file.size > MAX_COVER_BYTES) {

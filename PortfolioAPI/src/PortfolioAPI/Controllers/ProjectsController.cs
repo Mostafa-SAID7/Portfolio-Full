@@ -88,13 +88,11 @@ namespace PortfolioAPI.Controllers
 
             // Cover replaced: drop the old backend-owned asset AFTER the update
             // was committed, so a failed save can never leave the row pointing
-            // at a file that no longer exists. The storage reference carries
-            // the provider + public id, which is what makes a Cloudinary asset
-            // (and a legacy local file) deletable without parsing URLs.
-            if (result.Success && existing.Data?.ImageUrl is { } previous &&
-                (previous != dto.ImageUrl ||
-                 existing.Data.StoragePublicId != dto.StoragePublicId ||
-                 existing.Data.StorageProvider != dto.StorageProvider))
+            // at a file that no longer exists. The decision is deliberately
+            // URL-only: the storage metadata may be re-organised (or omitted
+            // by an older client) without the cover itself changing, and
+            // deleting then would break an untouched image.
+            if (result.Success && existing.Data?.ImageUrl is { } previous && previous != dto.ImageUrl)
             {
                 await TryDeleteStoredCoverAsync(new MediaReference(
                     previous,

@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using PortfolioAPI.Core.Interfaces;
 using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats;
 
 namespace PortfolioAPI.Infrastructure.Services
 {
@@ -111,10 +112,12 @@ namespace PortfolioAPI.Infrastructure.Services
                     $"Image dimensions ({info.Width}x{info.Height}) exceed the maximum allowed total of {_limits.MaxPixels} pixels.");
 
             // Step 6: full decode. The header can be perfectly valid while the
-            // pixel data is truncated or corrupt.
+            // pixel data is truncated or corrupt. MaxFrames bounds animated
+            // formats: a tiny animated GIF can declare hundreds of full-size
+            // frames, and covers need none of them.
             try
             {
-                using var image = Image.Load(bytes);
+                using var image = Image.Load(DecodeOptions, bytes);
                 return new ValidatedImage(bytes, signature.ContentType, signature.Format, image.Width, image.Height);
             }
             catch (Exception ex) when (ex is not OutOfMemoryException and not StackOverflowException)
@@ -122,6 +125,17 @@ namespace PortfolioAPI.Infrastructure.Services
                 throw new InvalidOperationException("The uploaded image is corrupted or is not a supported image.");
             }
         }
+
+        /// <summary>
+        /// Decode options for the corruption probe: one frame is enough to
+        /// prove the image decodes, and a frame cap is the thing that keeps an
+        /// animated upload from multiplying the pixel budget.
+        /// </summary>
+        private static readonly DecoderOptions DecodeOptions = new()
+        {
+            MaxFrames = 1,
+            SkipMetadata = true
+        };
 
         private static ImageInfo? TryIdentify(byte[] bytes)
         {
