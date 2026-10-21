@@ -34,7 +34,7 @@ namespace PortfolioAPI.Controllers
         /// </summary>
         [HttpPost("image")]
         [RequestSizeLimit(12 * 1024 * 1024)]
-        public async Task<IActionResult> UploadImage(IFormFile? file, [FromForm] string? projectTitle)
+        public async Task<IActionResult> UploadImage(IFormFile? file, [FromForm] string? projectTitle, [FromForm] string? slug, [FromForm] string? oldImageUrl)
         {
             if (file is null || file.Length == 0)
             {
@@ -44,9 +44,9 @@ namespace PortfolioAPI.Controllers
             try
             {
                 await using var stream = file.OpenReadStream();
-                var url = await _storage.SaveImageAsync(stream, file.FileName, projectTitle);
-                var storedSize = await _storage.GetFileSizeAsync(url);
-                return Ok(new { url, fileName = Path.GetFileName(url), size = storedSize });
+                var (url640, url1280) = await _storage.SaveOptimizedResponsiveImageAsync(stream, slug ?? projectTitle, oldImageUrl);
+                var storedSize = await _storage.GetFileSizeAsync(url1280);
+                return Ok(new { url = url1280, url640, url1280, fileName = Path.GetFileName(url1280), size = storedSize });
             }
             catch (InvalidOperationException ex)
             {

@@ -1,4 +1,7 @@
 using Microsoft.Extensions.Configuration;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Webp;
+using SixLabors.ImageSharp.Processing;
 
 namespace PortfolioAPI.Infrastructure.Services
 {
@@ -117,6 +120,197 @@ namespace PortfolioAPI.Infrastructure.Services
                 throw new InvalidOperationException("The file content does not match its extension.");
 
             return await SaveBytesAsync(sourceBytes, ".webp", descriptiveName);
+        }
+
+        public async Task<(string Url640, string Url1280)> SaveOptimizedResponsiveImageAsync(
+            Stream imageStream,
+            string? projectSlug = null,
+            string? oldImageUrl = null)
+        {
+            ArgumentNullException.ThrowIfNull(imageStream);
+
+            var sourceBytes = await ReadCappedAsync(imageStream);
+            if (sourceBytes.Length == 0)
+                throw new InvalidOperationException("The uploaded file is empty.");
+
+            // Validate magic bytes against allowed image types
+            var (contentType, sniff) = DetectImageType(sourceBytes);
+            if (sniff is null)
+                throw new InvalidOperationException("Only JPG, PNG, GIF and WebP image files are allowed.");
+            if (!sniff(sourceBytes))
+                throw new InvalidOperationException("The file content does not match its extension.");
+
+            // Delete old image files if oldImageUrl is provided
+            if (!string.IsNullOrWhiteSpace(oldImageUrl))
+            {
+                DeleteOldImageFiles(oldImageUrl);
+            }
+
+            // Sanitize slug: empty/null/after-sanitize-empty → "project"
+            var safeSlug = SanitizeSlug(projectSlug);
+
+            // Load image once for both sizes
+            using var image = Image.Load(sourceBytes);
+
+            // Generate 640px version (mobile)
+            var fileName640 = GetUniqueResponsiveFileName(safeSlug, 640);
+            var filePath640 = Path.Combine(_storagePath, fileName640);
+            using (var resized640 = image.Clone(x =>
+            {
+                if (image.Width > 640)
+                {
+                    var scale = 640.0 / image.Width;
+                    var newHeight = (int)Math.Round(image.Height * scale);
+                    x.Resize(640, newHeight);
+                }
+            }))
+            {
+                using var outputStream = new MemoryStream();
+                var encoder = new WebpEncoder { Quality = 80 };
+                await resized640.SaveAsync(outputStream, encoder);
+                await File.WriteAllBytesAsync(filePath640, outputStream.ToArray());
+            }
+
+            // Generate 1280px version (desktop)
+            var fileName1280 = GetUniqueResponsiveFileName(safeSlug, 1280);
+            var filePath1280 = Path.Combine(_storagePath, fileName1280);
+            using (var resized1280 = image.Clone(x =>
+            {
+                if (image.Width > 1280)
+                {
+                    var scale = 1280.0 / image.Width;
+                    var newHeight = (int)Math.Round(image.Height * scale);
+                    x.Resize(1280, newHeight);
+                }
+            }))
+            {
+                using var outputStream = new MemoryStream();
+                var encoder = new WebpEncoder { Quality = 80 };
+                await resized1280.SaveAsync(outputStream, encoder);
+                await File.WriteAllBytesAsync(filePath1280, outputStream.ToArray());
+            }
+
+            return ($"{_baseUrl}/{fileName640}", $"{_baseUrl}/{fileName1280}");
+        }
+
+        private static (string ContentType, Func<byte[], bool>? Sniff) DetectImageType(byte[] bytes)
+        {
+            if (IsJpeg(bytes)) return ("image/jpeg", IsJpeg);
+            if (IsPng(bytes)) return ("image/png", IsPng);
+            if (IsGif(bytes)) return ("image/gif", IsGif);
+            if (IsWebp(bytes)) return ("image/webp", IsWebp);
+            return (string.Empty, null);
+        }
+
+        private static string SanitizeSlug(string? slug)
+        {
+            if (string.IsNullOrWhiteSpace(slug))
+                return "project";
+
+            // Normalize to FormD, lowercase, replace non-alphanumeric with -
+            var normalized = slug.Normalize(System.Text.NormalizationForm.FormD).ToLowerInvariant();
+            var slugified = System.Text.RegularExpressions.Regex.Replace(normalized, @"[^a-z0-9]+", "-").Trim('-');
+            return string.IsNullOrWhiteSpace(slugified) ? "project" : slugified;
+        }
+
+        private void DeleteOldImageFiles(string oldImageUrl)
+        {
+            // Security: ensure the URL points to a managed file in our uploads folder
+            if (string.IsNullOrWhiteSpace(oldImageUrl))
+                return;
+
+            var fileName = Path.GetFileName(oldImageUrl);
+            if (string.IsNullOrWhiteSpace(fileName))
+                return;
+
+            // Path traversal protection: ensure file name doesn't contain path separators
+            if (fileName.Contains("..", StringComparison.Ordinal) ||
+                fileName.Contains(Path.DirectorySeparatorChar) ||
+                fileName.Contains(Path.AltDirectorySeparatorChar))
+                return;
+
+            // IsManagedFile check: ensure the resolved path is within _storagePath
+            var exactPath = Path.Combine(_storagePath, fileName);
+            var fullPath = Path.GetFullPath(exactPath);
+            var storageRoot = Path.GetFullPath(_storagePath);
+            if (!fullPath.StartsWith(storageRoot, StringComparison.OrdinalIgnoreCase))
+                return;
+
+            // 1. Delete the exact file from the URL (best-effort, silent if not exists)
+            try
+            {
+                if (File.Exists(exactPath))
+                    File.Delete(exactPath);
+            }
+            catch { /* best effort */ }
+
+            // 2. Try to extract base slug and delete related 640/1280 files (best-effort)
+            var nameWithoutExt = Path.GetFileNameWithoutExtension(fileName);
+            string baseSlug;
+
+            if (nameWithoutExt.EndsWith("-640", StringComparison.Ordinal))
+                baseSlug = nameWithoutExt[..^4];
+            else if (nameWithoutExt.EndsWith("-1280", StringComparison.Ordinal))
+                baseSlug = nameWithoutExt[..^5];
+            else
+                baseSlug = nameWithoutExt;
+
+            // Skip slug-based deletion for old GUID/hash filenames
+            // GUIDs: 36 chars with hyphens at positions 8,13,18,23
+            // Hashes: 16 hex chars (no hyphens)
+            // Slugs: contain only lowercase letters, digits, hyphens (from SanitizeSlug)
+            if (string.IsNullOrWhiteSpace(baseSlug) || baseSlug.Length < 2)
+                return;
+
+            // Only attempt slug-based deletion if baseSlug looks like a valid slug
+            // (contains only lowercase letters, digits, hyphens)
+            if (!System.Text.RegularExpressions.Regex.IsMatch(baseSlug, @"^[a-z0-9-]+$"))
+                return;
+
+            // Delete files matching the base slug pattern (best-effort)
+            try
+            {
+                foreach (var file in Directory.GetFiles(_storagePath))
+                {
+                    var name = Path.GetFileName(file);
+                    // Match: {baseSlug}-640.webp, {baseSlug}-1280.webp, {baseSlug}.webp
+                    // Also match numbered variants: {baseSlug}-640-2.webp, {baseSlug}-1280-2.webp, {baseSlug}-2.webp
+                    if (name.StartsWith(baseSlug + "-", StringComparison.OrdinalIgnoreCase) ||
+                        name.Equals(baseSlug + ".webp", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Ensure the file is within storage root (IsManagedFile check)
+                        var filePath = Path.GetFullPath(file);
+                        if (!filePath.StartsWith(storageRoot, StringComparison.OrdinalIgnoreCase))
+                            continue;
+
+                        try { File.Delete(file); } catch { /* best effort */ }
+                    }
+                }
+            }
+            catch { /* ignore directory errors */ }
+        }
+
+        private string GetUniqueResponsiveFileName(string baseSlug, int size)
+        {
+            var suffix = $"-{size}.webp";
+            var fileName = $"{baseSlug}{suffix}";
+            var filePath = Path.Combine(_storagePath, fileName);
+            if (!File.Exists(filePath))
+                return fileName;
+
+            var counter = 2;
+            while (true)
+            {
+                fileName = $"{baseSlug}{suffix.Replace(".webp", $"-{counter}.webp", StringComparison.Ordinal)}";
+                // Actually: {baseSlug}-{size}-{counter}.webp  → but spec says {slug}-640-2.webp
+                // Re-read: "haxel-footwear-640.webp → haxel-footwear-640-2.webp"
+                // So the counter goes after the size suffix
+                fileName = $"{baseSlug}-{size}-{counter}.webp";
+                filePath = Path.Combine(_storagePath, fileName);
+                if (!File.Exists(filePath))
+                    return fileName;
+                counter++;
+            }
         }
 
         public async Task<string> SaveDocumentAsync(Stream documentStream, string fileName)
@@ -268,6 +462,7 @@ namespace PortfolioAPI.Infrastructure.Services
         Task<bool> FileExistsAsync(string fileUrl);
         Task<long> GetFileSizeAsync(string fileUrl);
         Task<string> SaveImageAsync(Stream imageStream, string fileName, string? projectTitle = null);
+        Task<(string Url640, string Url1280)> SaveOptimizedResponsiveImageAsync(Stream imageStream, string? projectSlug = null, string? oldImageUrl = null);
         Task<string> SaveDocumentAsync(Stream documentStream, string fileName);
     }
 }

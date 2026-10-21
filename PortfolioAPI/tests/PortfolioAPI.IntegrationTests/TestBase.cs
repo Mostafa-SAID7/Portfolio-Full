@@ -283,6 +283,14 @@ namespace PortfolioAPI.IntegrationTests
             return SaveFileAsync(imageStream, fileName, "image/jpeg");
         }
 
+        public Task<(string Url640, string Url1280)> SaveOptimizedResponsiveImageAsync(Stream imageStream, string? projectSlug = null, string? oldImageUrl = null)
+        {
+            var slug = string.IsNullOrWhiteSpace(projectSlug) ? "project" : projectSlug;
+            var url640 = SaveFileAsync(imageStream, $"{slug}-640.webp", "image/webp").Result;
+            var url1280 = SaveFileAsync(imageStream, $"{slug}-1280.webp", "image/webp").Result;
+            return Task.FromResult((url640, url1280));
+        }
+
         public Task<string> SaveDocumentAsync(Stream documentStream, string fileName)
         {
             return SaveFileAsync(documentStream, fileName, "application/pdf");
