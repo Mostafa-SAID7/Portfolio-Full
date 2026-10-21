@@ -4,7 +4,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using PortfolioAPI.Core.Entities;
-using PortfolioAPI.Infrastructure.Data;
 
 namespace PortfolioAPI.Infrastructure.Data
 {
@@ -16,9 +15,12 @@ namespace PortfolioAPI.Infrastructure.Data
     {
         public static async Task InitializeAsync(PortfolioDbContext context)
         {
-            // Check if the database has any tables at all (fresh DB vs existing)
+            // Check if the database has any tables at all (fresh DB vs existing).
+            // The COUNT column must be aliased (AS [Value]) — EF Core wraps this
+            // query in a subquery whose first column has to be named, so a bare
+            // COUNT(*) throws "No column name was specified" on every startup.
             var tables = await context.Database
-                .SqlQuery<int>($"SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'")
+                .SqlQuery<int>($"SELECT COUNT(*) AS [Value] FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'")
                 .SingleAsync();
 
             if (tables == 0)
@@ -136,18 +138,12 @@ namespace PortfolioAPI.Infrastructure.Data
 
             var order = existing.Count == 0 ? 0 : existing.Max(c => c.Order) + 1;
 
-            foreach (var name in used)
-            {
-                context.Categories.Add(new Category
-                {
-                    NameEn = name,
-                    NameAr = string.Empty,
-                    IsActive = true,
-                    Order = order++
-                });
-            }
-
-            // Update existing categories with their Arabic names
+            // Registers every unmatched project category once, with its Arabic
+            // name when the curated table has one (empty otherwise, the
+            // dashboard can fill it) — idempotent thanks to the `known` set.
+            // One loop ONLY: the previous version added every category here AND
+            // again below, which tripped the unique [NameEn] index and made the
+            // entire save (and therefore seeding) fail silently on every run.
             var arabicNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["Clothing"] = "ملابس",
@@ -162,6 +158,9 @@ namespace PortfolioAPI.Infrastructure.Data
                 ["Other"] = "أخرى"
             };
 
+            // Back-fill Arabic names for existing categories that predate the
+            // bilingual migration (curated table only; dashboard-managed names
+            // are never overwritten).
             foreach (var category in existing)
             {
                 if (arabicNames.TryGetValue(category.NameEn, out var arabicName) && string.IsNullOrEmpty(category.NameAr))
