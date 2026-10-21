@@ -166,18 +166,18 @@ describe('ContentComponent', () => {
     await render();
     component.saveEditSkill(fixture.debugElement.queryAll(By.directive(NgForm))[1].injector.get(NgForm));
     expect(skills.updateSkill).toHaveBeenCalledOnceWith(1, {
-      nameEn: 'Updated', nameAr: skill.nameAr, categoryEn: skill.categoryEn, categoryAr: skill.categoryAr,
-      proficiency: 80, iconUrl: '/angular.svg', descriptionEn: skill.descriptionEn,
-      descriptionAr: skill.descriptionAr, order: 9, isActive: false
+      NameEn: 'Updated', NameAr: skill.NameAr, CategoryEn: skill.CategoryEn, CategoryAr: skill.CategoryAr,
+      Proficiency: 80, IconUrl: '/angular.svg', DescriptionEn: skill.DescriptionEn,
+      DescriptionAr: skill.DescriptionAr, Order: 9, IsActive: false
     });
   });
 
   it('retains both descriptions on skill visibility changes', () => {
     component.toggleSkill(skill);
     expect(skills.updateSkill).toHaveBeenCalledOnceWith(1, {
-      nameEn: skill.nameEn, nameAr: skill.nameAr, categoryEn: skill.categoryEn, categoryAr: skill.categoryAr,
-      proficiency: 80, iconUrl: skill.iconUrl, descriptionEn: skill.descriptionEn,
-      descriptionAr: skill.descriptionAr, order: 9, isActive: true
+      NameEn: skill.NameEn, NameAr: skill.NameAr, CategoryEn: skill.CategoryEn, CategoryAr: skill.CategoryAr,
+      Proficiency: 80, IconUrl: skill.IconUrl, DescriptionEn: skill.DescriptionEn,
+      DescriptionAr: skill.DescriptionAr, Order: 9, IsActive: true
     });
   });
 
