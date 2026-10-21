@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using PortfolioAPI.Core.Entities;
 
 namespace PortfolioAPI.Infrastructure.Data
@@ -13,7 +14,7 @@ namespace PortfolioAPI.Infrastructure.Data
     /// </summary>
     public static class DbInitializer
     {
-        public static async Task InitializeAsync(PortfolioDbContext context)
+        public static async Task InitializeAsync(PortfolioDbContext context, ILogger? logger = null)
         {
             // Check if the database has any tables at all (fresh DB vs existing).
             // The COUNT column must be aliased (AS [Value]) — EF Core wraps this
@@ -40,8 +41,10 @@ namespace PortfolioAPI.Infrastructure.Data
             }
             catch (Exception ex)
             {
-                // Log but don't fail - schema compatibility is best effort
-                // The app can still function if the schema is already compatible
+                // Best effort only — but never silent: operators must see WHY a
+                // startup compatibility step skipped (network, permissions...).
+                logger?.LogWarning(ex,
+                    "Database schema compatibility check FAILED — continuing with the existing schema.");
             }
 
             if (!isProduction)
@@ -52,7 +55,8 @@ namespace PortfolioAPI.Infrastructure.Data
                 }
                 catch (Exception ex)
                 {
-                    // Log but don't fail - seeding is best effort
+                    // Best effort only — but never silent.
+                    logger?.LogWarning(ex, "Reference data seeding FAILED — continuing without seeding.");
                 }
             }
         }

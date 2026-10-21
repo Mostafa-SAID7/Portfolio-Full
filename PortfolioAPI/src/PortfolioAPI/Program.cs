@@ -140,7 +140,7 @@ using (var scope = app.Services.CreateScope())
     try
     {
         var context = services.GetRequiredService<PortfolioDbContext>();
-        await DbInitializer.InitializeAsync(context);
+        await DbInitializer.InitializeAsync(context, app.Logger);
         app.Logger.LogInformation("Database initialization completed successfully.");
     }
     catch (Exception ex)

@@ -30,7 +30,7 @@ namespace PortfolioAPI.Commands
                     var db = services.GetRequiredService<PortfolioDbContext>();
 
                     // The storage columns must exist before rows are updated.
-                    await DbInitializer.InitializeAsync(db);
+                    await DbInitializer.InitializeAsync(db, services.GetRequiredService<ILogger<PortfolioDbContext>>());
 
                     var report = await services
                         .GetRequiredService<IMediaMigrationService>()
