@@ -2,6 +2,7 @@ using FluentValidation;
 using PortfolioAPI.Application.Services;
 using PortfolioAPI.Core.Interfaces;
 using PortfolioAPI.Core.Interfaces.Services;
+using PortfolioAPI.Infrastructure.Emailing;
 using PortfolioAPI.Infrastructure.Services;
 
 namespace PortfolioAPI.Configuration
@@ -11,8 +12,14 @@ namespace PortfolioAPI.Configuration
     /// </summary>
     public static class ApplicationServicesConfiguration
     {
-        public static IServiceCollection AddApplicationServices(this IServiceCollection services)
+        public static IServiceCollection AddApplicationServices(
+            this IServiceCollection services,
+            IConfiguration configuration)
         {
+            // Email SMTP settings — strongly typed (same pattern as storage).
+            services.Configure<EmailSettingsOptions>(
+                configuration.GetSection(Infrastructure.Emailing.EmailSettingsOptions.SectionName));
+
             // Add services
             services.AddScoped<IProjectService, ProjectService>();
             services.AddScoped<ISkillService, SkillService>();

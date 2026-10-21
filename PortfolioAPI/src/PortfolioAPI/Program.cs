@@ -40,7 +40,7 @@ builder.Services
     .AddPublicRateLimiting()                                 // contact + login windows (issue #10)
     .AddForwardedClientIp()                                  // real client IP behind proxies
     .AddDatabase(builder.Configuration)                      // SQL Server + UnitOfWork (fail-fast)
-    .AddApplicationServices()                                // domain services + FluentValidation
+    .AddApplicationServices(builder.Configuration)           // domain services + email options + FluentValidation
     .AddStorage(builder.Configuration, builder.Environment); // local disk OR Cloudinary (fail-fast)
 
 // Backend-owned upload storage: anchor App_Data to the content root so the

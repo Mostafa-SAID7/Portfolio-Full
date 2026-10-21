@@ -30,4 +30,10 @@
     <EmbeddedResource Include="Emailing\Templates\**\*.html" />
   </ItemGroup>
 
+  <!-- EmailService internals are unit-tested directly (subject sanitization,
+       settings validation) — visible only to the test project. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="PortfolioAPI.UnitTests" />
+  </ItemGroup>
+
 </Project>
