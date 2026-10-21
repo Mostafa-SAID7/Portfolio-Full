@@ -46,7 +46,7 @@ export class AuthService {
           expiresAt: res.expiresAt,
           user: {
             id: String(res.user?.id ?? ''),
-            name: res.user?.name?.trim() || username.trim(),
+            name: (res.user?.name ?? '').trim() || username.trim(),
             email: res.user?.email ?? ''
           }
         };
