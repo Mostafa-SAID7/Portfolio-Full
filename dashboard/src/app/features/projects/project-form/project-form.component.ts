@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidatorFn, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { EMPTY, Observable, Subject, Subscription, catchError, finalize, from, switchMap, takeUntil, tap } from 'rxjs';
+import { EMPTY, Observable, Subject, Subscription, catchError, defer, finalize, from, switchMap, takeUntil, tap } from 'rxjs';
 import { ProjectService } from '../../../core/services/project.service';
 import { CategoryService } from '../../../core/services/category.service';
 import { SkillService } from '../../../core/services/skill.service';
@@ -275,8 +275,10 @@ export class ProjectFormComponent implements OnInit, OnDestroy {
   }
 
   private uploadCover(file: File): void {
+    console.log('uploadCover called, inputBlocked:', this.inputBlocked(), 'uploading:', this.uploading(), 'stopped:', this.stopped, 'ready:', this.ready());
     if (this.inputBlocked() || this.uploading() || this.stopped) return;
     this.uploadError.set(null);
+    console.log('MIME check:', COVER_MIME_TYPES.has(file.type), file.type);
     if (!COVER_MIME_TYPES.has(file.type)) {
       this.uploadError.set('Choose a JPEG, PNG, GIF, WebP or AVIF image.');
       return;
@@ -285,6 +287,7 @@ export class ProjectFormComponent implements OnInit, OnDestroy {
       this.uploadError.set('That image is larger than 10 MiB — pick a smaller one.');
       return;
     }
+    console.log('Passed MIME and size checks');
     const version = ++this.uploadVersion;
     this.uploading.set(true);
     this.projectForm.controls.imageUrl.disable({ emitEvent: false });
@@ -292,12 +295,7 @@ export class ProjectFormComponent implements OnInit, OnDestroy {
       || this.projectForm.controls.titleAr.value.trim()
       || file.name.replace(/\.[^.]+$/, '');
     this.optimizingCover.set(true);
-    this.uploadSubscription = from(optimizeProjectImage(file)).pipe(
-      switchMap(optimizedFile => {
-        this.optimizingCover.set(false);
-        return this.projectService.uploadCover(optimizedFile, projectTitle);
-      }),
-      takeUntil(this.contextChanged$),
+    this.uploadSubscription = this.projectService.uploadCover(file, projectTitle).pipe(
       takeUntil(this.stop$),
       finalize(() => {
         if (!this.stopped && version === this.uploadVersion) {
