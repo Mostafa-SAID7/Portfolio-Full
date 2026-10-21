@@ -106,7 +106,7 @@ export class AppComponent {
     return 'Overview';
   }
 
-  private readonly clockTick = toSignal(interval(60_000).pipe(startWith(0)), { initialValue: 0 });
+  private readonly clockTick = toSignal(interval(60_000).pipe(map(tick => tick + 1)), { initialValue: 0 });
   readonly todayLabel = computed(() => {
     this.clockTick();
     return new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'short', day: 'numeric' }).format(new Date());

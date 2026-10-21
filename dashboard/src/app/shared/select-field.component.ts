@@ -218,6 +218,7 @@ export class SelectFieldComponent implements ControlValueAccessor {
 
   onKeydown(event: KeyboardEvent): void {
     if (this.disabled()) return;
+    if (event.isComposing || event.keyCode === 229) return;
     const options = this.selectableOptions;
 
     switch (event.key) {

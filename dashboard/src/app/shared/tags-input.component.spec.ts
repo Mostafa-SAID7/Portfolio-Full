@@ -94,6 +94,18 @@ describe('TagsInputComponent', () => {
     expect(field.draft()).toBe('Vue');
   });
 
+  it('preserves the draft when Escape is used to cancel an IME candidate', () => {
+    type('日本語');
+    key('ArrowDown');
+    expect(field.open()).toBeTrue();
+    const escape = new KeyboardEvent('keydown', { key: 'Escape', isComposing: true, bubbles: true, cancelable: true });
+    input.dispatchEvent(escape);
+    fixture.detectChanges();
+    expect(escape.defaultPrevented).toBeFalse();
+    expect(field.draft()).toBe('日本語');
+    expect(field.open()).toBeTrue();
+  });
+
   it('commits comma-separated drafts and marks even an unchanged blur touched', () => {
     input.dispatchEvent(new Event('blur'));
     expect(fixture.componentInstance.control.touched).toBeTrue();

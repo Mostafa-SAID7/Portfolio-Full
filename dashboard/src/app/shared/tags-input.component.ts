@@ -84,6 +84,7 @@ export class TagsInputComponent implements ControlValueAccessor {
 
   onKeydown(event: KeyboardEvent): void {
     if (this.disabled()) return;
+    if (event.key === 'Escape' && (event.isComposing || event.keyCode === 229)) return;
     const suggestions = this.filteredSuggestions();
     switch (event.key) {
       case 'ArrowDown':

@@ -87,6 +87,18 @@ describe('SelectFieldComponent', () => {
     expect(field.open()).toBeFalse();
   });
 
+  it('leaves an IME candidate uncommitted on Enter', () => {
+    fixture.componentInstance.custom = true;
+    fixture.detectChanges();
+    const input = trigger() as HTMLInputElement;
+    input.value = '新しい';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    field.open.set(true);
+    field.onKeydown(new KeyboardEvent('keydown', { key: 'Enter', isComposing: true, cancelable: true }));
+    expect(fixture.componentInstance.control.value).toBe('');
+    expect(field.open()).toBeTrue();
+  });
+
   it('marks an unchanged control touched on blur and closes on Escape/Tab', () => {
     key('ArrowDown');
     key('Escape');
