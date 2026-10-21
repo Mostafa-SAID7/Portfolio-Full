@@ -69,7 +69,7 @@ namespace PortfolioAPI.UnitTests
             using var buffer = new MemoryStream();
             await file.CopyToAsync(buffer);
 
-            buffer.ToArray().Should().Equal(PngBytes());
+            buffer.ToArray().Should().Equal(WebpBytes());
         }
 
         [Fact]
