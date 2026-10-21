@@ -1,13 +1,17 @@
 /** Mirrors PortfolioAPI.Core.DTOs.ExperienceDto (api/Experience, api/public/experience). */
 export interface Experience {
   id: number;
-  company: string;
-  position: string;
+  companyEn: string;
+  companyAr: string;
+  positionEn: string;
+  positionAr: string;
   startDate: string;
   endDate: string | null;
-  description: string;
+  descriptionEn: string;
+  descriptionAr: string;
   technologies: string[];
-  location: string | null;
+  locationEn: string | null;
+  locationAr: string | null;
   current: boolean;
   order: number;
   isActive: boolean;
@@ -17,15 +21,19 @@ export interface Experience {
 
 /** Payload accepted by POST/PUT api/Experience (CreateExperienceDto/UpdateExperienceDto). */
 export interface ExperiencePayload {
-  company: string;
-  position: string;
+  companyEn: string;
+  companyAr: string;
+  positionEn: string;
+  positionAr: string;
   /** ISO date/time string. */
   startDate: string;
   /** ISO date/time string, or null while still in the role. */
   endDate: string | null;
-  description: string;
+  descriptionEn: string;
+  descriptionAr: string;
   technologies: string[];
-  location?: string | null;
+  locationEn?: string | null;
+  locationAr?: string | null;
   current?: boolean;
   order?: number;
   isActive?: boolean;

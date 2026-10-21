@@ -50,7 +50,7 @@ export class ContactService {
     }
 
     const fresh = Date.now() - this.lastLoadedAt < ContactService.FRESH_MS;
-    if (!options.force && fresh && this.messagesSignal().length > 0) {
+    if (!options.force && fresh) {
       return of(this.messagesSignal());
     }
 

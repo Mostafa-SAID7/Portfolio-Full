@@ -1,6 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, catchError, tap, throwError } from 'rxjs';
+import { Observable, catchError, defer, finalize, tap, throwError } from 'rxjs';
 import { Skill, SkillPayload } from '../models/skill.model';
 import { API_URL } from '../api.config';
 
@@ -19,20 +19,18 @@ export class SkillService {
   readonly error = this.errorSignal.asReadonly();
 
   loadSkills(): Observable<Skill[]> {
-    this.loadingSignal.set(true);
-    this.errorSignal.set(null);
-
-    return this.http.get<Skill[]>(ENDPOINT).pipe(
-      tap(skills => {
-        this.skillsSignal.set(skills ?? []);
-        this.loadingSignal.set(false);
-      }),
-      catchError(err => {
-        this.errorSignal.set(err?.error?.message ?? err?.message ?? 'Failed to load skills.');
-        this.loadingSignal.set(false);
-        return throwError(() => err);
-      })
-    );
+    return defer(() => {
+      this.loadingSignal.set(true);
+      this.errorSignal.set(null);
+      return this.http.get<Skill[]>(ENDPOINT).pipe(
+        tap(skills => this.skillsSignal.set(skills ?? [])),
+        catchError(err => {
+          this.errorSignal.set(err?.error?.message ?? err?.message ?? 'Failed to load skills.');
+          return throwError(() => err);
+        }),
+        finalize(() => this.loadingSignal.set(false))
+      );
+    });
   }
 
   createSkill(payload: SkillPayload): Observable<Skill> {
@@ -57,15 +55,16 @@ export class SkillService {
     // Send an explicit payload (never the raw model): the API binds
     // UpdateSkillDto and ignores server-managed fields anyway.
     return this.updateSkill(skill.id, {
-      NameEn: skill.NameEn,
-      NameAr: skill.NameAr || '',
-      CategoryEn: skill.CategoryEn,
-      CategoryAr: skill.CategoryAr || '',
-      Proficiency: skill.Proficiency,
-      IconUrl: skill.IconUrl,
-      DescriptionEn: skill.DescriptionEn,
-      Order: skill.order,
-      IsActive: !skill.IsActive
+      nameEn: skill.nameEn,
+      nameAr: skill.nameAr || '',
+      categoryEn: skill.categoryEn,
+      categoryAr: skill.categoryAr || '',
+      proficiency: skill.proficiency,
+      iconUrl: skill.iconUrl,
+      descriptionEn: skill.descriptionEn,
+      descriptionAr: skill.descriptionAr,
+      order: skill.order,
+      isActive: !skill.isActive
     });
   }
 

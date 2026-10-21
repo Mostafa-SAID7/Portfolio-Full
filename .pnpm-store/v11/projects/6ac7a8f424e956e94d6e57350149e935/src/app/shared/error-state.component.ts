@@ -5,36 +5,7 @@ import { CommonModule } from '@angular/common';
   selector: 'app-error-state',
   standalone: true,
   imports: [CommonModule],
-  template: `
-    <div class="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-danger/30 bg-danger/[0.04] px-6 py-12 text-center backdrop-blur-sm">
-      <!-- Icon Container -->
-      <div class="flex h-14 w-14 items-center justify-center rounded-2xl border border-danger/30 bg-danger/10 text-danger shadow-inner">
-        <svg class="h-7 w-7 text-danger" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-        </svg>
-      </div>
-
-      <!-- Title -->
-      <h4 class="text-base font-semibold text-ink">{{ title }}</h4>
-
-      <!-- Error message -->
-      @if (error) {
-        <p class="max-w-md text-sm leading-relaxed text-soft">{{ error }}</p>
-      }
-
-      <!-- Retry action -->
-      <button
-        type="button"
-        (click)="retry.emit()"
-        class="btn btn-secondary mt-2 inline-flex items-center gap-2 transition-transform active:scale-95"
-      >
-        <svg class="h-4 w-4 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-        </svg>
-        <span>{{ retryLabel }}</span>
-      </button>
-    </div>
-  `
+  templateUrl: "./error-state.component.html"
 })
 export class ErrorStateComponent {
   @Input() title = 'Failed to load data';

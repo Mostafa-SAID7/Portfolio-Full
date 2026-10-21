@@ -1,6 +1,6 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Observable, catchError, of, tap, throwError } from 'rxjs';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { Observable, catchError, defer, finalize, tap, throwError } from 'rxjs';
 import { Project, ProjectPayload } from '../models/project.model';
 import { UploadedImage } from '../portfolio-origin';
 import { API_URL } from '../api.config';
@@ -22,20 +22,18 @@ export class ProjectService {
   readonly featured = computed(() => this.projectsSignal().filter(project => project.featured));
 
   loadProjects(): Observable<Project[]> {
-    this.loadingSignal.set(true);
-    this.errorSignal.set(null);
-
-    return this.http.get<Project[]>(ENDPOINT).pipe(
-      tap(projects => {
-        this.projectsSignal.set(projects ?? []);
-        this.loadingSignal.set(false);
-      }),
-      catchError(err => {
-        this.errorSignal.set(this.message(err, 'Failed to load projects.'));
-        this.loadingSignal.set(false);
-        return throwError(() => err);
-      })
-    );
+    return defer(() => {
+      this.loadingSignal.set(true);
+      this.errorSignal.set(null);
+      return this.http.get<Project[]>(ENDPOINT).pipe(
+        tap(projects => this.projectsSignal.set(projects ?? [])),
+        catchError((err: unknown) => {
+          this.errorSignal.set(this.message(err, 'Failed to load projects.'));
+          return throwError(() => err);
+        }),
+        finalize(() => this.loadingSignal.set(false))
+      );
+    });
   }
 
   getProject(id: number): Observable<Project> {
@@ -71,9 +69,10 @@ export class ProjectService {
    * /api/files/*). The returned `url` is a relative path — store it on the
    * project as-is; every frontend resolves it through its own /api proxy.
    */
-  uploadCover(file: File): Observable<UploadedImage> {
+  uploadCover(file: File, projectTitle: string): Observable<UploadedImage> {
     const form = new FormData();
     form.append('file', file, file.name);
+    form.append('projectTitle', projectTitle);
     return this.http.post<UploadedImage>(`${API_URL}/upload/image`, form).pipe(
       catchError(err => throwError(() => err))
     );
@@ -93,8 +92,11 @@ export class ProjectService {
     );
   }
 
-  private message(err: any, fallback: string): string {
-    if (typeof err?.error === 'string' && err.error.trim()) return err.error;
-    return err?.error?.message ?? err?.message ?? fallback;
+  private message(err: unknown, fallback: string): string {
+    if (!(err instanceof HttpErrorResponse)) return fallback;
+    const body: unknown = err.error;
+    if (typeof body === 'string' && body.trim()) return body;
+    if (typeof body === 'object' && body !== null && 'message' in body && typeof body.message === 'string') return body.message;
+    return err.message || fallback;
   }
 }

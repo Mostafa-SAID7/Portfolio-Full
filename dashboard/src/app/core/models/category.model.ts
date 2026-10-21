@@ -18,3 +18,6 @@ export interface CategoryPayload {
   order: number;
   isActive: boolean;
 }
+
+/** Partial update; omitted fields retain their current server values. */
+export type CategoryPatch = Partial<CategoryPayload>;

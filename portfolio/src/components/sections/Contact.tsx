@@ -12,7 +12,7 @@ import { useI18n } from "@/lib/i18n";
 
 const schema = z.object({
   name: z.string().min(2, "Please enter your name"),
-  email: z.string().email("Please enter a valid email"),
+  email: z.email("Please enter a valid email"),
   message: z.string().min(10, "Message must be at least 10 characters"),
 });
 

@@ -35,24 +35,7 @@ export class ToastService {
   selector: 'app-toast',
   standalone: true,
   imports: [CommonModule],
-  template: `
-    @if (toast.state(); as t) {
-      <div class="pointer-events-none fixed bottom-5 right-5 z-[110] flex justify-end px-4">
-        <div
-          class="pointer-events-auto max-w-sm rounded-xl border px-4 py-3 text-sm shadow-lg"
-          [class]="
-            t.kind === 'error'
-              ? 'border-danger/40 bg-danger/10 text-danger'
-              : 'border-line/10 bg-surface text-ink'
-          "
-          role="status"
-          aria-live="polite"
-        >
-          {{ t.text }}
-        </div>
-      </div>
-    }
-  `
+  templateUrl: "./toast.component.html"
 })
 export class ToastComponent {
   readonly toast = inject(ToastService);

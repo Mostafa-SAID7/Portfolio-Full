@@ -124,6 +124,43 @@ namespace PortfolioAPI.Application.Services
             }
         }
 
+        public async Task PatchCategoryAsync(int id, PortfolioAPI.Core.DTOs.UpdateCategoryPatchDto patch)
+        {
+            var existing = await GetRequiredAsync(id);
+            var nameEn = patch.NameEn?.Trim() ?? existing.NameEn;
+            var nameAr = patch.NameAr?.Trim() ?? existing.NameAr;
+            var previousName = existing.NameEn;
+
+            if (patch.NameEn is not null && await NameExistsAsync(nameEn, excludeId: id))
+            {
+                throw new ValidationException($"A category named '{nameEn}' already exists.");
+            }
+
+            if (patch.IsActive == false && existing.IsActive)
+            {
+                var used = await CountProjectsUsingAsync(existing.NameEn);
+                if (used > 0)
+                {
+                    throw new ValidationException(
+                        $"'{existing.NameEn}' is still used by {used} project{(used == 1 ? "" : "s")} - " +
+                        "reassign them before hiding it.");
+                }
+            }
+
+            await UpdateTrackedAsync(id, current =>
+            {
+                if (patch.NameEn is not null) current.NameEn = nameEn;
+                if (patch.NameAr is not null) current.NameAr = nameAr;
+                if (patch.Order.HasValue) current.Order = patch.Order.Value;
+                if (patch.IsActive.HasValue) current.IsActive = patch.IsActive.Value;
+            });
+
+            if (patch.NameEn is not null && !string.Equals(previousName, nameEn, StringComparison.OrdinalIgnoreCase))
+            {
+                await RenameProjectsAsync(previousName, nameEn);
+            }
+        }
+
         public async Task DeleteCategoryAsync(int id)
         {
             var category = await GetRequiredAsync(id);

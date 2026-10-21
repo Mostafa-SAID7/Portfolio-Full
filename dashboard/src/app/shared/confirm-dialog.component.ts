@@ -1,4 +1,4 @@
-import { Component, HostListener, Injectable, inject, signal } from '@angular/core';
+import { afterRenderEffect, Component, DestroyRef, ElementRef, Injectable, inject, signal, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 export interface ConfirmDialogOptions {
@@ -9,7 +9,6 @@ export interface ConfirmDialogOptions {
   /** Red (destructive) confirm button — the default, since this dialog exists for deletes. */
   danger?: boolean;
 }
-
 interface ConfirmDialogRequest extends ConfirmDialogOptions {
   id: number;
 }
@@ -25,13 +24,14 @@ export class ConfirmDialogService {
   readonly request = signal<ConfirmDialogRequest | null>(null);
 
   private pendingResolve: ((value: boolean) => void) | null = null;
+  private nextId = 0;
 
   confirm(options: ConfirmDialogOptions): Promise<boolean> {
     return new Promise<boolean>(resolve => {
       // Opening a new dialog cancels any previous one.
       this.pendingResolve?.(false);
       this.pendingResolve = resolve;
-      this.request.set({ ...options, id: Date.now() });
+      this.request.set({ ...options, id: this.nextId++ });
     });
   }
 
@@ -47,46 +47,58 @@ export class ConfirmDialogService {
   selector: 'app-confirm-dialog',
   standalone: true,
   imports: [CommonModule],
-  template: `
-    @if (service.request(); as req) {
-      <div
-        class="fixed inset-0 z-50 flex items-center justify-center p-4"
-        role="dialog"
-        aria-modal="true"
-        [attr.aria-labelledby]="'confirm-title-' + req.id"
-        [attr.aria-describedby]="'confirm-message-' + req.id"
-      >
-        <div class="absolute inset-0 bg-ink/50 backdrop-blur-sm" (click)="service.settle(false)" aria-hidden="true"></div>
-        <div class="card relative w-full max-w-md p-6">
-          <h3 [id]="'confirm-title-' + req.id" class="font-display text-xl font-semibold tracking-[-0.03em] text-ink">
-            {{ req.title }}
-          </h3>
-          <p [id]="'confirm-message-' + req.id" class="mt-3 text-sm leading-6 text-soft">{{ req.message }}</p>
-          <div class="mt-6 flex justify-end gap-3">
-            <button type="button" class="btn-ghost" (click)="service.settle(false)">
-              {{ req.cancelLabel ?? 'Cancel' }}
-            </button>
-            <button
-              type="button"
-              [class]="req.danger === false ? 'btn-primary' : 'btn-danger'"
-              autofocus
-              (click)="service.settle(true)"
-            >
-              {{ req.confirmLabel ?? 'Delete' }}
-            </button>
-          </div>
-        </div>
-      </div>
-    }
-  `
+  templateUrl: './confirm-dialog.component.html'
 })
 export class ConfirmDialogComponent {
   readonly service = inject(ConfirmDialogService);
+  private readonly dialog = viewChild.required<ElementRef<HTMLDialogElement>>('dialog');
+  private readonly cancelButton = viewChild<ElementRef<HTMLButtonElement>>('cancelButton');
+  private previousFocus: HTMLElement | null = null;
 
-  @HostListener('document:keydown.escape')
-  onEscape(): void {
-    if (this.service.request()) {
+  constructor() {
+    // Runs after the conditional content and query are ready, never during SSR.
+    afterRenderEffect(() => {
+      const request = this.service.request();
+      const dialog = this.dialog().nativeElement;
+      if (request) {
+        if (!dialog.open) {
+          this.previousFocus = dialog.ownerDocument.activeElement instanceof HTMLElement
+            ? dialog.ownerDocument.activeElement : null;
+          dialog.showModal();
+        }
+        this.cancelButton()?.nativeElement.focus();
+      } else {
+        this.closeAndRestoreFocus();
+      }
+    });
+    inject(DestroyRef).onDestroy(() => {
       this.service.settle(false);
-    }
+      this.closeAndRestoreFocus();
+    });
+  }
+
+  onCancel(event: Event): void {
+    event.preventDefault();
+    this.service.settle(false);
+  }
+
+  onClose(): void {
+    // Ignore a queued close event if a subsequent request already reopened it.
+    if (!this.dialog().nativeElement.open && this.service.request()) this.service.settle(false);
+  }
+
+  onBackdropClick(event: MouseEvent): void {
+    const dialog = this.dialog().nativeElement;
+    if (event.target !== dialog) return;
+    const rect = dialog.getBoundingClientRect();
+    if (event.clientX < rect.left || event.clientX > rect.right ||
+        event.clientY < rect.top || event.clientY > rect.bottom) this.service.settle(false);
+  }
+
+  private closeAndRestoreFocus(): void {
+    const dialog = this.dialog().nativeElement;
+    if (dialog.open) dialog.close();
+    if (this.previousFocus?.isConnected && !this.previousFocus.closest('[inert]')) this.previousFocus.focus();
+    this.previousFocus = null;
   }
 }

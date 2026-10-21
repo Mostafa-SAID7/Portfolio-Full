@@ -62,11 +62,9 @@ namespace PortfolioAPI.Infrastructure.Services
                 [".png"] = ("image/png", IsPng),
                 [".gif"] = ("image/gif", IsGif),
                 [".webp"] = ("image/webp", IsWebp),
-                [".avif"] = ("image/avif", IsAvif),
             };
 
         private const long DefaultMaxFileSize = 10 * 1024 * 1024; // 10MB
-
         private readonly string _storagePath;
         private readonly string _baseUrl;
         private readonly long _maxFileSize;
@@ -90,7 +88,7 @@ namespace PortfolioAPI.Infrastructure.Services
 
             var extension = Path.GetExtension(fileName).ToLowerInvariant();
             if (!AllowedImages.TryGetValue(extension, out var allowed))
-                throw new InvalidOperationException("Only JPG, PNG, GIF, WebP and AVIF image files are allowed.");
+                throw new InvalidOperationException("Only JPG, PNG, GIF and WebP image files are allowed.");
 
             if (!string.Equals(allowed.ContentType, contentType?.Trim().ToLowerInvariant(), StringComparison.Ordinal))
                 throw new InvalidOperationException($"Content type '{contentType}' does not match the '{extension}' extension.");
@@ -98,17 +96,27 @@ namespace PortfolioAPI.Infrastructure.Services
             return await SaveValidatedAsync(fileStream, extension, allowed.Sniff);
         }
 
-        public async Task<string> SaveImageAsync(Stream imageStream, string fileName)
+        public async Task<string> SaveImageAsync(Stream imageStream, string fileName, string? projectTitle = null)
         {
             ArgumentNullException.ThrowIfNull(imageStream);
             if (string.IsNullOrWhiteSpace(fileName))
                 throw new ArgumentException("File name cannot be null or empty.", nameof(fileName));
 
             var extension = Path.GetExtension(fileName).ToLowerInvariant();
-            if (!AllowedImages.TryGetValue(extension, out var allowed))
-                throw new InvalidOperationException("Only JPG, PNG, GIF, WebP and AVIF image files are allowed.");
+            if (!string.Equals(extension, ".webp", StringComparison.OrdinalIgnoreCase) ||
+                !AllowedImages.TryGetValue(extension, out var allowed))
+                throw new InvalidOperationException("Images must be converted to WebP before uploading. Select the image again in a supported browser.");
 
-            return await SaveValidatedAsync(imageStream, extension, allowed.Sniff);
+            var descriptiveName = string.IsNullOrWhiteSpace(projectTitle)
+                ? Path.GetFileNameWithoutExtension(fileName)
+                : projectTitle;
+            var sourceBytes = await ReadCappedAsync(imageStream);
+            if (sourceBytes.Length == 0)
+                throw new InvalidOperationException("The uploaded file is empty.");
+            if (!allowed.Sniff(sourceBytes))
+                throw new InvalidOperationException("The file content does not match its extension.");
+
+            return await SaveBytesAsync(sourceBytes, ".webp", descriptiveName);
         }
 
         public async Task<string> SaveDocumentAsync(Stream documentStream, string fileName)
@@ -129,8 +137,8 @@ namespace PortfolioAPI.Infrastructure.Services
             return await SaveValidatedAsync(documentStream, extension, sniff);
         }
 
-        /// <summary>Buffers with a hard cap, sniffs the bytes, then writes with a random name.</summary>
-        private async Task<string> SaveValidatedAsync(Stream fileStream, string extension, Func<byte[], bool> sniff)
+        /// <summary>Buffers with a hard cap, validates bytes, and writes the file with a safe unique name.</summary>
+        private async Task<string> SaveValidatedAsync(Stream fileStream, string extension, Func<byte[], bool> sniff, string? preferredName = null)
         {
             var bytes = await ReadCappedAsync(fileStream);
             if (bytes.Length == 0)
@@ -138,10 +146,27 @@ namespace PortfolioAPI.Infrastructure.Services
             if (!sniff(bytes))
                 throw new InvalidOperationException("The file content does not match its extension.");
 
-            var uniqueFileName = $"{Guid.NewGuid()}{extension}";
+            return await SaveBytesAsync(bytes, extension, preferredName);
+        }
+
+        private async Task<string> SaveBytesAsync(byte[] bytes, string extension, string? preferredName)
+        {
+            var contentHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes))[..16].ToLowerInvariant();
+            var uniqueFileName = string.IsNullOrWhiteSpace(preferredName)
+                ? $"{Guid.NewGuid()}{extension}"
+                : $"{ToSafeFileName(preferredName)}-{contentHash}{extension}";
             var filePath = Path.Combine(_storagePath, uniqueFileName);
-            await File.WriteAllBytesAsync(filePath, bytes);
+            if (!File.Exists(filePath))
+                await File.WriteAllBytesAsync(filePath, bytes);
             return $"{_baseUrl}/{uniqueFileName}";
+        }
+
+        private static string ToSafeFileName(string value)
+        {
+            var slug = System.Text.RegularExpressions.Regex.Replace(
+                value.Normalize(System.Text.NormalizationForm.FormD).ToLowerInvariant(),
+                @"[^a-z0-9]+", "-").Trim('-');
+            return string.IsNullOrWhiteSpace(slug) ? "project-image" : slug[..Math.Min(slug.Length, 64)];
         }
 
         private async Task<byte[]> ReadCappedAsync(Stream fileStream)
@@ -233,19 +258,6 @@ namespace PortfolioAPI.Infrastructure.Services
             b[0] == 'R' && b[1] == 'I' && b[2] == 'F' && b[3] == 'F' &&
             b[8] == 'W' && b[9] == 'E' && b[10] == 'B' && b[11] == 'P';
 
-        private static bool IsAvif(byte[] b)
-        {
-            // ISO-BMFF: [4..8] == "ftyp", major brand or compatible brands contain "avif"/"avis".
-            if (b.Length < 16 || !(b[4] == 'f' && b[5] == 't' && b[6] == 'y' && b[7] == 'p'))
-                return false;
-            for (var offset = 8; offset + 4 <= Math.Min(b.Length, 32); offset += 4)
-            {
-                if ((b[offset] == 'a' && b[offset + 1] == 'v' && b[offset + 2] == 'i' && b[offset + 3] == 'f') ||
-                    (b[offset] == 'a' && b[offset + 1] == 'v' && b[offset + 2] == 'i' && b[offset + 3] == 's'))
-                    return true;
-            }
-            return false;
-        }
     }
 
     public interface IFileStorageService
@@ -255,7 +267,7 @@ namespace PortfolioAPI.Infrastructure.Services
         Task DeleteFileAsync(string fileUrl);
         Task<bool> FileExistsAsync(string fileUrl);
         Task<long> GetFileSizeAsync(string fileUrl);
-        Task<string> SaveImageAsync(Stream imageStream, string fileName);
+        Task<string> SaveImageAsync(Stream imageStream, string fileName, string? projectTitle = null);
         Task<string> SaveDocumentAsync(Stream documentStream, string fileName);
     }
 }

@@ -1,413 +1,40 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, OnInit, computed, inject, linkedSignal, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { Observable } from 'rxjs';
+import { HttpErrorResponse } from '@angular/common/http';
+import { FormsModule, NgForm } from '@angular/forms';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { EMPTY, Observable, catchError, concatMap, finalize } from 'rxjs';
 import { SkillService } from '../../core/services/skill.service';
 import { ExperienceService } from '../../core/services/experience.service';
 import { CategoryService } from '../../core/services/category.service';
-import { Skill } from '../../core/models/skill.model';
+import { Skill, SkillPayload } from '../../core/models/skill.model';
 import { Experience, ExperiencePayload } from '../../core/models/experience.model';
 import { Category } from '../../core/models/category.model';
-import { ConfirmDialogService } from '../../shared/confirm-dialog.component';
+import { ConfirmDialogOptions, ConfirmDialogService } from '../../shared/confirm-dialog.component';
 import { ToastService } from '../../shared/toast.component';
 import { PaginatorComponent } from '../../shared/paginator.component';
+import { EmptyStateComponent } from '../../shared/empty-state.component';
+import { ErrorStateComponent } from '../../shared/error-state.component';
+import { ExperienceDraft, ExperienceFormComponent } from './experience-form.component';
 
 type ContentTab = 'skills' | 'experience' | 'categories';
-
-const SKILL_GROUPS_PER_PAGE = 4;
-const EXPERIENCE_PER_PAGE = 6;
+interface SkillDraft {
+  nameEn: string;
+  nameAr: string;
+  categoryEn: string;
+  categoryAr: string;
+  proficiency: number;
+  order: number;
+  iconUrl: string;
+  descriptionEn: string;
+  descriptionAr: string;
+}
 
 @Component({
   selector: 'app-content',
   standalone: true,
-  imports: [CommonModule, FormsModule, PaginatorComponent],
-  template: `
-    <div class="space-y-6">
-      <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-        <div>
-          <p class="eyebrow mb-2">Site content</p>
-          <h2 class="font-display text-3xl font-semibold tracking-[-0.05em] text-ink">Content</h2>
-          <p class="mt-2 text-sm text-soft">Skills and experience managed through the Portfolio API.</p>
-        </div>
-        <div class="flex items-center gap-1 rounded-xl border border-line/10 bg-surface p-1" role="tablist" aria-label="Content type">
-          @for (item of tabs; track item.value) {
-            <button
-              type="button"
-              role="tab"
-              class="segmented"
-              [class.active]="tab() === item.value"
-              [attr.aria-selected]="tab() === item.value"
-              (click)="selectTab(item.value)"
-            >
-              {{ item.label }}
-            </button>
-          }
-        </div>
-      </div>
-        @if (tab() === 'categories') {
-          <p class="mb-5 max-w-2xl text-sm leading-6 text-soft">
-            The categories behind the project filter chips on the public portfolio. Renaming one also
-            updates the projects that use it, and a category that is still in use cannot be deleted.
-          </p>
-
-          @if (categoryService.error()) {
-            <div role="alert" class="mb-4 rounded-xl border border-danger/30 bg-danger/10 p-3 text-sm text-danger">
-              {{ categoryService.error() }}
-            </div>
-          }
-
-          @if (categoryFormError) {
-            <div role="alert" class="mb-4 rounded-xl border border-danger/30 bg-danger/10 p-3 text-sm text-danger">
-              {{ categoryFormError }}
-            </div>
-          }
-
-          <div class="card mb-6 p-5">
-            <h3 class="mb-4 font-display text-lg font-semibold text-ink">Add a category</h3>
-            <div class="flex flex-col gap-3 sm:flex-row">
-              <input
-                type="text"
-                class="input sm:flex-1"
-                placeholder="Robotics"
-                [(ngModel)]="newCategoryName"
-                (keyup.enter)="addCategory()"
-              />
-              <button type="button" class="btn-primary" [disabled]="!(newCategoryName ?? '').trim()" (click)="addCategory()">
-                Add category
-              </button>
-            </div>
-          </div>
-
-          @if (categoryService.loading()) {
-            <div class="card flex min-h-[160px] items-center justify-center">
-              <div class="spinner" role="status" aria-label="Loading categories"></div>
-            </div>
-          } @else if (categoryService.categories().length === 0) {
-            <div class="card empty-state">
-              <p class="text-sm font-semibold text-ink">No categories yet</p>
-              <p class="mt-1 text-sm text-soft">Add one above, or type a category while editing a project.</p>
-            </div>
-          } @else {
-            <div class="grid gap-3">
-              @for (category of categoryService.categories(); track category.id; let first = $first; let last = $last) {
-                <article class="card flex flex-wrap items-center gap-3 p-4">
-                  @if (editingCategoryId === category.id) {
-                    <input
-                      type="text"
-                      class="input flex-1"
-                      [(ngModel)]="categoryDraftName"
-                      (keyup.enter)="saveCategory(category)"
-                      (keyup.escape)="editingCategoryId = null"
-                    />
-                    <button type="button" class="btn-primary" (click)="saveCategory(category)">Save</button>
-                    <button type="button" class="btn-ghost" (click)="editingCategoryId = null">Cancel</button>
-                  } @else {
-                    <div class="min-w-0 flex-1">
-                      <p class="truncate font-semibold text-ink">{{ category.nameEn }}</p>
-                      <p class="text-xs text-muted">
-                        Order {{ category.order }} ·
-                        {{ category.projectCount }} project{{ category.projectCount === 1 ? '' : 's' }}
-                      </p>
-                    </div>
-                    @if (!category.isActive) {
-                      <span class="badge-muted">Hidden</span>
-                    }
-                    <button
-                      type="button"
-                      class="icon-btn"
-                      (click)="moveCategory(category, -1)"
-                      [disabled]="$first"
-                      aria-label="Move category up"
-                      title="Move up"
-                    >
-                      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="m18 15-6-6-6 6"/></svg>
-                    </button>
-                    <button
-                      type="button"
-                      class="icon-btn"
-                      (click)="moveCategory(category, 1)"
-                      [disabled]="$last"
-                      aria-label="Move category down"
-                      title="Move down"
-                    >
-                      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="m6 9 6 6 6-6"/></svg>
-                    </button>
-                    <button
-                      type="button"
-                      class="btn-ghost"
-                      (click)="toggleCategory(category)"
-                      [attr.aria-label]="(category.isActive ? 'Hide ' : 'Show ') + category.nameEn"
-                    >
-                      {{ category.isActive ? 'Hide' : 'Show' }}
-                    </button>
-                    <button type="button" class="icon-btn" (click)="startEditingCategory(category)" aria-label="Rename category" title="Rename">
-                      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5m-1.414-9.414a1 1 0 1 1 2.828 2.828L11.828 15H9v-2.828l8.586-8.586Z"/></svg>
-                    </button>
-                    <button type="button" class="icon-btn hover:border-danger/40 hover:text-danger" (click)="deleteCategory(category)" [attr.aria-label]="'Delete ' + category.nameEn" title="Delete">
-                      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 7m0 0a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V7Zm3-4h6a1 1 0 0 1 1 1v1H8V4a1 1 0 0 1 1-1Zm-1 7 4 4m0-4-4 4"/></svg>
-                    </button>
-                  }
-                </article>
-              }
-            </div>
-          }
-        }
-
-      @if (tab() === 'skills') {
-        <!-- ---------------- Skills ---------------- -->
-        @if (skillService.loading()) {
-          <div class="card flex min-h-[200px] items-center justify-center"><div class="spinner" role="status" aria-label="Loading skills"></div></div>
-        } @else if (skillService.error()) {
-          <div class="card empty-state">
-            <p class="text-sm font-semibold text-ink">Failed to load skills</p>
-            <p class="max-w-md text-sm text-soft">{{ skillService.error() }}</p>
-            <button type="button" class="btn-ghost mt-2" (click)="loadAll()">Retry</button>
-          </div>
-        } @else {
-          <form class="card flex flex-col gap-3 p-4 sm:flex-row sm:items-end" (ngSubmit)="addSkill()">
-            <div class="flex-1">
-              <label for="skillName" class="field-label">Add a skill</label>
-              <input id="skillName" type="text" class="input" [(ngModel)]="newSkillName" name="skillName" placeholder="e.g. Angular" />
-            </div>
-            <div class="sm:w-52">
-              <label for="skillCategory" class="field-label">Category</label>
-              <input id="skillCategory" type="text" class="input" [(ngModel)]="newSkillCategory" name="skillCategory" placeholder="Frontend" />
-            </div>
-            <div class="sm:w-32">
-              <label for="skillProficiency" class="field-label">Proficiency %</label>
-              <input id="skillProficiency" type="number" min="0" max="100" class="input" [(ngModel)]="newSkillProficiency" name="skillProficiency" />
-            </div>
-            <button type="submit" class="btn-primary sm:mb-0.5" [disabled]="!(newSkillName ?? '').trim()">Add</button>
-          </form>
-
-          @if (skillsByCategory().length === 0) {
-            <div class="card empty-state"><p class="text-sm text-muted">No skills yet — add your first one above.</p></div>
-          } @else {
-            @for (group of pagedSkillGroups(); track group.category) {
-              <section class="card overflow-hidden">
-                <div class="border-b border-line/10 px-6 py-4">
-                  <h3 class="font-display text-lg font-semibold text-ink">{{ group.category }}</h3>
-                </div>
-                <ul class="divide-y divide-line/10">
-                  @for (skill of group.skills; track skill.id) {
-                    <li class="flex items-center gap-4 px-6 py-3.5">
-                      @if (editingSkillId === skill.id && editDraft) {
-                        <!-- Inline editor: all content fields the API accepts. -->
-                        <div class="min-w-0 flex-1 space-y-3">
-                          <div class="grid gap-3 sm:grid-cols-2">
-                            <div>
-                              <label class="field-label" [for]="'edit-name-' + skill.id">Name</label>
-                              <input [id]="'edit-name-' + skill.id" type="text" class="input" [(ngModel)]="editDraft.name" />
-                            </div>
-                            <div>
-                              <label class="field-label" [for]="'edit-cat-' + skill.id">Category</label>
-                              <input [id]="'edit-cat-' + skill.id" type="text" class="input" [(ngModel)]="editDraft.category" />
-                            </div>
-                            <div>
-                              <label class="field-label" [for]="'edit-prof-' + skill.id">Proficiency (0–100)</label>
-                              <input [id]="'edit-prof-' + skill.id" type="number" min="0" max="100" class="input" [(ngModel)]="editDraft.Proficiency" />
-                            </div>
-                            <div>
-                              <label class="field-label" [for]="'edit-order-' + skill.id">Display order</label>
-                              <input [id]="'edit-order-' + skill.id" type="number" min="0" class="input" [(ngModel)]="editDraft.order" />
-                            </div>
-                            <div class="sm:col-span-2">
-                              <label class="field-label" [for]="'edit-icon-' + skill.id">Icon URL</label>
-                              <input [id]="'edit-icon-' + skill.id" type="text" class="input" [(ngModel)]="editDraft.IconUrl" placeholder="Optional" />
-                            </div>
-                            <div class="sm:col-span-2">
-                              <label class="field-label" [for]="'edit-desc-' + skill.id">Description</label>
-                              <input [id]="'edit-desc-' + skill.id" type="text" class="input" [(ngModel)]="editDraft.description" placeholder="Optional — max 500 characters" />
-                            </div>
-                          </div>
-                          @if (skillFormError) {
-                            <p class="text-xs text-danger" role="alert">{{ skillFormError }}</p>
-                          }
-                          <div class="flex justify-end gap-2">
-                            <button type="button" class="btn-ghost" (click)="cancelEditSkill()">Cancel</button>
-                            <button
-                              type="button"
-                              class="btn-primary"
-                              (click)="saveEditSkill()"
-                              [disabled]="!(editDraft?.name ?? '').trim() || !(editDraft?.category ?? '').trim()"
-                            >
-                              Save changes
-                            </button>
-                          </div>
-                        </div>
-                      } @else {
-                        <div class="min-w-0 flex-1">
-                          <p class="text-sm font-semibold" [class]="skill.IsActive ? 'text-ink' : 'text-muted line-through'">{{ skill.NameEn }}</p>
-                          <div class="mt-1.5 h-1.5 w-40 overflow-hidden rounded-full bg-line/10">
-                            <div class="h-full rounded-full bg-accent" [style.width.%]="skill.Proficiency"></div>
-                          </div>
-                        </div>
-                        <span class="hidden text-xs text-muted sm:block">{{ skill.Proficiency }}%</span>
-                        <button type="button" class="btn-ghost" (click)="startEditSkill(skill)">Edit</button>
-                        <button type="button" class="btn-ghost" (click)="toggleSkill(skill)">
-                          {{ skill.IsActive ? 'Hide' : 'Show' }}
-                        </button>
-                        <button type="button" class="icon-btn hover:border-danger/40 hover:text-danger" (click)="deleteSkill(skill)" [attr.aria-label]="'Delete ' + skill.NameEn">
-                          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0 1 16.138 21H7.862a2 2 0 0 1-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v3M4 7h16"/></svg>
-                        </button>
-                      }
-                    </li>
-                  }
-                </ul>
-              </section>
-            }
-
-            <app-paginator
-              [totalItems]="skillsByCategory().length"
-              [pageSize]="skillGroupsPageSize"
-              [page]="skillsPage()"
-              (pageChange)="skillsPage.set($event)"
-            />
-          }
-        }
-      } @else if (tab() === 'experience') {
-        <!-- ---------------- Experience ---------------- -->
-        @if (experienceService.loading()) {
-          <div class="card flex min-h-[200px] items-center justify-center"><div class="spinner" role="status" aria-label="Loading experience"></div></div>
-        } @else if (experienceService.error()) {
-          <div class="card empty-state">
-            <p class="text-sm font-semibold text-ink">Failed to load experience</p>
-            <p class="max-w-md text-sm text-soft">{{ experienceService.error() }}</p>
-            <button type="button" class="btn-ghost mt-2" (click)="loadAll()">Retry</button>
-          </div>
-        } @else {
-          <!-- Toolbar -->
-          <div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-            <p class="text-sm text-soft">{{ experienceService.experience().length }} entries — ordered by display order, then start date.</p>
-            @if (!experienceFormVisible) {
-              <button type="button" class="btn-primary shrink-0" (click)="startExperienceCreate()">
-                <span class="text-lg leading-none">+</span> New experience
-              </button>
-            }
-          </div>
-
-          <!-- Create / edit form (shared) -->
-          @if (experienceFormVisible && expDraft) {
-            <form class="card space-y-5 p-5" (ngSubmit)="saveExperience()" novalidate>
-              <div class="flex items-center justify-between">
-                <h3 class="font-display text-lg font-semibold tracking-[-0.02em] text-ink">
-                  {{ editingExperienceId ? 'Edit experience' : 'New experience' }}
-                </h3>
-                @if (editingExperienceId) { <span class="badge-accent">Editing</span> }
-              </div>
-              @if (experienceError) {
-                <div role="alert" class="rounded-xl border border-danger/30 bg-danger/10 p-3 text-sm text-danger">{{ experienceError }}</div>
-              }
-              <div class="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label for="exp-position" class="field-label">Position <span class="text-danger">*</span></label>
-                  <input id="exp-position" type="text" class="input" [(ngModel)]="expDraft.position" name="expPosition" placeholder="Senior Full Stack Engineer" />
-                </div>
-                <div>
-                  <label for="exp-company" class="field-label">Company <span class="text-danger">*</span></label>
-                  <input id="exp-company" type="text" class="input" [(ngModel)]="expDraft.company" name="expCompany" placeholder="Freelance / Company" />
-                </div>
-                <div>
-                  <label for="exp-location" class="field-label">Location</label>
-                  <input id="exp-location" type="text" class="input" [(ngModel)]="expDraft.location" name="expLocation" placeholder="Remote" />
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                  <div>
-                    <label for="exp-start" class="field-label">Start date <span class="text-danger">*</span></label>
-                    <input id="exp-start" type="date" class="input" [(ngModel)]="expDraft.startDate" name="expStart" />
-                  </div>
-                  <div>
-                    <label for="exp-end" class="field-label">End date</label>
-                    <input id="exp-end" type="date" class="input" [(ngModel)]="expDraft.endDate" name="expEnd" [disabled]="expDraft.current" />
-                  </div>
-                </div>
-                <div class="sm:col-span-2">
-                  <label for="exp-desc" class="field-label">Description <span class="text-danger">*</span></label>
-                  <textarea id="exp-desc" rows="3" class="input resize-y" [(ngModel)]="expDraft.description" name="expDescription" placeholder="What you built and owned in this role..."></textarea>
-                </div>
-                <div class="sm:col-span-2">
-                  <label for="exp-tech" class="field-label">Technologies</label>
-                  <input id="exp-tech" type="text" class="input" [(ngModel)]="expDraft.technologies" name="expTechnologies" placeholder=".NET, Angular, SQL Server" />
-                  <p class="mt-2 text-xs text-muted">Separate with commas (max 20).</p>
-                </div>
-                <div>
-                  <label for="exp-order" class="field-label">Display order</label>
-                  <input id="exp-order" type="number" min="0" class="input" [(ngModel)]="expDraft.order" name="expOrder" />
-                </div>
-                <div class="flex items-end gap-5 pb-2">
-                  <label class="flex cursor-pointer items-center gap-2 text-sm text-ink">
-                    <input type="checkbox" [(ngModel)]="expDraft.current" name="expCurrent" class="h-4 w-4 accent-[rgb(var(--accent))]" />
-                    Current role
-                  </label>
-                  <label class="flex cursor-pointer items-center gap-2 text-sm text-ink">
-                    <input type="checkbox" [(ngModel)]="expDraft.isActive" name="expIsActive" class="h-4 w-4 accent-[rgb(var(--accent))]" />
-                    Visible
-                  </label>
-                </div>
-              </div>
-              <div class="flex justify-end gap-3 border-t border-line/10 pt-4">
-                <button type="button" class="btn-ghost" (click)="cancelExperienceForm()">Cancel</button>
-                <button
-                  type="submit"
-                  class="btn-primary"
-                  [disabled]="!(expDraft?.position ?? '').trim() || !(expDraft?.company ?? '').trim() || !(expDraft?.description ?? '').trim() || !expDraft?.startDate"
-                >
-                  {{ editingExperienceId ? 'Save changes' : 'Create experience' }}
-                </button>
-              </div>
-            </form>
-          }
-
-          @if (experienceService.experience().length === 0) {
-            @if (!experienceFormVisible) {
-              <div class="card empty-state">
-                <p class="text-sm text-muted">No experience entries yet.</p>
-                <button type="button" class="btn-primary mt-2" (click)="startExperienceCreate()">New experience</button>
-              </div>
-            }
-          } @else {
-            <div class="space-y-3">
-              @for (item of pagedExperience(); track item.id) {
-                <article class="card-raised flex flex-col gap-3 p-5 sm:flex-row sm:items-start">
-                  <div class="min-w-0 flex-1">
-                    <div class="flex flex-wrap items-center gap-2">
-                      <h3 class="text-sm font-bold text-ink">{{ item.position }}</h3>
-                      @if (item.current) { <span class="badge-success">Current</span> }
-                      @if (!item.isActive) { <span class="badge-muted">Hidden</span> }
-                    </div>
-                    <p class="mt-0.5 text-sm text-accent-text">{{ item.company }}@if (item.location) { — {{ item.location }} }</p>
-                    <p class="mt-1 text-xs text-muted">
-                      {{ item.startDate | date: 'MMM y' }} — {{ item.current ? 'Present' : ((item.endDate | date: 'MMM y') || '—') }}
-                    </p>
-                    @if (item.description) {
-                      <p class="mt-2 line-clamp-2 text-sm leading-6 text-soft">{{ item.description }}</p>
-                    }
-                    @if (item.technologies.length) {
-                      <div class="mt-2 flex flex-wrap gap-1.5">
-                        @for (tech of item.technologies.slice(0, 5); track tech) { <span class="badge-muted">{{ tech }}</span> }
-                      </div>
-                    }
-                  </div>
-                  <div class="flex shrink-0 gap-2">
-                    <button type="button" class="btn-ghost" (click)="startExperienceEdit(item)">Edit</button>
-                    <button type="button" class="btn-danger" (click)="deleteExperience(item.id, item.position)">Delete</button>
-                  </div>
-                </article>
-              }
-            </div>
-
-            <app-paginator
-              [totalItems]="experienceService.experience().length"
-              [pageSize]="experiencePageSize"
-              [page]="experiencePage()"
-              (pageChange)="experiencePage.set($event)"
-            />
-          }
-        }
-
-      }
-    </div>
-  `
+  imports: [CommonModule, FormsModule, PaginatorComponent, EmptyStateComponent, ErrorStateComponent, ExperienceFormComponent],
+  templateUrl: './content.component.html'
 })
 export class ContentComponent implements OnInit {
   readonly skillService = inject(SkillService);
@@ -415,62 +42,25 @@ export class ContentComponent implements OnInit {
   readonly categoryService = inject(CategoryService);
   private readonly dialog = inject(ConfirmDialogService);
   private readonly toast = inject(ToastService);
+  private readonly destroyRef = inject(DestroyRef);
+  private confirmingDelete = false;
 
   readonly tab = signal<ContentTab>('skills');
-
-  readonly skillGroupsPageSize = SKILL_GROUPS_PER_PAGE;
-  readonly experiencePageSize = EXPERIENCE_PER_PAGE;
-
-  readonly skillsPage = signal(1);
-  readonly experiencePage = signal(1);
-
   readonly tabs: { value: ContentTab; label: string }[] = [
     { value: 'skills', label: 'Skills' },
     { value: 'experience', label: 'Experience' },
     { value: 'categories', label: 'Categories' }
   ];
-
-  newSkillName = '';
-  newSkillNameAr = '';
-  newSkillCategory = '';
-  newSkillCategoryAr = '';
-  newSkillProficiency = 70;
-
-  /** Inline skill editor state. */
-  editingSkillId: number | null = null;
-  editDraft: {
-    name: string;
-    category: string;
-    Proficiency: number;
-    order: number;
-    IconUrl: string;
-    description: string;
-  } | null = null;
-  skillFormError: string | null = null;
-
-  /** Shared create/edit experience form state. */
-  experienceFormVisible = false;
-  editingExperienceId: number | null = null;
-  expDraft: {
-    position: string;
-    company: string;
-    location: string;
-    /** yyyy-MM-dd (input[type=date]) */
-    startDate: string;
-    /** yyyy-MM-dd, empty while current or unknown */
-    endDate: string;
-    description: string;
-    technologies: string;
-    order: number;
-    current: boolean;
-    isActive: boolean;
-  } | null = null;
-  experienceError: string | null = null;
+  readonly skillsBusy = signal(false);
+  readonly categoriesBusy = signal(false);
+  readonly experienceBusy = signal(false);
+  readonly skillGroupsPageSize = 4;
+  readonly experiencePageSize = 6;
 
   readonly skillsByCategory = computed(() => {
     const groups = new Map<string, Skill[]>();
     for (const skill of this.skillService.skills()) {
-      const category = skill.CategoryEn?.trim() || skill.NameEn?.trim() || 'Uncategorized';
+      const category = skill.categoryEn?.trim() || 'Uncategorized';
       if (!groups.has(category)) groups.set(category, []);
       groups.get(category)!.push(skill);
     }
@@ -478,16 +68,44 @@ export class ContentComponent implements OnInit {
       .map(([category, skills]) => ({ category, skills }))
       .sort((a, b) => a.category.localeCompare(b.category));
   });
-
+  // Writable page state automatically clamps when a load/delete shrinks the total.
+  readonly skillsPage = linkedSignal<number, number>({
+    source: () => this.skillsByCategory().length,
+    computation: (total, previous) => this.clampPage(previous?.value ?? 1, total, this.skillGroupsPageSize)
+  });
+  readonly experiencePage = linkedSignal<number, number>({
+    source: () => this.experienceService.experience().length,
+    computation: (total, previous) => this.clampPage(previous?.value ?? 1, total, this.experiencePageSize)
+  });
   readonly pagedSkillGroups = computed(() => {
     const start = (this.skillsPage() - 1) * this.skillGroupsPageSize;
     return this.skillsByCategory().slice(start, start + this.skillGroupsPageSize);
   });
-
   readonly pagedExperience = computed(() => {
     const start = (this.experiencePage() - 1) * this.experiencePageSize;
     return this.experienceService.experience().slice(start, start + this.experiencePageSize);
   });
+
+  newSkillName = '';
+  newSkillNameAr = '';
+  newSkillCategory = '';
+  newSkillCategoryAr = '';
+  newSkillProficiency = 70;
+  editingSkillId: number | null = null;
+  editDraft: SkillDraft | null = null;
+  skillFormError: string | null = null;
+
+  newCategoryName = '';
+  newCategoryNameAr = '';
+  editingCategoryId: number | null = null;
+  categoryDraftName = '';
+  categoryDraftNameAr = '';
+  categoryFormError: string | null = null;
+
+  experienceFormVisible = false;
+  editingExperienceId: number | null = null;
+  expDraft: ExperienceDraft | null = null;
+  experienceError: string | null = null;
 
   ngOnInit(): void {
     this.loadAll();
@@ -500,300 +118,303 @@ export class ContentComponent implements OnInit {
   }
 
   loadAll(): void {
-    this.skillService.loadSkills().subscribe({ error: () => undefined });
-    this.experienceService.loadExperience().subscribe({ error: () => undefined });
-    this.categoryService.loadCategories().subscribe({ error: () => undefined });
+    this.reload('skills');
+    this.reload('experience');
+    this.reload('categories');
   }
 
-  // ---------------- Categories ----------------
+  reload(source: ContentTab): void {
+    if (this.loading(source) || this.busy(source)()) return;
+    const request: Observable<unknown> = source === 'skills' ? this.skillService.loadSkills()
+      : source === 'experience' ? this.experienceService.loadExperience() : this.categoryService.loadCategories();
+    request.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({ error: () => undefined });
+  }
 
-  newCategoryName = '';
-  editingCategoryId: number | null = null;
-  categoryDraftName = '';
-  categoryFormError: string | null = null;
+  unavailable(source: ContentTab): boolean {
+    const error = source === 'skills' ? this.skillService.error()
+      : source === 'experience' ? this.experienceService.error() : this.categoryService.error();
+    return this.busy(source)() || this.loading(source) || !!error;
+  }
 
-  addCategory(): void {
-    const name = (this.newCategoryName ?? '').trim();
-    if (!name) return;
-
-    this.categoryFormError = null;
-    const order = this.categoryService.categories().length;
-    this.categoryService
-      .createCategory({ nameEn: name, nameAr: '', order, IsActive: true })
-      .subscribe({
-        next: () => {
-          this.newCategoryName = '';
-        },
-        error: err => {
-          this.categoryFormError = err?.error?.message ?? err?.message ?? 'Could not add the category.';
-        }
-      });
+  addCategory(form: NgForm): void {
+    if (this.unavailable('categories')) return;
+    this.categoryFormError = this.categoryNamesError(this.newCategoryName, this.newCategoryNameAr);
+    if (form.invalid || this.categoryFormError) { form.control.markAllAsTouched(); return; }
+    this.mutate('categories', this.categoryService.createCategory({
+      nameEn: this.newCategoryName.trim(), nameAr: this.newCategoryNameAr.trim(),
+      order: Math.max(0, ...this.categoryService.categories().map(category => category.order)) + 1, isActive: true
+    }), () => {
+      this.newCategoryName = '';
+      this.newCategoryNameAr = '';
+      form.resetForm({ categoryNameEn: '', categoryNameAr: '' });
+    }, 'Could not add the category.');
   }
 
   startEditingCategory(category: Category): void {
+    if (this.unavailable('categories')) return;
     this.editingCategoryId = category.id;
-    this.categoryDraftName = category.nameEn ?? '';
+    this.categoryDraftName = category.nameEn;
+    this.categoryDraftNameAr = category.nameAr;
     this.categoryFormError = null;
   }
 
-  saveCategory(category: Category): void {
-    const name = (this.categoryDraftName ?? '').trim();
-    if (!name) {
-      this.categoryFormError = 'The category name cannot be empty.';
-      return;
-    }
-
+  cancelEditCategory(): void {
+    if (this.categoriesBusy()) return;
+    this.editingCategoryId = null;
     this.categoryFormError = null;
-    this.categoryService
-      .updateCategory(category.id, { nameEn: name, nameAr: '', order: category.order, isActive: category.isActive })
-      .subscribe({
-        next: () => {
-          this.editingCategoryId = null;
-        },
-        error: err => {
-          this.categoryFormError = err?.error?.message ?? err?.message ?? 'Could not rename the category.';
-        }
-      });
+  }
+
+  saveCategory(category: Category, form: NgForm): void {
+    if (this.unavailable('categories')) return;
+    this.categoryFormError = this.categoryNamesError(this.categoryDraftName, this.categoryDraftNameAr);
+    if (form.invalid || this.categoryFormError) { form.control.markAllAsTouched(); return; }
+    this.mutate('categories', this.categoryService.updateCategory(category.id, {
+      nameEn: this.categoryDraftName.trim(), nameAr: this.categoryDraftNameAr.trim()
+    }), () => { this.editingCategoryId = null; }, 'Could not rename the category.');
   }
 
   toggleCategory(category: Category): void {
-    this.categoryFormError = null;
-    this.categoryService
-      .updateCategory(category.id, { nameEn: category.nameEn, nameAr: category.nameAr, order: category.order, isActive: !category.isActive })
-      .subscribe({
-        error: err => this.reportCategoryError(err, 'Could not update the category.')
-      });
+    if (this.unavailable('categories')) return;
+    this.mutate('categories', this.categoryService.updateCategory(category.id, { isActive: !category.isActive }),
+      () => undefined, 'Could not update the category.');
   }
 
-  /**
-   * Moves a category one position up or down by swapping its order with the
-   * neighbour - the order drives the filter chips on the public portfolio.
-   */
   moveCategory(category: Category, direction: -1 | 1): void {
-    const list = [...this.categoryService.categories()];
-    const index = list.findIndex(c => c.id === category.id);
+    if (this.unavailable('categories')) return;
+    const list = this.categoryService.categories();
+    const index = list.findIndex(item => item.id === category.id);
     const target = index + direction;
-    if (index < 0 || target < 0 || target >= list.length) {
-      return;
-    }
-
+    if (index < 0 || target < 0 || target >= list.length) return;
+    // Snapshot both entries before the service updates/sorts its local list.
+    const original = list[index];
     const neighbour = list[target];
-    this.categoryFormError = null;
-
-    this.categoryService
-      .updateCategory(category.id, { nameEn: category.nameEn, nameAr: category.nameAr, order: neighbour.order, isActive: category.isActive })
-      .subscribe({
-        next: () =>
-          this.categoryService
-            .updateCategory(neighbour.id, { nameEn: neighbour.nameEn, nameAr: neighbour.nameAr, order: category.order, isActive: neighbour.isActive })
-            .subscribe({
-              error: err => this.reportCategoryError(err, 'Could not reorder the category.')
-            }),
-        error: err => this.reportCategoryError(err, 'Could not reorder the category.')
-      });
-  }
-
-  deleteCategory(category: Category): void {
-    this.categoryFormError = null;
-    this.categoryService.deleteCategory(category.id).subscribe({
-      error: err => this.reportCategoryError(err, 'Could not delete the category.')
-    });
-  }
-
-  /** Action errors belong next to the action - a toast, plus the inline banner. */
-  private reportCategoryError(err: any, fallback: string): void {
-    const message = err?.error?.message ?? err?.message ?? fallback;
-    this.categoryFormError = message;
-    this.toast.show(message, 'error');
-  }
-
-  addSkill(): void {
-    const nameEn = (this.newSkillName ?? '').trim();
-    const nameAr = (this.newSkillNameAr ?? '').trim(); // new input for Arabic name
-    if (!nameEn && !nameAr) return;
-
-    this.skillService
-      .createSkill({
-        NameEn: nameEn,
-        NameAr: nameAr,
-        CategoryEn: (this.newSkillCategory ?? '').trim() || 'General',
-        CategoryAr: (this.newSkillCategoryAr ?? '').trim(),
-        Proficiency: Math.min(100, Math.max(0, Number(this.newSkillProficiency) || 0)),
-        IsActive: true
+    const request = this.categoryService.updateCategory(original.id, { order: neighbour.order }).pipe(
+      concatMap(() => this.categoryService.updateCategory(neighbour.id, { order: original.order })),
+      catchError((error: unknown) => {
+        this.reportMutationError('categories', error, 'Could not reorder the categories.');
+        // A two-request swap is not atomic. Re-fetch truth, never pretend rollback succeeded.
+        return this.categoryService.loadCategories().pipe(catchError(() => EMPTY));
       })
-      .subscribe({
-        next: () => {
-          this.newSkillName = '';
-          this.newSkillNameAr = '';
-          this.newSkillCategory = '';
-          this.newSkillCategoryAr = '';
-          this.newSkillProficiency = 70;
-        },
-        error: err => alert(err?.error?.message ?? 'Failed to add the skill.')
-      });
+    );
+    this.mutate('categories', request, () => undefined, 'Could not reorder the categories.');
   }
 
-  // ---------------- Inline skill editor ----------------
+  deleteCategory(category: Category): Promise<void> {
+    return this.confirmRemoval('categories', {
+      title: 'Delete category?', message: `“${category.nameEn}” will be removed. Categories in use cannot be deleted.`,
+      confirmLabel: 'Delete category'
+    }, () => this.categoryService.deleteCategory(category.id), 'Could not delete the category.');
+  }
+
+  addSkill(form: NgForm): void {
+    if (this.unavailable('skills')) return;
+    this.skillFormError = this.skillFieldsError({
+      nameEn: this.newSkillName, nameAr: this.newSkillNameAr,
+      categoryEn: this.newSkillCategory, categoryAr: this.newSkillCategoryAr,
+      proficiency: this.newSkillProficiency
+    });
+    if (form.invalid || this.skillFormError) { form.control.markAllAsTouched(); return; }
+    this.mutate('skills', this.skillService.createSkill({
+      nameEn: this.newSkillName.trim(), nameAr: this.newSkillNameAr.trim(),
+      categoryEn: this.newSkillCategory.trim(), categoryAr: this.newSkillCategoryAr.trim(),
+      proficiency: this.newSkillProficiency, iconUrl: null, descriptionEn: null, descriptionAr: null,
+      order: Math.max(0, ...this.skillService.skills().map(skill => skill.order)) + 1, isActive: true
+    }), () => {
+      this.newSkillName = this.newSkillNameAr = this.newSkillCategory = this.newSkillCategoryAr = '';
+      this.newSkillProficiency = 70;
+      form.resetForm({ skillNameEn: '', skillNameAr: '', skillCategoryEn: '', skillCategoryAr: '', skillProficiency: 70 });
+    }, 'Failed to add the skill.');
+  }
 
   startEditSkill(skill: Skill): void {
+    if (this.unavailable('skills')) return;
     this.editingSkillId = skill.id;
     this.skillFormError = null;
     this.editDraft = {
-      NameEn: skill.NameEn ?? '',
-      NameAr: skill.NameAr ?? '',
-      CategoryEn: skill.CategoryEn ?? '',
-      CategoryAr: skill.CategoryAr ?? '',
-      proficiency: skill.Proficiency ?? 0,
-      order: skill.order ?? 0,
-      IconUrl: skill.IconUrl ?? '',
-      description: skill.DescriptionEn ?? ''
+      nameEn: skill.nameEn, nameAr: skill.nameAr, categoryEn: skill.categoryEn, categoryAr: skill.categoryAr,
+      proficiency: skill.proficiency, order: skill.order, iconUrl: skill.iconUrl ?? '',
+      descriptionEn: skill.descriptionEn ?? '', descriptionAr: skill.descriptionAr ?? ''
     };
   }
 
   cancelEditSkill(): void {
+    if (this.skillsBusy()) return;
+    this.clearSkillEditor();
+  }
+
+  saveEditSkill(form: NgForm): void {
+    if (this.unavailable('skills')) return;
+    const id = this.editingSkillId;
+    const draft = this.editDraft;
+    if (id === null || !draft) return;
+    const current = this.skillService.skills().find(skill => skill.id === id);
+    if (!current) return;
+    this.skillFormError = this.skillFieldsError(draft);
+    if (draft.descriptionEn.length > 500 || draft.descriptionAr.length > 500 || draft.iconUrl.length > 500) {
+      this.skillFormError = 'Descriptions and icon URL must not exceed 500 characters.';
+    }
+    if (!Number.isInteger(draft.order) || draft.order < 0) this.skillFormError = 'Display order must be a non-negative integer.';
+    if (form.invalid || this.skillFormError) { form.control.markAllAsTouched(); return; }
+    this.mutate('skills', this.skillService.updateSkill(id, {
+      nameEn: draft.nameEn.trim(), nameAr: draft.nameAr.trim(), categoryEn: draft.categoryEn.trim(), categoryAr: draft.categoryAr.trim(),
+      proficiency: draft.proficiency, iconUrl: draft.iconUrl.trim() || null,
+      descriptionEn: draft.descriptionEn.trim() || null, descriptionAr: draft.descriptionAr.trim() || null,
+      order: draft.order, isActive: current.isActive
+    }), () => this.clearSkillEditor(), 'Failed to save the skill.');
+  }
+
+  toggleSkill(skill: Skill): void {
+    if (this.unavailable('skills')) return;
+    // Full-replacement PUT: retain both descriptions even if the service toggle helper omits one.
+    const payload: SkillPayload = {
+      nameEn: skill.nameEn, nameAr: skill.nameAr, categoryEn: skill.categoryEn, categoryAr: skill.categoryAr,
+      proficiency: skill.proficiency, iconUrl: skill.iconUrl,
+      descriptionEn: skill.descriptionEn, descriptionAr: skill.descriptionAr, order: skill.order, isActive: !skill.isActive
+    };
+    this.mutate('skills', this.skillService.updateSkill(skill.id, payload), () => undefined, 'Failed to update the skill.');
+  }
+
+  deleteSkill(skill: Skill): Promise<void> {
+    return this.confirmRemoval('skills', {
+      title: 'Delete skill?', message: `“${skill.nameEn}” will be removed from the skill stack.`, confirmLabel: 'Delete skill'
+    }, () => this.skillService.deleteSkill(skill.id), 'Failed to delete the skill.');
+  }
+
+  startExperienceCreate(): void {
+    if (this.unavailable('experience')) return;
+    this.experienceFormVisible = true;
+    this.editingExperienceId = null;
+    this.experienceError = null;
+    this.expDraft = {
+      companyEn: '', companyAr: '', positionEn: '', positionAr: '', descriptionEn: '', descriptionAr: '', locationEn: '', locationAr: '',
+      startDate: '', endDate: '', technologies: '', current: false,
+      order: Math.max(0, ...this.experienceService.experience().map(item => item.order)) + 1, isActive: true
+    };
+  }
+
+  startExperienceEdit(item: Experience): void {
+    if (this.unavailable('experience')) return;
+    this.experienceFormVisible = true;
+    this.editingExperienceId = item.id;
+    this.experienceError = null;
+    this.expDraft = {
+      companyEn: item.companyEn, companyAr: item.companyAr, positionEn: item.positionEn, positionAr: item.positionAr,
+      descriptionEn: item.descriptionEn, descriptionAr: item.descriptionAr, locationEn: item.locationEn ?? '', locationAr: item.locationAr ?? '',
+      startDate: item.startDate.slice(0, 10), endDate: item.endDate?.slice(0, 10) ?? '',
+      technologies: item.technologies.join(', '), current: item.current, order: item.order, isActive: item.isActive
+    };
+  }
+
+  cancelExperienceForm(): void {
+    if (this.experienceBusy()) return;
+    this.clearExperienceEditor();
+  }
+
+  saveExperience(payload: ExperiencePayload): void {
+    if (this.unavailable('experience') || !this.expDraft) return;
+    const request: Observable<unknown> = this.editingExperienceId !== null
+      ? this.experienceService.updateExperience(this.editingExperienceId, payload)
+      : this.experienceService.createExperience(payload);
+    this.mutate('experience', request, () => this.clearExperienceEditor(), 'Failed to save the experience entry.');
+  }
+
+  deleteExperience(id: number, title: string): Promise<void> {
+    return this.confirmRemoval('experience', {
+      title: 'Delete experience?', message: `The “${title}” entry will be removed from the Experience page.`, confirmLabel: 'Delete entry'
+    }, () => this.experienceService.deleteExperience(id), 'Failed to delete the experience.');
+  }
+
+  private mutate(source: ContentTab, request: Observable<unknown>, success: () => void, fallback: string): void {
+    this.busy(source).set(true);
+    this.setFormError(source, null);
+    request.pipe(finalize(() => this.busy(source).set(false)), takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: success,
+      error: (error: unknown) => this.reportMutationError(source, error, fallback)
+    });
+  }
+
+  private async confirmRemoval(source: ContentTab, options: ConfirmDialogOptions, request: () => Observable<unknown>, fallback: string): Promise<void> {
+    if (this.unavailable(source) || this.confirmingDelete) return;
+    this.confirmingDelete = true;
+    this.busy(source).set(true);
+    let confirmed = false;
+    try {
+      confirmed = await this.dialog.confirm(options);
+    } catch (error: unknown) {
+      if (!this.destroyRef.destroyed) this.reportMutationError(source, error, fallback);
+    } finally {
+      this.confirmingDelete = false;
+      this.busy(source).set(false);
+    }
+    if (!confirmed || this.destroyRef.destroyed) return;
+    this.mutate(source, request(), () => undefined, fallback);
+  }
+
+  private reportMutationError(source: ContentTab, error: unknown, fallback: string): void {
+    const body: unknown = error instanceof HttpErrorResponse ? error.error : error;
+    const message = this.domainMessage(body) || (error instanceof Error ? error.message : '') || fallback;
+    this.setFormError(source, message);
+    this.toast.show(message, 'error');
+  }
+
+  private domainMessage(value: unknown): string {
+    if (typeof value === 'string') return value.trim();
+    if (Array.isArray(value)) return value.map((entry: unknown) => this.domainMessage(entry)).filter(Boolean).join(' ');
+    if (!value || typeof value !== 'object') return '';
+    const record = value as Record<string, unknown>;
+    if (record['errors'] && typeof record['errors'] === 'object') {
+      const messages = Object.values(record['errors']).map((entry: unknown) => this.domainMessage(entry)).filter(Boolean).join(' ');
+      if (messages) return messages;
+    }
+    for (const key of ['errorMessage', 'message', 'detail', 'title']) {
+      if (typeof record[key] === 'string' && record[key].trim()) return record[key].trim();
+    }
+    return '';
+  }
+
+  private setFormError(source: ContentTab, message: string | null): void {
+    if (source === 'skills') this.skillFormError = message;
+    else if (source === 'categories') this.categoryFormError = message;
+    else this.experienceError = message;
+  }
+
+  private busy(source: ContentTab) {
+    return source === 'skills' ? this.skillsBusy : source === 'categories' ? this.categoriesBusy : this.experienceBusy;
+  }
+
+  private loading(source: ContentTab): boolean {
+    return source === 'skills' ? this.skillService.loading() : source === 'categories' ? this.categoryService.loading() : this.experienceService.loading();
+  }
+
+  private categoryNamesError(nameEn: string, nameAr: string): string | null {
+    if (!nameEn.trim() || !nameAr.trim()) return 'Both English and Arabic category names are required.';
+    return nameEn.length > 100 || nameAr.length > 100 ? 'Category names must not exceed 100 characters.' : null;
+  }
+
+  private skillFieldsError(draft: Pick<SkillDraft, 'nameEn' | 'nameAr' | 'categoryEn' | 'categoryAr' | 'proficiency'>): string | null {
+    if (!draft.nameEn.trim() || !draft.nameAr.trim() || !draft.categoryEn.trim() || !draft.categoryAr.trim()) {
+      return 'Both English and Arabic skill names and categories are required.';
+    }
+    if (draft.nameEn.length > 50 || draft.nameAr.length > 50) return 'Skill names must not exceed 50 characters.';
+    if (draft.categoryEn.length > 100 || draft.categoryAr.length > 100) return 'Skill categories must not exceed 100 characters.';
+    if (!Number.isInteger(draft.proficiency) || draft.proficiency < 0 || draft.proficiency > 100) return 'Proficiency must be an integer from 0 to 100.';
+    return null;
+  }
+
+  private clampPage(page: number, total: number, size: number): number {
+    return Math.max(1, Math.min(page, Math.ceil(total / size) || 1));
+  }
+
+  private clearSkillEditor(): void {
     this.editingSkillId = null;
     this.editDraft = null;
     this.skillFormError = null;
   }
 
-  saveEditSkill(): void {
-    const id = this.editingSkillId;
-    const draft = this.editDraft;
-    if (id === null || !draft) return;
-
-    this.skillFormError = null;
-    // Preserve the current visibility flag — the editor doesn't expose it.
-    const current = this.skillService.skills().find(skill => skill.id === id);
-
-    this.skillService
-      .updateSkill(id, {
-        NameEn: (draft.name ?? '').trim(),
-        NameAr: (draft.nameAr ?? '').trim(),
-        CategoryEn: (draft.category ?? '').trim() || 'General',
-        CategoryAr: (draft.categoryAr ?? '').trim(),
-        Proficiency: Math.min(100, Math.max(0, Number(draft.Proficiency) || 0)),
-        IconUrl: draft.IconUrl ? draft.IconUrl.trim() || null : null,
-        description: draft.description ? draft.description.trim() || null : null,
-        order: Number(draft.order) || 0,
-        isActive: current?.isActive ?? true
-      })
-      .subscribe({
-        next: () => this.cancelEditSkill(),
-        error: err => {
-          this.skillFormError = err?.error?.message ?? 'Failed to save the skill.';
-        }
-      });
-  }
-
-  // ---------------- Experience create/edit ----------------
-
-  startExperienceCreate(): void {
-    this.experienceFormVisible = true;
-    this.editingExperienceId = null;
-    this.experienceError = null;
-    this.expDraft = {
-      position: '',
-      company: '',
-      location: '',
-      startDate: '',
-      endDate: '',
-      description: '',
-      technologies: '',
-      order: this.experienceService.experience().length,
-      current: false,
-      IsActive: true
-    };
-  }
-
-  startExperienceEdit(item: Experience): void {
-    this.experienceFormVisible = true;
-    this.editingExperienceId = item.id;
-    this.experienceError = null;
-    this.expDraft = {
-      position: item.position ?? '',
-      company: item.company ?? '',
-      location: item.location ?? '',
-      startDate: item.startDate ? item.startDate.slice(0, 10) : '',
-      endDate: item.endDate ? item.endDate.slice(0, 10) : '',
-      description: item.description ?? '',
-      technologies: Array.isArray(item.technologies) ? item.technologies.join(', ') : '',
-      order: item.order ?? 0,
-      current: Boolean(item.current),
-      isActive: item.isActive ?? true
-    };
-  }
-
-  cancelExperienceForm(): void {
+  private clearExperienceEditor(): void {
     this.experienceFormVisible = false;
     this.editingExperienceId = null;
     this.expDraft = null;
     this.experienceError = null;
-  }
-
-  saveExperience(): void {
-    const draft = this.expDraft;
-    if (!draft || !draft.startDate) return;
-
-    // Date-only values: keep them as local calendar dates (no toISOString() —
-    // UTC conversion shifts the day in non-UTC timezones and drifts on re-edit).
-    const payload: ExperiencePayload = {
-      company: (draft.company ?? '').trim(),
-      position: (draft.position ?? '').trim(),
-      startDate: `${draft.startDate}T00:00:00`,
-      endDate: draft.current || !draft.endDate ? null : `${draft.endDate}T00:00:00`,
-      description: (draft.description ?? '').trim(),
-      technologies: (draft.technologies ?? '')
-        .split(',')
-        .map(item => item.trim())
-        .filter(Boolean),
-      location: draft.location ? draft.location.trim() || null : null,
-      current: Boolean(draft.current),
-      order: Number(draft.order) || 0,
-      isActive: draft.isActive ?? true
-    };
-
-    const request$: Observable<unknown> =
-      this.editingExperienceId !== null
-        ? this.experienceService.updateExperience(this.editingExperienceId, payload)
-        : this.experienceService.createExperience(payload);
-
-    request$.subscribe({
-      next: () => this.cancelExperienceForm(),
-      error: err => {
-        this.experienceError = err?.error?.message ?? 'Failed to save the experience entry.';
-      }
-    });
-  }
-
-  toggleSkill(skill: Skill): void {
-    this.skillService.toggleVisibility(skill).subscribe({
-      error: err => alert(err?.error?.message ?? 'Failed to update the skill.')
-    });
-  }
-
-  async deleteSkill(skill: Skill): Promise<void> {
-    const confirmed = await this.dialog.confirm({
-      title: 'Delete skill?',
-      message: `“${skill.NameEn}” will be removed from the skill stack.`,
-      confirmLabel: 'Delete skill'
-    });
-    if (!confirmed) return;
-
-    this.skillService.deleteSkill(skill.id).subscribe({
-      error: err => alert(err?.error?.message ?? 'Failed to delete the skill.')
-    });
-  }
-
-  async deleteExperience(id: number, title: string): Promise<void> {
-    const confirmed = await this.dialog.confirm({
-      title: 'Delete experience?',
-      message: `The “${title}” entry will be removed from the Experience page.`,
-      confirmLabel: 'Delete entry'
-    });
-    if (!confirmed) return;
-
-    this.experienceService.deleteExperience(id).subscribe({
-      error: err => alert(err?.error?.message ?? 'Failed to delete the experience.')
-    });
   }
 }

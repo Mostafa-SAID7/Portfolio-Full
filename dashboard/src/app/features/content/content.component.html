@@ -1,0 +1,249 @@
+<div class="space-y-6">
+  <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+    <div>
+      <p class="eyebrow mb-2">Site content</p>
+      <h2 class="font-display text-3xl font-semibold tracking-[-0.05em] text-ink">Content</h2>
+      <p class="mt-2 text-sm text-soft">Skills and experience managed through the Portfolio API.</p>
+    </div>
+    <div class="flex items-center gap-1 rounded-xl border border-line/10 bg-surface p-1" role="group" aria-label="Content type">
+      @for (item of tabs; track item.value) {
+        <button type="button" class="segmented" [class.active]="tab() === item.value" [attr.aria-pressed]="tab() === item.value" (click)="selectTab(item.value)">{{ item.label }}</button>
+      }
+    </div>
+  </div>
+
+  @if (tab() === 'categories') {
+    <p class="max-w-2xl text-sm leading-6 text-soft">The categories behind the public project filter chips. Renaming a category also updates its projects; a category in use cannot be deleted.</p>
+    @if (categoryFormError) {
+      <p role="alert" class="rounded-xl border border-danger/30 bg-danger/10 p-3 text-sm text-danger">{{ categoryFormError }}</p>
+    }
+    @if (categoryService.loading()) {
+      <div class="card flex min-h-[160px] items-center justify-center"><div class="spinner" role="status" aria-label="Loading categories"></div></div>
+    } @else if (categoryService.error()) {
+      <app-error-state title="Failed to load categories" [error]="categoryService.error()" (retry)="reload('categories')" />
+    } @else {
+      <form #categoryCreateForm="ngForm" class="card space-y-4 p-5" (ngSubmit)="addCategory(categoryCreateForm)" novalidate [attr.aria-busy]="categoriesBusy()">
+        <h3 class="font-display text-lg font-semibold text-ink">Add a category</h3>
+        <fieldset [disabled]="categoriesBusy()" class="grid gap-3 sm:grid-cols-2">
+          <div>
+            <label for="category-name-en" class="field-label">Name (English) *</label>
+            <input id="category-name-en" name="categoryNameEn" class="input" [(ngModel)]="newCategoryName" required maxlength="100" placeholder="Robotics" />
+          </div>
+          <div>
+            <label for="category-name-ar" class="field-label">Name (Arabic) *</label>
+            <input id="category-name-ar" name="categoryNameAr" class="input" lang="ar" dir="rtl" [(ngModel)]="newCategoryNameAr" required maxlength="100" />
+          </div>
+        </fieldset>
+        <p class="text-xs text-muted">Both names are required, up to 100 characters each.</p>
+        <button type="submit" class="btn-primary" [disabled]="categoriesBusy() || categoryCreateForm.invalid || !newCategoryName.trim() || !newCategoryNameAr.trim()">{{ categoriesBusy() ? 'Saving…' : 'Add category' }}</button>
+      </form>
+      @if (categoryService.categories().length === 0) {
+        <app-empty-state icon="tag" title="No categories yet" description="Add your first category above." />
+      } @else {
+        <div class="grid gap-3" [attr.aria-busy]="categoriesBusy()">
+          @for (category of categoryService.categories(); track category.id; let first = $first; let last = $last) {
+            <article class="card flex flex-wrap items-center gap-3 p-4">
+              @if (editingCategoryId === category.id) {
+                <form #categoryEditForm="ngForm" class="w-full space-y-3" (ngSubmit)="saveCategory(category, categoryEditForm)" novalidate>
+                  <fieldset [disabled]="categoriesBusy()" class="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label [for]="'category-edit-en-' + category.id" class="field-label">Name (English) *</label>
+                      <input [id]="'category-edit-en-' + category.id" name="nameEn" class="input" [(ngModel)]="categoryDraftName" required maxlength="100" />
+                    </div>
+                    <div>
+                      <label [for]="'category-edit-ar-' + category.id" class="field-label">Name (Arabic) *</label>
+                      <input [id]="'category-edit-ar-' + category.id" name="nameAr" class="input" lang="ar" dir="rtl" [(ngModel)]="categoryDraftNameAr" required maxlength="100" />
+                    </div>
+                  </fieldset>
+                  <div class="flex justify-end gap-2">
+                    <button type="button" class="btn-ghost" [disabled]="categoriesBusy()" (click)="cancelEditCategory()">Cancel</button>
+                    <button type="submit" class="btn-primary" [disabled]="categoriesBusy() || categoryEditForm.invalid || !categoryDraftName.trim() || !categoryDraftNameAr.trim()">Save</button>
+                  </div>
+                </form>
+              } @else {
+                <div class="min-w-0 flex-1">
+                  <p class="truncate font-semibold text-ink">{{ category.nameEn }}</p>
+                  <p class="text-sm text-soft" lang="ar" dir="rtl">{{ category.nameAr }}</p>
+                  <p class="text-xs text-muted">Order {{ category.order }} · {{ category.projectCount }} project{{ category.projectCount === 1 ? '' : 's' }}</p>
+                </div>
+                @if (!category.isActive) { <span class="badge-muted">Hidden</span> }
+                <button type="button" class="icon-btn" (click)="moveCategory(category, -1)" [disabled]="first || categoriesBusy()" [attr.aria-label]="'Move ' + category.nameEn + ' up'" title="Move up">
+                  <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="m18 15-6-6-6 6"/></svg>
+                </button>
+                <button type="button" class="icon-btn" (click)="moveCategory(category, 1)" [disabled]="last || categoriesBusy()" [attr.aria-label]="'Move ' + category.nameEn + ' down'" title="Move down">
+                  <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="m6 9 6 6 6-6"/></svg>
+                </button>
+                <button type="button" class="btn-ghost" [disabled]="categoriesBusy()" (click)="toggleCategory(category)" [attr.aria-label]="(category.isActive ? 'Hide ' : 'Show ') + category.nameEn">{{ category.isActive ? 'Hide' : 'Show' }}</button>
+                <button type="button" class="btn-ghost" [disabled]="categoriesBusy()" (click)="startEditingCategory(category)">Rename</button>
+                <button type="button" class="btn-danger" [disabled]="categoriesBusy()" (click)="deleteCategory(category)" [attr.aria-label]="'Delete ' + category.nameEn">Delete</button>
+              }
+            </article>
+          }
+        </div>
+      }
+    }
+  }
+
+  @if (tab() === 'skills') {
+    @if (skillFormError) {
+      <p role="alert" class="rounded-xl border border-danger/30 bg-danger/10 p-3 text-sm text-danger">{{ skillFormError }}</p>
+    }
+    @if (skillService.loading()) {
+      <div class="card flex min-h-[200px] items-center justify-center"><div class="spinner" role="status" aria-label="Loading skills"></div></div>
+    } @else if (skillService.error()) {
+      <app-error-state title="Failed to load skills" [error]="skillService.error()" (retry)="reload('skills')" />
+    } @else {
+      <form #skillCreateForm="ngForm" class="card space-y-4 p-4" (ngSubmit)="addSkill(skillCreateForm)" novalidate [attr.aria-busy]="skillsBusy()">
+        <h3 class="font-display text-lg font-semibold text-ink">Add a skill</h3>
+        <fieldset [disabled]="skillsBusy()" class="grid gap-3 sm:grid-cols-2">
+          <div>
+            <label for="skill-name-en" class="field-label">Name (English) *</label>
+            <input id="skill-name-en" name="skillNameEn" class="input" [(ngModel)]="newSkillName" required maxlength="50" placeholder="Angular" />
+          </div>
+          <div>
+            <label for="skill-name-ar" class="field-label">Name (Arabic) *</label>
+            <input id="skill-name-ar" name="skillNameAr" class="input" lang="ar" dir="rtl" [(ngModel)]="newSkillNameAr" required maxlength="50" />
+          </div>
+          <div>
+            <label for="skill-category-en" class="field-label">Category (English) *</label>
+            <input id="skill-category-en" name="skillCategoryEn" class="input" [(ngModel)]="newSkillCategory" required maxlength="100" placeholder="Frontend" />
+          </div>
+          <div>
+            <label for="skill-category-ar" class="field-label">Category (Arabic) *</label>
+            <input id="skill-category-ar" name="skillCategoryAr" class="input" lang="ar" dir="rtl" [(ngModel)]="newSkillCategoryAr" required maxlength="100" />
+          </div>
+          <div>
+            <label for="skill-proficiency" class="field-label">Proficiency % *</label>
+            <input id="skill-proficiency" name="skillProficiency" type="number" class="input" [(ngModel)]="newSkillProficiency" required min="0" max="100" step="1" />
+          </div>
+        </fieldset>
+        <p class="text-xs text-muted">Both names (max 50) and categories (max 100) are required. Proficiency must be a whole number from 0 to 100.</p>
+        <button type="submit" class="btn-primary" [disabled]="skillsBusy() || skillCreateForm.invalid || !newSkillName.trim() || !newSkillNameAr.trim() || !newSkillCategory.trim() || !newSkillCategoryAr.trim()">{{ skillsBusy() ? 'Saving…' : 'Add skill' }}</button>
+      </form>
+      @if (skillsByCategory().length === 0) {
+        <app-empty-state icon="tag" title="No skills yet" description="Add your first skill above." />
+      } @else {
+        @for (group of pagedSkillGroups(); track group.category) {
+          <section class="card overflow-hidden" [attr.aria-busy]="skillsBusy()">
+            <div class="border-b border-line/10 px-6 py-4"><h3 class="font-display text-lg font-semibold text-ink">{{ group.category }}</h3></div>
+            <ul class="divide-y divide-line/10">
+              @for (skill of group.skills; track skill.id) {
+                <li class="flex flex-wrap items-center gap-4 px-6 py-3.5">
+                  @if (editingSkillId === skill.id && editDraft) {
+                    <form #skillEditForm="ngForm" class="min-w-0 flex-1 space-y-3" (ngSubmit)="saveEditSkill(skillEditForm)" novalidate>
+                      <fieldset [disabled]="skillsBusy()" class="grid gap-3 sm:grid-cols-2">
+                        <div>
+                          <label class="field-label" [for]="'edit-name-en-' + skill.id">Name (English) *</label>
+                          <input [id]="'edit-name-en-' + skill.id" name="nameEn" class="input" [(ngModel)]="editDraft.nameEn" required maxlength="50" />
+                        </div>
+                        <div>
+                          <label class="field-label" [for]="'edit-name-ar-' + skill.id">Name (Arabic) *</label>
+                          <input [id]="'edit-name-ar-' + skill.id" name="nameAr" class="input" lang="ar" dir="rtl" [(ngModel)]="editDraft.nameAr" required maxlength="50" />
+                        </div>
+                        <div>
+                          <label class="field-label" [for]="'edit-category-en-' + skill.id">Category (English) *</label>
+                          <input [id]="'edit-category-en-' + skill.id" name="categoryEn" class="input" [(ngModel)]="editDraft.categoryEn" required maxlength="100" />
+                        </div>
+                        <div>
+                          <label class="field-label" [for]="'edit-category-ar-' + skill.id">Category (Arabic) *</label>
+                          <input [id]="'edit-category-ar-' + skill.id" name="categoryAr" class="input" lang="ar" dir="rtl" [(ngModel)]="editDraft.categoryAr" required maxlength="100" />
+                        </div>
+                        <div>
+                          <label class="field-label" [for]="'edit-prof-' + skill.id">Proficiency (0–100) *</label>
+                          <input [id]="'edit-prof-' + skill.id" name="proficiency" type="number" class="input" [(ngModel)]="editDraft.proficiency" required min="0" max="100" step="1" />
+                        </div>
+                        <div>
+                          <label class="field-label" [for]="'edit-order-' + skill.id">Display order *</label>
+                          <input [id]="'edit-order-' + skill.id" name="order" type="number" class="input" [(ngModel)]="editDraft.order" required min="0" step="1" />
+                        </div>
+                        <div class="sm:col-span-2">
+                          <label class="field-label" [for]="'edit-icon-' + skill.id">Icon URL</label>
+                          <input [id]="'edit-icon-' + skill.id" name="iconUrl" class="input" [(ngModel)]="editDraft.iconUrl" maxlength="500" placeholder="Optional" />
+                        </div>
+                        <div>
+                          <label class="field-label" [for]="'edit-desc-en-' + skill.id">Description (English)</label>
+                          <textarea [id]="'edit-desc-en-' + skill.id" name="descriptionEn" rows="3" class="input resize-y" [(ngModel)]="editDraft.descriptionEn" maxlength="500"></textarea>
+                        </div>
+                        <div>
+                          <label class="field-label" [for]="'edit-desc-ar-' + skill.id">Description (Arabic)</label>
+                          <textarea [id]="'edit-desc-ar-' + skill.id" name="descriptionAr" rows="3" class="input resize-y" lang="ar" dir="rtl" [(ngModel)]="editDraft.descriptionAr" maxlength="500"></textarea>
+                        </div>
+                      </fieldset>
+                      <p class="text-xs text-muted">Both names (max 50) and categories (max 100) are required. Descriptions are optional, max 500 each.</p>
+                      <div class="flex justify-end gap-2">
+                        <button type="button" class="btn-ghost" [disabled]="skillsBusy()" (click)="cancelEditSkill()">Cancel</button>
+                        <button type="submit" class="btn-primary" [disabled]="skillsBusy() || skillEditForm.invalid || !editDraft.nameEn.trim() || !editDraft.nameAr.trim() || !editDraft.categoryEn.trim() || !editDraft.categoryAr.trim()">Save changes</button>
+                      </div>
+                    </form>
+                  } @else {
+                    <div class="min-w-0 flex-1">
+                      <p class="text-sm font-semibold" [class]="skill.isActive ? 'text-ink' : 'text-muted line-through'">{{ skill.nameEn }}</p>
+                      <p class="text-sm text-soft" lang="ar" dir="rtl">{{ skill.nameAr }}</p>
+                      <div class="mt-1.5 h-1.5 w-40 overflow-hidden rounded-full bg-line/10"><div class="h-full rounded-full bg-accent" [style.width.%]="skill.proficiency"></div></div>
+                    </div>
+                    <span class="hidden text-xs text-muted sm:block">{{ skill.proficiency }}%</span>
+                    <button type="button" class="btn-ghost" [disabled]="skillsBusy()" (click)="startEditSkill(skill)">Edit</button>
+                    <button type="button" class="btn-ghost" [disabled]="skillsBusy()" (click)="toggleSkill(skill)">{{ skill.isActive ? 'Hide' : 'Show' }}</button>
+                    <button type="button" class="btn-danger" [disabled]="skillsBusy()" (click)="deleteSkill(skill)" [attr.aria-label]="'Delete ' + skill.nameEn">Delete</button>
+                  }
+                </li>
+              }
+            </ul>
+          </section>
+        }
+        <app-paginator [totalItems]="skillsByCategory().length" [pageSize]="skillGroupsPageSize" [page]="skillsPage()" (pageChange)="skillsPage.set($event)" />
+      }
+    }
+  } @else if (tab() === 'experience') {
+    @if (experienceError && !experienceFormVisible) {
+      <p role="alert" class="rounded-xl border border-danger/30 bg-danger/10 p-3 text-sm text-danger">{{ experienceError }}</p>
+    }
+    @if (experienceService.loading()) {
+      <div class="card flex min-h-[200px] items-center justify-center"><div class="spinner" role="status" aria-label="Loading experience"></div></div>
+    } @else if (experienceService.error()) {
+      <app-error-state title="Failed to load experience" [error]="experienceService.error()" (retry)="reload('experience')" />
+    } @else {
+      <div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+        <p class="text-sm text-soft">{{ experienceService.experience().length }} entries — ordered by display order, then start date.</p>
+        @if (!experienceFormVisible) {
+          <button type="button" class="btn-primary" [disabled]="experienceBusy()" (click)="startExperienceCreate()">New experience</button>
+        }
+      </div>
+      @if (experienceFormVisible && expDraft) {
+        <app-experience-form [draft]="expDraft" [editing]="editingExperienceId !== null" [busy]="experienceBusy()" [error]="experienceError" (save)="saveExperience($event)" (cancel)="cancelExperienceForm()" />
+      }
+      @if (experienceService.experience().length === 0) {
+        @if (!experienceFormVisible) {
+          <app-empty-state icon="box" title="No experience entries yet" description="Add your first role using New experience." />
+        }
+      } @else {
+        <div class="space-y-3" [attr.aria-busy]="experienceBusy()">
+          @for (item of pagedExperience(); track item.id) {
+            <article class="card-raised flex flex-col gap-3 p-5 sm:flex-row sm:items-start">
+              <div class="min-w-0 flex-1">
+                <div class="flex flex-wrap items-center gap-2">
+                  <h3 class="text-sm font-bold text-ink">{{ item.positionEn }}</h3>
+                  @if (item.current) { <span class="badge-success">Current</span> }
+                  @if (!item.isActive) { <span class="badge-muted">Hidden</span> }
+                </div>
+                <p class="mt-0.5 text-sm text-accent-text">{{ item.companyEn }}@if (item.locationEn) { — {{ item.locationEn }} }</p>
+                <p class="text-sm text-soft" lang="ar" dir="rtl">{{ item.positionAr }} · {{ item.companyAr }}@if (item.locationAr) { — {{ item.locationAr }} }</p>
+                <p class="mt-1 text-xs text-muted">{{ item.startDate.slice(0, 10) | date: 'MMM y' : 'UTC' }} — {{ item.current ? 'Present' : ((item.endDate?.slice(0, 10) | date: 'MMM y' : 'UTC') || '—') }}</p>
+                <p class="mt-2 line-clamp-2 text-sm leading-6 text-soft">{{ item.descriptionEn }}</p>
+                <p class="mt-1 line-clamp-2 text-sm leading-6 text-soft" lang="ar" dir="rtl">{{ item.descriptionAr }}</p>
+                @if (item.technologies.length) {
+                  <div class="mt-2 flex flex-wrap gap-1.5">@for (tech of item.technologies.slice(0, 5); track $index) { <span class="badge-muted">{{ tech }}</span> }</div>
+                }
+              </div>
+              <div class="flex shrink-0 gap-2">
+                <button type="button" class="btn-ghost" [disabled]="experienceBusy()" (click)="startExperienceEdit(item)">Edit</button>
+                <button type="button" class="btn-danger" [disabled]="experienceBusy()" (click)="deleteExperience(item.id, item.positionEn)">Delete</button>
+              </div>
+            </article>
+          }
+        </div>
+        <app-paginator [totalItems]="experienceService.experience().length" [pageSize]="experiencePageSize" [page]="experiencePage()" (pageChange)="experiencePage.set($event)" />
+      }
+    }
+  }
+</div>
