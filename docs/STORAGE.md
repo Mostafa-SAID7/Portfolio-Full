@@ -60,10 +60,14 @@ Provider selection (`Storage:Provider`) — first non-empty wins:
 2. `Storage:Provider` config value (e.g. in git-ignored `appsettings.Production.json`)
 3. Implicit default: **`cloudinary` in Production, `local` otherwise**
 
-Cloudinary settings can also come from env vars:
-`CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`,
-`CLOUDINARY_FOLDER` (an explicitly configured value wins). If the selected
-provider is Cloudinary but the merged configuration is incomplete, **startup
+Cloudinary settings can come from the `Cloudinary:*` config keys or, as env
+vars: the individual `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`,
+`CLOUDINARY_API_SECRET`, `CLOUDINARY_FOLDER`, or the single well-known
+`CLOUDINARY_URL=cloudinary://<apiKey>:<apiSecret>@<cloudName>` that
+Cloudinary's console hands out (an explicitly configured value always wins;
+`CLOUDINARY_URL` carries no folder, so `Folder` keeps its default). Individual
+Env paths are checked before `CLOUDINARY_URL`. If the selected provider is
+Cloudinary but none of the sources yields a complete configuration, **startup
 fails immediately** with `Cloudinary configuration is incomplete.` — the
 message never prints values.
 
@@ -149,6 +153,17 @@ Cloudinary is active, so pre-migration rows render until they are migrated.
 ```
 dotnet run --project PortfolioAPI/src/PortfolioAPI -- migrate-media [--dry-run]
 ```
+
+On a hosting panel **without shell access** (runasp.net), the same service is
+available over an authenticated request instead of the CLI:
+
+```
+POST /api/v1/admin/media/migrate?dryRun=true   (admin JWT — dashboard token)
+```
+
+`dryRun=true` classifies every row and changes nothing; run it first, then
+repeat with `dryRun=false`. The response contains the same counters and
+failure list the CLI prints, so the run is observable either way.
 
 Moves every project cover that still lives in `App_Data/uploads` to the active
 provider (requires `Storage:Provider=cloudinary`, otherwise the run aborts with

@@ -300,6 +300,40 @@ namespace PortfolioAPI.UnitTests
                 Times.Once);
         }
 
+        [Fact]
+        public async Task AdminMediaController_Migrate_PassesThroughDryRunAndReturnsTheReport()
+        {
+            var mockMigration = new Mock<IMediaMigrationService>();
+            mockMigration
+                .Setup(m => m.RunAsync(true, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new MediaMigrationReport(
+                    MediaProvider.Cloudinary, 10, 4, 6, 0, 0, true, Array.Empty<string>()));
+
+            var controller = new AdminMediaController(mockMigration.Object);
+
+            var result = await controller.Migrate(dryRun: true, CancellationToken.None);
+
+            result.Should().BeOfType<OkObjectResult>();
+            mockMigration.Verify(
+                m => m.RunAsync(true, It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task AdminMediaController_Migrate_ReportsFailuresWithoutLeakingProviderDetails()
+        {
+            var mockMigration = new Mock<IMediaMigrationService>();
+            mockMigration
+                .Setup(m => m.RunAsync(false, It.IsAny<CancellationToken>()))
+                .Throws(new InvalidOperationException("cloudinary: HTTP 418"));
+
+            var controller = new AdminMediaController(mockMigration.Object);
+
+            var result = await controller.Migrate(dryRun: false, CancellationToken.None);
+
+            var status = result.Should().BeOfType<ObjectResult>().Which.StatusCode;
+            status.Should().Be(500);
+        }
+
         #endregion
 
         #region SkillsController Tests

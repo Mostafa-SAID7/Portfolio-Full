@@ -66,6 +66,39 @@ namespace PortfolioAPI.Infrastructure.Services
             !string.IsNullOrWhiteSpace(CloudName) &&
             !string.IsNullOrWhiteSpace(ApiKey) &&
             !string.IsNullOrWhiteSpace(ApiSecret);
+
+        /// <summary>
+        /// Parses the well-known <c>CLOUDINARY_URL</c> variable Cloudinary's
+        /// console offers (<c>cloudinary://&lt;apiKey&gt;:&lt;apiSecret&gt;@&lt;cloudName&gt;</c>),
+        /// so hosting panels that only expose that single variable still work.
+        /// Returns false for anything that does not match the expected shape;
+        /// the target options are then untouched.
+        /// </summary>
+        public static bool TryParseCloudinaryUrl(string? url, out CloudinaryOptions parsed)
+        {
+            parsed = new CloudinaryOptions();
+
+            if (string.IsNullOrWhiteSpace(url) ||
+                !Uri.TryCreate(url, UriKind.Absolute, out var uri) ||
+                uri.Scheme != "cloudinary")
+            {
+                return false;
+            }
+
+            var userInfo = uri.UserInfo.Split(':', 2);
+            if (string.IsNullOrWhiteSpace(uri.Host) ||
+                userInfo.Length != 2 ||
+                string.IsNullOrWhiteSpace(userInfo[0]) ||
+                string.IsNullOrWhiteSpace(userInfo[1]))
+            {
+                return false;
+            }
+
+            parsed.CloudName = uri.Host;
+            parsed.ApiKey = userInfo[0];
+            parsed.ApiSecret = userInfo[1];
+            return true;
+        }
     }
 
     /// <summary>Active storage backend (<c>Storage</c> section).</summary>

@@ -312,6 +312,19 @@ cloudinaryOptions.CloudName = PreferSetting(cloudinaryOptions.CloudName, "CLOUDI
 cloudinaryOptions.ApiKey = PreferSetting(cloudinaryOptions.ApiKey, "CLOUDINARY_API_KEY");
 cloudinaryOptions.ApiSecret = PreferSetting(cloudinaryOptions.ApiSecret, "CLOUDINARY_API_SECRET");
 
+// Cloudinary's own console hands out a single CLOUDINARY_URL variable; accept
+// it as well, but only for credentials not already set (it carries no folder).
+if (!cloudinaryOptions.IsConfigured &&
+    CloudinaryOptions.TryParseCloudinaryUrl(Environment.GetEnvironmentVariable("CLOUDINARY_URL"), out var fromUrl))
+{
+    if (string.IsNullOrWhiteSpace(cloudinaryOptions.CloudName))
+        cloudinaryOptions.CloudName = fromUrl.CloudName;
+    if (string.IsNullOrWhiteSpace(cloudinaryOptions.ApiKey))
+        cloudinaryOptions.ApiKey = fromUrl.ApiKey;
+    if (string.IsNullOrWhiteSpace(cloudinaryOptions.ApiSecret))
+        cloudinaryOptions.ApiSecret = fromUrl.ApiSecret;
+}
+
 var cloudinaryFolder = PreferSetting(cloudinaryOptions.Folder, "CLOUDINARY_FOLDER");
 cloudinaryOptions.Folder = string.IsNullOrWhiteSpace(cloudinaryFolder) ? "portfolio" : cloudinaryFolder;
 
