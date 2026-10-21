@@ -24,4 +24,10 @@
     <ProjectReference Include="..\PortfolioAPI.Core\PortfolioAPI.Core.csproj" />
   </ItemGroup>
 
+  <!-- HTML email templates ship as embedded resources so the publish output
+       stays a binary - no template files to forget when deploying. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Emailing\Templates\**\*.html" />
+  </ItemGroup>
+
 </Project>

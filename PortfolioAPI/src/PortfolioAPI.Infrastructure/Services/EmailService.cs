@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Mail;
 using Microsoft.Extensions.Configuration;
 using PortfolioAPI.Core.Interfaces;
+using PortfolioAPI.Infrastructure.Emailing;
 
 namespace PortfolioAPI.Infrastructure.Services
 {
@@ -81,17 +82,21 @@ namespace PortfolioAPI.Infrastructure.Services
                 throw new InvalidOperationException("No admin recipient configured (EmailSettings:AdminEmail).");
             }
 
-            // Every user-supplied value is HTML-encoded before it lands in the
-            // admin mailbox — a contact message must never inject markup.
-            var emailBody = $@"
-                <h2>New Contact Form Submission</h2>
-                <p><strong>From:</strong> {WebUtility.HtmlEncode(fromName)} ({WebUtility.HtmlEncode(fromEmail)})</p>
-                <p><strong>Subject:</strong> {WebUtility.HtmlEncode(subject)}</p>
-                <p><strong>Message:</strong></p>
-                <p>{WebUtility.HtmlEncode(message).Replace("\n", "<br>")}</p>
-                <hr>
-                <p><em>This message was sent from the portfolio contact form.</em></p>
-            ";
+            // Every user-supplied value is HTML-encoded BEFORE it reaches the
+            // template — a contact message must never inject markup. (The
+            // renderer itself is mechanical; callers own encoding.)
+            var emailBody = EmailTemplateRenderer.Render(
+                "ContactFormSubmission.html",
+                new Dictionary<string, string>
+                {
+                    ["FromName"] = WebUtility.HtmlEncode(fromName),
+                    ["FromEmail"] = WebUtility.HtmlEncode(fromEmail),
+                    ["Subject"] = WebUtility.HtmlEncode(subject),
+                    // Line breaks inside the message must survive visually as
+                    // <br>, so the encoded text is converted here (the ONLY
+                    // place where post-encoding markup is added).
+                    ["MessageHtml"] = WebUtility.HtmlEncode(message).Replace("\n", "<br />")
+                });
 
             await SendEmailAsync(adminEmail, $"Portfolio Contact: {subject}", emailBody, true);
         }
@@ -99,13 +104,12 @@ namespace PortfolioAPI.Infrastructure.Services
         public async Task SendWelcomeEmailAsync(string toEmail, string userName)
         {
             var subject = "Welcome to My Portfolio!";
-            var body = $@"
-                <h2>Welcome {WebUtility.HtmlEncode(userName)}!</h2>
-                <p>Thank you for visiting my portfolio. I'm excited to share my work and experience with you.</p>
-                <p>Feel free to explore the projects and get in touch if you'd like to discuss potential opportunities.</p>
-                <br>
-                <p>Best regards,<br>Your Portfolio Owner</p>
-            ";
+            var body = EmailTemplateRenderer.Render(
+                "Welcome.html",
+                new Dictionary<string, string>
+                {
+                    ["UserName"] = WebUtility.HtmlEncode(userName)
+                });
 
             await SendEmailAsync(toEmail, subject, body, true);
         }
@@ -113,12 +117,13 @@ namespace PortfolioAPI.Infrastructure.Services
         public async Task SendNotificationEmailAsync(string toEmail, string title, string content)
         {
             var subject = $"Portfolio Notification: {title}";
-            var body = $@"
-                <h2>{WebUtility.HtmlEncode(title)}</h2>
-                <p>{WebUtility.HtmlEncode(content)}</p>
-                <hr>
-                <p><em>This is an automated notification from the portfolio system.</em></p>
-            ";
+            var body = EmailTemplateRenderer.Render(
+                "Notification.html",
+                new Dictionary<string, string>
+                {
+                    ["Title"] = WebUtility.HtmlEncode(title),
+                    ["Content"] = WebUtility.HtmlEncode(content)
+                });
 
             await SendEmailAsync(toEmail, subject, body, true);
         }
