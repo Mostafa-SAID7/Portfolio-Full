@@ -294,7 +294,7 @@ export class ContentComponent implements OnInit {
     this.expDraft = {
       companyEn: '', companyAr: '', positionEn: '', positionAr: '', descriptionEn: '', descriptionAr: '', locationEn: '', locationAr: '',
       startDate: '', endDate: '', technologies: '', current: false,
-      order: this.experienceService.experience().length, isActive: true
+      order: Math.max(0, ...this.experienceService.experience().map(item => item.order)) + 1, isActive: true
     };
   }
 

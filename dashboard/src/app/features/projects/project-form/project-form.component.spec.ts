@@ -528,7 +528,7 @@ describe('ProjectFormComponent', () => {
     }
   });
 
-  it('blocks saves of over-limit or mismatched stored metrics rather than silently replacing them', () => {
+  it('blocks over-limit stored metrics and preserves valid mismatched lists on edit', () => {
     const overLimit = projectFixture();
     overLimit.metricsEn = Array.from({ length: 7 }, () => ({ labelEn: 'Metric', labelAr: 'مقياس', value: '1' }));
     overLimit.metricsAr = [...overLimit.metricsEn];
@@ -541,8 +541,9 @@ describe('ProjectFormComponent', () => {
     projects.getProject.and.returnValue(of(mismatched));
     params.next(convertToParamMap({ id: '2' }));
     component.onSubmit();
-    expect(component.projectForm.errors?.['presentation']).toContain('same number');
-    expect(projects.updateProject).not.toHaveBeenCalled();
+    expect(projects.updateProject).toHaveBeenCalledOnceWith(2, jasmine.objectContaining({
+      metricsEn: mismatched.metricsEn, metricsAr: []
+    }));
   });
 
   it('blocks a stored gradient longer than the backend limit without truncating it', () => {

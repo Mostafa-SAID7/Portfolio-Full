@@ -132,9 +132,6 @@ export class ProjectFormComponent implements OnInit, OnDestroy {
     if (this.loadedMetricsEn.length > 6 || this.loadedMetricsAr.length > 6) {
       return { presentation: 'The stored project exceeds the limit of 6 metrics per language. Correct it before saving.' };
     }
-    if (this.loadedMetricsEn.length !== this.loadedMetricsAr.length) {
-      return { presentation: 'The stored English and Arabic metric lists must have the same number of entries before saving.' };
-    }
     return (this.loadedGradient?.length ?? 0) > 200
       ? { presentation: 'The stored gradient exceeds 200 characters. Correct it before saving.' } : null;
   }});

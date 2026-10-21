@@ -201,6 +201,10 @@ describe('ContentComponent', () => {
   });
 
   it('creates experience through the same validated bilingual form', async () => {
+    experiences.experience.set([
+      { ...experience, id: 10, order: 1 },
+      { ...experience, id: 11, order: 2 }
+    ]);
     component.selectTab('experience');
     component.startExperienceCreate();
     Object.assign(component.expDraft!, {
@@ -213,7 +217,7 @@ describe('ContentComponent', () => {
     expect(experiences.createExperience).toHaveBeenCalledOnceWith({
       companyEn: 'Company', companyAr: 'شركة', positionEn: 'Engineer', positionAr: 'مهندس',
       descriptionEn: 'Built APIs', descriptionAr: 'تطوير', locationEn: 'Remote', locationAr: 'عن بعد',
-      startDate: '2024-02-29T00:00:00', endDate: null, technologies: ['Angular', '.NET'], current: true, order: 0, isActive: true
+      startDate: '2024-02-29T00:00:00', endDate: null, technologies: ['Angular', '.NET'], current: true, order: 3, isActive: true
     });
   });
 
