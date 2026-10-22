@@ -638,7 +638,10 @@ namespace PortfolioAPI.Infrastructure.Migrations
                     b.HasIndex("NameEn")
                         .IsUnique();
 
-                    b.ToTable("Skills");
+                    b.ToTable("Skills", t =>
+                        {
+                            t.HasCheckConstraint("CK_Skills_Proficiency", "[Proficiency] BETWEEN 0 AND 100");
+                        });
                 });
 
             modelBuilder.Entity("PortfolioAPI.Core.Entities.SkillProject", b =>
@@ -728,7 +731,10 @@ namespace PortfolioAPI.Infrastructure.Migrations
 
                     b.HasIndex("Rating");
 
-                    b.ToTable("Testimonials");
+                    b.ToTable("Testimonials", t =>
+                        {
+                            t.HasCheckConstraint("CK_Testimonials_Rating", "[Rating] BETWEEN 1 AND 5");
+                        });
                 });
 
             modelBuilder.Entity("PortfolioAPI.Core.Entities.ProjectImage", b =>

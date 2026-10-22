@@ -17,6 +17,13 @@ namespace PortfolioAPI.Core.Interfaces
         Task<IEnumerable<T>> GetAllAsync();
         Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate);
 
+        /// <summary>
+        /// Server-side EXISTS — answers "does anything match?" without
+        /// materializing the matching rows (the FindAsync(...).Any() pattern
+        /// the services used to employ, which loaded every matched row).
+        /// </summary>
+        Task<bool> AnyAsync(Expression<Func<T, bool>> predicate);
+
         Task<T> AddAsync(T entity);
         Task UpdateAsync(T entity);
         Task DeleteAsync(T entity);

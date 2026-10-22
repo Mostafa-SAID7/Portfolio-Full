@@ -6,14 +6,12 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Hosting.Abstractions" Version="2.3.13" />
+    <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="9.0.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="9.0.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.0" />
     <PackageReference Include="CloudinaryDotNet" Version="1.29.3" />
@@ -22,6 +20,18 @@
 
   <ItemGroup>
     <ProjectReference Include="..\PortfolioAPI.Core\PortfolioAPI.Core.csproj" />
+  </ItemGroup>
+
+  <!-- HTML email templates ship as embedded resources so the publish output
+       stays a binary - no template files to forget when deploying. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Emailing\Templates\**\*.html" />
+  </ItemGroup>
+
+  <!-- EmailService internals are unit-tested directly (subject sanitization,
+       settings validation) — visible only to the test project. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="PortfolioAPI.UnitTests" />
   </ItemGroup>
 
 </Project>

@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using PortfolioAPI.Core.Entities;
-using PortfolioAPI.Infrastructure.Data;
 
 namespace PortfolioAPI.Infrastructure.Data
 {
@@ -14,11 +14,14 @@ namespace PortfolioAPI.Infrastructure.Data
     /// </summary>
     public static class DbInitializer
     {
-        public static async Task InitializeAsync(PortfolioDbContext context)
+        public static async Task InitializeAsync(PortfolioDbContext context, ILogger? logger = null)
         {
-            // Check if the database has any tables at all (fresh DB vs existing)
+            // Check if the database has any tables at all (fresh DB vs existing).
+            // The COUNT column must be aliased (AS [Value]) — EF Core wraps this
+            // query in a subquery whose first column has to be named, so a bare
+            // COUNT(*) throws "No column name was specified" on every startup.
             var tables = await context.Database
-                .SqlQuery<int>($"SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'")
+                .SqlQuery<int>($"SELECT COUNT(*) AS [Value] FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'")
                 .SingleAsync();
 
             if (tables == 0)
@@ -38,8 +41,10 @@ namespace PortfolioAPI.Infrastructure.Data
             }
             catch (Exception ex)
             {
-                // Log but don't fail - schema compatibility is best effort
-                // The app can still function if the schema is already compatible
+                // Best effort only — but never silent: operators must see WHY a
+                // startup compatibility step skipped (network, permissions...).
+                logger?.LogWarning(ex,
+                    "Database schema compatibility check FAILED — continuing with the existing schema.");
             }
 
             if (!isProduction)
@@ -50,29 +55,19 @@ namespace PortfolioAPI.Infrastructure.Data
                 }
                 catch (Exception ex)
                 {
-                    // Log but don't fail - seeding is best effort
+                    // Best effort only — but never silent.
+                    logger?.LogWarning(ex, "Reference data seeding FAILED — continuing without seeding.");
                 }
             }
         }
 
         private static async Task EnsureSchemaCompatibilityAsync(PortfolioDbContext context)
         {
-            // The Category column on Projects was added by migration.
-            // If the column is missing (extremely old DB), add it.
-            try
-            {
-                if (!await ColumnExistsAsync(context, "Projects", "Category"))
-                {
-                    await context.Database.ExecuteSqlRawAsync(@"
-                        ALTER TABLE dbo.Projects
-                        ADD Category nvarchar(100) NULL;
-                    ");
-                }
-            }
-            catch (Exception)
-            {
-                // Column might already exist or permissions insufficient - continue
-            }
+            // NOTE: there is deliberately no legacy "[Category] column" step
+            // anymore. MakeProjectsBilingual renamed that column and the
+            // DropDeadCategoryColumn migration removed it wherever the broken
+            // schema checks had re-added it — ALTER-adding it here would undo
+            // that drop on every startup.
 
             // The SkillProject join table was added by migration.
             // If it's missing, create it.
@@ -136,18 +131,12 @@ namespace PortfolioAPI.Infrastructure.Data
 
             var order = existing.Count == 0 ? 0 : existing.Max(c => c.Order) + 1;
 
-            foreach (var name in used)
-            {
-                context.Categories.Add(new Category
-                {
-                    NameEn = name,
-                    NameAr = string.Empty,
-                    IsActive = true,
-                    Order = order++
-                });
-            }
-
-            // Update existing categories with their Arabic names
+            // Registers every unmatched project category once, with its Arabic
+            // name when the curated table has one (empty otherwise, the
+            // dashboard can fill it) — idempotent thanks to the `known` set.
+            // One loop ONLY: the previous version added every category here AND
+            // again below, which tripped the unique [NameEn] index and made the
+            // entire save (and therefore seeding) fail silently on every run.
             var arabicNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["Clothing"] = "ملابس",
@@ -162,6 +151,9 @@ namespace PortfolioAPI.Infrastructure.Data
                 ["Other"] = "أخرى"
             };
 
+            // Back-fill Arabic names for existing categories that predate the
+            // bilingual migration (curated table only; dashboard-managed names
+            // are never overwritten).
             foreach (var category in existing)
             {
                 if (arabicNames.TryGetValue(category.NameEn, out var arabicName) && string.IsNullOrEmpty(category.NameAr))
@@ -184,28 +176,17 @@ namespace PortfolioAPI.Infrastructure.Data
             await context.SaveChangesAsync();
         }
 
-        private static async Task<bool> ColumnExistsAsync(PortfolioDbContext context, string table, string column)
-        {
-            try
-            {
-                var count = await context.Database
-                    .SqlQuery<int>($"SELECT COUNT(*) AS Value FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '{table}' AND COLUMN_NAME = '{column}'")
-                    .SingleAsync();
-                return count > 0;
-            }
-            catch (Exception)
-            {
-                // Assume column exists if we can't check
-                return true;
-            }
-        }
-
+        // NOTE: the interpolation holes must stay UNQUOTED ({table}, {column}) -
+        // quoting them ('{table}') would keep the quotes in the generated SQL
+        // around the parameter token, turning the comparison into a comparison
+        // against the literal string '@p0' (always 0 rows, silently disabling
+        // both checks and re-attempting destructive DDL on every startup).
         private static async Task<bool> TableExistsAsync(PortfolioDbContext context, string table)
         {
             try
             {
                 var count = await context.Database
-                    .SqlQuery<int>($"SELECT COUNT(*) AS Value FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = '{table}'")
+                    .SqlQuery<int>($"SELECT COUNT(*) AS Value FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = {table}")
                     .SingleAsync();
                 return count > 0;
             }

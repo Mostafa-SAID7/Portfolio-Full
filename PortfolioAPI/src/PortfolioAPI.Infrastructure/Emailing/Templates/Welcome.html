@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Welcome to My Portfolio</title>
+</head>
+<!--
+    Welcome email for a new visitor / account. Placeholders {{...}} are
+    replaced by EmailTemplateRenderer; user-supplied values are HTML-encoded
+    by EmailService BEFORE substitution, so these slots are safe.
+-->
+<body style="margin:0;padding:0;background-color:#f4f5f7;font-family:'Segoe UI',system-ui,-apple-system,Arial,sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f5f7;padding:24px 12px;">
+        <tr>
+            <td align="center">
+                <table role="presentation" width="620" cellpadding="0" cellspacing="0" style="width:620px;max-width:100%;background-color:#ffffff;border-radius:10px;border:1px solid #e4e6ea;">
+                    <tr>
+                        <td style="padding:20px 28px;border-radius:10px 10px 0 0;background-color:#111827;color:#f9fafb;font-size:17px;font-weight:600;">
+                            Welcome to My Portfolio
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:24px 28px;color:#1f2937;font-size:15px;line-height:1.6;">
+                            <h2 style="margin:0 0 14px;color:#111827;font-size:20px;">Welcome, {{UserName}}!</h2>
+                            <p style="margin:0 0 12px;">
+                                Thank you for visiting my portfolio. I'm excited to share my work and experience with you.
+                            </p>
+                            <p style="margin:0 0 24px;">
+                                Feel free to explore the projects and get in touch if you'd like to discuss potential opportunities.
+                            </p>
+                            <p style="margin:0;color:#6b7280;">
+                                Best regards,<br />
+                                Your Portfolio Owner
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
