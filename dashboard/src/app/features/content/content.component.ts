@@ -7,17 +7,24 @@ import { EMPTY, Observable, catchError, concatMap, finalize } from 'rxjs';
 import { SkillService } from '../../core/services/skill.service';
 import { ExperienceService } from '../../core/services/experience.service';
 import { CategoryService } from '../../core/services/category.service';
+import { CredentialService } from '../../core/services/credential.service';
 import { Skill, SkillPayload } from '../../core/models/skill.model';
 import { Experience, ExperiencePayload } from '../../core/models/experience.model';
 import { Category } from '../../core/models/category.model';
+import { Credential, CredentialPayload } from '../../core/models/credential.model';
 import { ConfirmDialogOptions, ConfirmDialogService } from '../../shared/confirm-dialog.component';
 import { ToastService } from '../../shared/toast.component';
 import { PaginatorComponent } from '../../shared/paginator.component';
 import { EmptyStateComponent } from '../../shared/empty-state.component';
 import { ErrorStateComponent } from '../../shared/error-state.component';
 import { ExperienceDraft, ExperienceFormComponent } from './experience-form.component';
+import {
+  CredentialDraft,
+  CredentialFormComponent,
+  emptyCredentialDraft
+} from './credential-form.component';
 
-type ContentTab = 'skills' | 'experience' | 'categories';
+type ContentTab = 'skills' | 'experience' | 'credentials' | 'categories';
 interface SkillDraft {
   nameEn: string;
   nameAr: string;
@@ -33,13 +40,14 @@ interface SkillDraft {
 @Component({
   selector: 'app-content',
   standalone: true,
-  imports: [CommonModule, FormsModule, PaginatorComponent, EmptyStateComponent, ErrorStateComponent, ExperienceFormComponent],
+  imports: [CommonModule, FormsModule, PaginatorComponent, EmptyStateComponent, ErrorStateComponent, ExperienceFormComponent, CredentialFormComponent],
   templateUrl: './content.component.html'
 })
 export class ContentComponent implements OnInit {
   readonly skillService = inject(SkillService);
   readonly experienceService = inject(ExperienceService);
   readonly categoryService = inject(CategoryService);
+  readonly credentialService = inject(CredentialService);
   private readonly dialog = inject(ConfirmDialogService);
   private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
@@ -49,13 +57,16 @@ export class ContentComponent implements OnInit {
   readonly tabs: { value: ContentTab; label: string }[] = [
     { value: 'skills', label: 'Skills' },
     { value: 'experience', label: 'Experience' },
+    { value: 'credentials', label: 'Credentials' },
     { value: 'categories', label: 'Categories' }
   ];
   readonly skillsBusy = signal(false);
   readonly categoriesBusy = signal(false);
   readonly experienceBusy = signal(false);
+  readonly credentialsBusy = signal(false);
   readonly skillGroupsPageSize = 4;
   readonly experiencePageSize = 6;
+  readonly credentialsPageSize = 6;
 
   readonly skillsByCategory = computed(() => {
     const groups = new Map<string, Skill[]>();
@@ -86,6 +97,21 @@ export class ContentComponent implements OnInit {
     return this.experienceService.experience().slice(start, start + this.experiencePageSize);
   });
 
+  /** Credentials are the rows behind the portfolio's Experience/Platforms/Education/Certifications tabs. */
+  readonly credentialsPage = linkedSignal<number, number>({
+    source: () => this.credentialService.credentials().length,
+    computation: (total, previous) => this.clampPage(previous?.value ?? 1, total, this.credentialsPageSize)
+  });
+  readonly pagedCredentials = computed(() => {
+    const start = (this.credentialsPage() - 1) * this.credentialsPageSize;
+    return this.credentialService.credentials().slice(start, start + this.credentialsPageSize);
+  });
+
+  credentialFormVisible = false;
+  editingCredentialId: number | null = null;
+  credDraft: CredentialDraft | null = null;
+  credentialError: string | null = null;
+
   newSkillName = '';
   newSkillNameAr = '';
   newSkillCategory = '';
@@ -115,24 +141,30 @@ export class ContentComponent implements OnInit {
     this.tab.set(value);
     this.skillsPage.set(1);
     this.experiencePage.set(1);
+    this.credentialsPage.set(1);
   }
 
   loadAll(): void {
     this.reload('skills');
     this.reload('experience');
+    this.reload('credentials');
     this.reload('categories');
   }
 
   reload(source: ContentTab): void {
     if (this.loading(source) || this.busy(source)()) return;
     const request: Observable<unknown> = source === 'skills' ? this.skillService.loadSkills()
-      : source === 'experience' ? this.experienceService.loadExperience() : this.categoryService.loadCategories();
+      : source === 'experience' ? this.experienceService.loadExperience()
+        : source === 'credentials' ? this.credentialService.loadCredentials()
+          : this.categoryService.loadCategories();
     request.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({ error: () => undefined });
   }
 
   unavailable(source: ContentTab): boolean {
     const error = source === 'skills' ? this.skillService.error()
-      : source === 'experience' ? this.experienceService.error() : this.categoryService.error();
+      : source === 'experience' ? this.experienceService.error()
+        : source === 'credentials' ? this.credentialService.error()
+          : this.categoryService.error();
     return this.busy(source)() || this.loading(source) || !!error;
   }
 
@@ -324,6 +356,98 @@ export class ContentComponent implements OnInit {
     }, () => this.experienceService.deleteExperience(id), 'Failed to delete the experience.');
   }
 
+  // --- Credentials -----------------------------------------------------------
+
+  startCredentialCreate(): void {
+    if (this.unavailable('credentials')) return;
+    this.credentialFormVisible = true;
+    this.editingCredentialId = null;
+    this.credentialError = null;
+    this.credDraft = emptyCredentialDraft(
+      Math.max(0, ...this.credentialService.credentials().map(item => item.order)) + 1
+    );
+  }
+
+  startCredentialEdit(item: Credential): void {
+    if (this.unavailable('credentials')) return;
+    this.credentialFormVisible = true;
+    this.editingCredentialId = item.id;
+    this.credentialError = null;
+    this.credDraft = {
+      tab: (item.tab as CredentialDraft['tab']) ?? 'work',
+      year: item.year ?? '',
+      periodEn: item.periodEn ?? '',
+      periodAr: item.periodAr ?? '',
+      titleEn: item.titleEn ?? '',
+      titleAr: item.titleAr ?? '',
+      orgEn: item.orgEn ?? '',
+      orgAr: item.orgAr ?? '',
+      locationEn: item.locationEn ?? '',
+      locationAr: item.locationAr ?? '',
+      summaryEn: item.summaryEn ?? '',
+      summaryAr: item.summaryAr ?? '',
+      highlightsEn: (item.highlightsEn ?? []).join('\n'),
+      highlightsAr: (item.highlightsAr ?? []).join('\n'),
+      stack: (item.stack ?? []).join(', '),
+      credentialId: item.credentialId ?? '',
+      statusEn: item.statusEn ?? '',
+      statusAr: item.statusAr ?? '',
+      featured: item.featured,
+      order: item.order,
+      isActive: item.isActive
+    };
+  }
+
+  cancelCredentialForm(): void {
+    if (this.credentialsBusy()) return;
+    this.clearCredentialEditor();
+  }
+
+  saveCredential(payload: CredentialPayload): void {
+    if (this.unavailable('credentials')) return;
+    const request = this.editingCredentialId !== null
+      ? this.credentialService.updateCredential(this.editingCredentialId, payload)
+      : this.credentialService.createCredential(payload);
+    this.mutate('credentials', request, () => this.clearCredentialEditor(), 'Failed to save the credential.');
+  }
+
+  toggleCredential(item: Credential): void {
+    if (this.unavailable('credentials')) return;
+    // Full-replacement PUT: every field is sent, the API replaces the row.
+    const payload: CredentialPayload = {
+      tab: item.tab,
+      year: item.year,
+      periodEn: item.periodEn,
+      periodAr: item.periodAr,
+      titleEn: item.titleEn,
+      titleAr: item.titleAr,
+      orgEn: item.orgEn,
+      orgAr: item.orgAr,
+      locationEn: item.locationEn,
+      locationAr: item.locationAr,
+      summaryEn: item.summaryEn,
+      summaryAr: item.summaryAr,
+      highlightsEn: item.highlightsEn ?? [],
+      highlightsAr: item.highlightsAr ?? [],
+      stack: item.stack ?? [],
+      credentialId: item.credentialId,
+      statusEn: item.statusEn,
+      statusAr: item.statusAr,
+      featured: item.featured,
+      order: item.order,
+      isActive: !item.isActive
+    };
+    this.mutate('credentials', this.credentialService.updateCredential(item.id, payload), () => undefined, 'Failed to update the credential.');
+  }
+
+  deleteCredential(item: Credential): Promise<void> {
+    return this.confirmRemoval('credentials', {
+      title: 'Delete credential?',
+      message: `“${item.titleEn}” will be removed from the portfolio.`,
+      confirmLabel: 'Delete credential'
+    }, () => this.credentialService.deleteCredential(item.id), 'Failed to delete the credential.');
+  }
+
   private mutate(source: ContentTab, request: Observable<unknown>, success: () => void, fallback: string): void {
     this.busy(source).set(true);
     this.setFormError(source, null);
@@ -375,15 +499,22 @@ export class ContentComponent implements OnInit {
   private setFormError(source: ContentTab, message: string | null): void {
     if (source === 'skills') this.skillFormError = message;
     else if (source === 'categories') this.categoryFormError = message;
+    else if (source === 'credentials') this.credentialError = message;
     else this.experienceError = message;
   }
 
   private busy(source: ContentTab) {
-    return source === 'skills' ? this.skillsBusy : source === 'categories' ? this.categoriesBusy : this.experienceBusy;
+    return source === 'skills' ? this.skillsBusy
+      : source === 'categories' ? this.categoriesBusy
+        : source === 'credentials' ? this.credentialsBusy
+          : this.experienceBusy;
   }
 
   private loading(source: ContentTab): boolean {
-    return source === 'skills' ? this.skillService.loading() : source === 'categories' ? this.categoryService.loading() : this.experienceService.loading();
+    return source === 'skills' ? this.skillService.loading()
+      : source === 'experience' ? this.experienceService.loading()
+        : source === 'credentials' ? this.credentialService.loading()
+          : this.categoryService.loading();
   }
 
   private categoryNamesError(nameEn: string, nameAr: string): string | null {
@@ -416,5 +547,12 @@ export class ContentComponent implements OnInit {
     this.editingExperienceId = null;
     this.expDraft = null;
     this.experienceError = null;
+  }
+
+  private clearCredentialEditor(): void {
+    this.credentialFormVisible = false;
+    this.editingCredentialId = null;
+    this.credDraft = null;
+    this.credentialError = null;
   }
 }

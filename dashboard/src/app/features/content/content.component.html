@@ -245,5 +245,61 @@
         <app-paginator [totalItems]="experienceService.experience().length" [pageSize]="experiencePageSize" [page]="experiencePage()" (pageChange)="experiencePage.set($event)" />
       }
     }
+  } @else if (tab() === 'credentials') {
+    @if (credentialError && !credentialFormVisible) {
+      <p role="alert" class="rounded-xl border border-danger/30 bg-danger/10 p-3 text-sm text-danger">{{ credentialError }}</p>
+    }
+    @if (credentialService.loading()) {
+      <div class="card flex min-h-[200px] items-center justify-center"><div class="spinner" role="status" aria-label="Loading credentials"></div></div>
+    } @else if (credentialService.error()) {
+      <app-error-state title="Failed to load credentials" [error]="credentialService.error()" (retry)="reload('credentials')" />
+    } @else {
+      <div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+        <p class="text-sm text-soft">
+          {{ credentialService.credentials().length }} credentials — these are the Experience, Platforms, Education and Certifications tabs of the public portfolio.
+        </p>
+        @if (!credentialFormVisible) {
+          <button type="button" class="btn-primary" [disabled]="credentialsBusy()" (click)="startCredentialCreate()">New credential</button>
+        }
+      </div>
+      @if (credentialFormVisible && credDraft) {
+        <app-credential-form [draft]="credDraft" [editing]="editingCredentialId !== null" [busy]="credentialsBusy()" [error]="credentialError" (save)="saveCredential($event)" (cancel)="cancelCredentialForm()" />
+      }
+      @if (credentialService.credentials().length === 0) {
+        @if (!credentialFormVisible) {
+          <app-empty-state icon="box" title="No credentials yet" description="Add your first credential using New credential." />
+        }
+      } @else {
+        <div class="space-y-3" [attr.aria-busy]="credentialsBusy()">
+          @for (item of pagedCredentials(); track item.id) {
+            <article class="card-raised flex flex-col gap-3 p-5 sm:flex-row sm:items-start">
+              <div class="min-w-0 flex-1">
+                <div class="flex flex-wrap items-center gap-2">
+                  <h3 class="text-sm font-bold text-ink">{{ item.titleEn }}</h3>
+                  <span class="badge-muted">{{ item.tab }}</span>
+                  <span class="badge-muted">{{ item.year }}</span>
+                  @if (item.featured) { <span class="badge-success">Featured</span> }
+                  @if (!item.isActive) { <span class="badge-muted">Hidden</span> }
+                </div>
+                <p class="mt-0.5 text-sm text-accent-text">{{ item.orgEn }}@if (item.locationEn) { — {{ item.locationEn }} }</p>
+                <p class="text-sm text-soft" lang="ar" dir="rtl">{{ item.titleAr }} · {{ item.orgAr }}@if (item.locationAr) { — {{ item.locationAr }} }</p>
+                <p class="mt-1 text-xs text-muted">{{ item.periodEn }}@if (item.statusEn) { · {{ item.statusEn }} }@if (item.credentialId) { · {{ item.credentialId }} }</p>
+                <p class="mt-2 line-clamp-2 text-sm leading-6 text-soft">{{ item.summaryEn }}</p>
+                <p class="mt-1 line-clamp-2 text-sm leading-6 text-soft" lang="ar" dir="rtl">{{ item.summaryAr }}</p>
+                @if (item.stack.length) {
+                  <div class="mt-2 flex flex-wrap gap-1.5">@for (tech of item.stack.slice(0, 6); track $index) { <span class="badge-muted">{{ tech }}</span> }</div>
+                }
+              </div>
+              <div class="flex shrink-0 gap-2">
+                <button type="button" class="btn-ghost" [disabled]="credentialsBusy()" (click)="startCredentialEdit(item)">Edit</button>
+                <button type="button" class="btn-ghost" [disabled]="credentialsBusy()" (click)="toggleCredential(item)">{{ item.isActive ? 'Hide' : 'Show' }}</button>
+                <button type="button" class="btn-danger" [disabled]="credentialsBusy()" (click)="deleteCredential(item)">Delete</button>
+              </div>
+            </article>
+          }
+        </div>
+        <app-paginator [totalItems]="credentialService.credentials().length" [pageSize]="credentialsPageSize" [page]="credentialsPage()" (pageChange)="credentialsPage.set($event)" />
+      }
+    }
   }
 </div>
