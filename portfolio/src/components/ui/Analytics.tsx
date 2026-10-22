@@ -53,6 +53,9 @@ export function Analytics() {
         initAnalytics();
         if (gtmConfigured()) initGtm();
         setConsent("granted");
+        // The page-view effect is keyed on the pathname, so it does not fire
+        // on a plain consent change — send the first view explicitly.
+        trackPageView(location.pathname, document.title);
         trackEvent(ANALYTICS_EVENTS.ctaClick, { cta: "analytics_consent_granted" });
       }}
       onDeny={() => {
