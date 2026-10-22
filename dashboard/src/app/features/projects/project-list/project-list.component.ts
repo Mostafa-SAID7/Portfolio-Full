@@ -4,7 +4,7 @@ import { finalize } from 'rxjs';
 import { ToastService } from '../../../shared/toast.component';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ProjectListStateService } from '../../../core/services/project-list-state.service';
 import { ProjectService } from '../../../core/services/project.service';
 import { Project } from '../../../core/models/project.model';
@@ -34,6 +34,7 @@ export class ProjectListComponent implements OnInit {
   private readonly dialog = inject(ConfirmDialogService);
   private readonly listState = inject(ProjectListStateService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
   readonly deleting = signal<Set<number>>(new Set());
@@ -57,9 +58,31 @@ export class ProjectListComponent implements OnInit {
   }
   setQuery(query: string): void {
     this.listState.setQuery(query);
+    this.persistInUrl();
   }
   setPage(page: number): void {
     this.listState.setPage(page);
+    this.persistInUrl();
+  }
+
+  /**
+   * The list's search/page state lives in the URL: `/projects?q=…&page=…`.
+   * Reload, a shared or bookmarked link and the Back button all return to the
+   * exact position (page 2 stays page 2); in-app navigation keeps the same
+   * behaviour via ProjectListStateService, which seeds itself from the URL.
+   */
+  private persistInUrl(): void {
+    const query = this.listState.query().trim();
+    const page = this.listState.page();
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: {
+        q: query || null,          // null/omitted removes the param
+        page: page > 1 ? page : null,
+      },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
   }
 
   readonly projectCount = computed(() => this.service.projects().length);
@@ -127,6 +150,17 @@ export class ProjectListComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    // Restore the position from the URL first (?q=…&page=…), then load:
+    // a reload on page 2 of search results reopens that exact view.
+    const params = this.route.snapshot.queryParamMap;
+    const savedPage = Number(params.get('page'));
+    const savedQuery = params.get('q');
+    if (Number.isFinite(savedPage) && savedPage > 0 || savedQuery !== null) {
+      this.listState.restore(
+        Number.isFinite(savedPage) && savedPage > 0 ? Math.floor(savedPage) : 1,
+        savedQuery ?? ''
+      );
+    }
     this.load();
   }
 

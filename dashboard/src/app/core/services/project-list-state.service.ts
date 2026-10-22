@@ -27,6 +27,17 @@ export class ProjectListStateService {
     this.pageSignal.set(1);
   }
 
+  /**
+   * Seeds both values without the setters' side effects — used when the
+   * component restores state from the URL (?q=…&page=… after a reload or a
+   * shared/bookmarked link). The page is clamped by the component's
+   * `currentPage` computed, so an out-of-range page degrades to the last one.
+   */
+  restore(page: number, query: string): void {
+    this.pageSignal.set(Math.max(1, page));
+    this.querySignal.set(query);
+  }
+
   /** Called when the list is (re)loaded from the API. */
   reset(): void {
     this.pageSignal.set(1);

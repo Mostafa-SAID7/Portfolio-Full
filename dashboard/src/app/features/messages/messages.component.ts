@@ -9,6 +9,7 @@ import { PaginatorComponent } from '../../shared/paginator.component';
 import { EmptyStateComponent } from '../../shared/empty-state.component';
 import { ErrorStateComponent } from '../../shared/error-state.component';
 import { ToastService } from '../../shared/toast.component';
+import { ActivatedRoute, Router } from '@angular/router';
 
 const PAGE_SIZE = 8;
 
@@ -22,6 +23,8 @@ export class MessagesComponent implements OnInit {
   readonly service = inject(ContactService);
   private readonly dialog = inject(ConfirmDialogService);
   private readonly toast = inject(ToastService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
 
   readonly pageSize = PAGE_SIZE;
@@ -45,7 +48,31 @@ export class MessagesComponent implements OnInit {
   });
 
   ngOnInit(): void {
+    // Restore the view from the URL (?filter=unread&page=2) so a reload or a
+    // shared link reopens the same inbox position.
+    const params = this.route.snapshot.queryParamMap;
+    const savedPage = Number(params.get('page'));
+    if (params.get('filter') === 'unread') this.filter.set('unread');
+    if (Number.isFinite(savedPage) && savedPage > 1) this.page.set(Math.floor(savedPage));
     this.load();
+  }
+
+  /** Mirror filter/page into the URL (replace: no history flood). */
+  private persistInUrl(): void {
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: {
+        filter: this.filter() !== 'all' ? this.filter() : null,
+        page: this.page() > 1 ? this.page() : null,
+      },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
+  }
+
+  onPageChange(page: number): void {
+    this.page.set(page);
+    this.persistInUrl();
   }
 
   load(): void {
@@ -55,6 +82,7 @@ export class MessagesComponent implements OnInit {
   selectFilter(value: 'all' | 'unread'): void {
     this.filter.set(value);
     this.page.set(1);
+    this.persistInUrl();
   }
 
   markRead(message: ContactMessage): void {

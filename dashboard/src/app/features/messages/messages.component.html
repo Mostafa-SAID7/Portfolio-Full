@@ -77,7 +77,7 @@
       [totalItems]="visibleMessages().length"
       [pageSize]="pageSize"
       [page]="currentPage()"
-      (pageChange)="page.set($event)"
+      (pageChange)="onPageChange($event)"
     />
   }
 </div>
