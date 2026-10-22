@@ -2,6 +2,7 @@ import { Download, Play, Trophy } from "lucide-react";
 const heroIso = "/images/hero-iso.webp";
 const heroIsoAvif = "/images/hero-iso.avif";
 import { useI18n } from "@/lib/i18n";
+import { ANALYTICS_EVENTS, trackEvent } from "@/lib/analytics";
 
 export function Hero() {
   const { tr, dir } = useI18n();
@@ -51,6 +52,7 @@ export function Hero() {
                 download="Mostafa_Samir_CV.pdf"
                 type="application/pdf"
                 className="group btn-accent"
+                onClick={() => trackEvent(ANALYTICS_EVENTS.cvDownload, { location: "hero" })}
               >
                 <span className="grid size-7 place-items-center rounded-xl bg-primary-foreground/15 text-primary-foreground transition-transform duration-300 group-hover:translate-y-0.5">
                   <Download className="size-3.5" />

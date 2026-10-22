@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using PortfolioAPI.Application.Exceptions;
+using PortfolioAPI.Core.Exceptions;
 using ValidationException = PortfolioAPI.Application.Exceptions.ValidationException;
 
 namespace PortfolioAPI.Pipelines
@@ -40,6 +41,24 @@ namespace PortfolioAPI.Pipelines
                         status = StatusCodes.Status400BadRequest;
                         message = validation.Message;
                         errors = validation.Errors;
+                        break;
+                    // Outbound mail is an upstream dependency: an unconfigured or
+                    // failing SMTP must read as "could not be sent", never as a
+                    // generic 500 and never as a saved reply.
+                    case EmailDeliveryException delivery:
+                        status = StatusCodes.Status503ServiceUnavailable;
+                        message = delivery.Message;
+                        break;
+                    // GA4 is an optional, external dependency: a missing setup is
+                    // "not implemented" (the dashboard shows the setup hint) and a
+                    // failing report is "unavailable" (it shows the last refresh).
+                    case AnalyticsNotConfiguredException analyticsNotConfigured:
+                        status = StatusCodes.Status501NotImplemented;
+                        message = analyticsNotConfigured.Message;
+                        break;
+                    case AnalyticsUnavailableException analyticsUnavailable:
+                        status = StatusCodes.Status503ServiceUnavailable;
+                        message = analyticsUnavailable.Message;
                         break;
                     // Unique indexes (Skills.Name) reject duplicates at the
                     // database level — surface them as a clear 409 instead of a generic 500.

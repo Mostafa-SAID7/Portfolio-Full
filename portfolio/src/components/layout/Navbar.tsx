@@ -6,6 +6,7 @@ import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { prefetchRouteLottie } from "@/lib/lottie-routes";
 import { NAV_LINKS, SOCIAL_LINKS } from "@/lib/site";
+import { ANALYTICS_EVENTS, trackEvent } from "@/lib/analytics";
 import { BrandLogo } from "@/components/ui/BrandLogo";
 
 export function Navbar() {
@@ -134,6 +135,7 @@ export function Navbar() {
               rel="noopener noreferrer"
               className="grid size-8 place-items-center rounded-2xl bg-foreground/10 border border-border text-foreground transition-all hover:bg-foreground/20 hover:scale-105"
               aria-label="GitHub Profile"
+              onClick={() => trackEvent(ANALYTICS_EVENTS.githubClick, { location: "navbar" })}
             >
               <Github className="size-3.5" />
             </a>
@@ -143,6 +145,7 @@ export function Navbar() {
               rel="noopener noreferrer"
               className="grid size-8 place-items-center rounded-2xl bg-foreground/10 border border-border text-foreground transition-all hover:bg-foreground/20 hover:scale-105"
               aria-label="LinkedIn Profile"
+              onClick={() => trackEvent(ANALYTICS_EVENTS.linkedinClick, { location: "navbar" })}
             >
               <Linkedin className="size-3.5" />
             </a>

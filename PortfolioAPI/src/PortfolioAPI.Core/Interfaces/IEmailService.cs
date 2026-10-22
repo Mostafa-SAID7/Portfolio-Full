@@ -9,6 +9,13 @@ namespace PortfolioAPI.Core.Interfaces
     {
         Task SendEmailAsync(string to, string subject, string body, bool isHtml = false);
         Task SendContactFormEmailAsync(string fromName, string fromEmail, string subject, string message);
+
+        /// <summary>
+        /// Replies to a visitor's contact message. Plain text, Reply-To pinned
+        /// to the owner's address so the visitor's answer returns to the inbox.
+        /// </summary>
+        Task SendContactReplyAsync(string toEmail, string subject, string body);
+
         Task SendWelcomeEmailAsync(string toEmail, string userName);
         Task SendNotificationEmailAsync(string toEmail, string title, string content);
     }

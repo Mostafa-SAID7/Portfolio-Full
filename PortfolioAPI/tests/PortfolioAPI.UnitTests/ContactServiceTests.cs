@@ -6,6 +6,7 @@ using PortfolioAPI.Core.Entities;
 using PortfolioAPI.Core.Interfaces;
 using PortfolioAPI.Application.Services;
 using Xunit;
+using System.Linq.Expressions;
 using FluentValidation;
 using ValidationException = PortfolioAPI.Application.Exceptions.ValidationException;
 
@@ -15,6 +16,7 @@ namespace PortfolioAPI.UnitTests
     {
         private readonly Mock<IUnitOfWork> _unitOfWorkMock;
         private readonly Mock<IValidator<Contact>> _validatorMock;
+        private readonly Mock<IValidator<ContactReply>> _replyValidatorMock;
         private readonly Mock<IEmailService> _emailServiceMock;
         private readonly ContactService _contactService;
 
@@ -22,10 +24,22 @@ namespace PortfolioAPI.UnitTests
         {
             _unitOfWorkMock = new Mock<IUnitOfWork>();
             _validatorMock = new Mock<IValidator<Contact>>();
+            _replyValidatorMock = new Mock<IValidator<ContactReply>>();
             _emailServiceMock = new Mock<IEmailService>();
+            // Replies are well-formed unless a test replaces this; keeps the
+            // send/persist tests focused on ordering, not on validation.
+            _replyValidatorMock
+                .Setup(v => v.ValidateAsync(It.IsAny<ContactReply>(), default))
+                .ReturnsAsync(new FluentValidation.Results.ValidationResult());
+            // Staging a reply returns the instance it was handed (an unsupplied
+            // Moq Task<ContactReply> resolves to null and the await throws).
+            _unitOfWorkMock
+                .Setup(u => u.ContactReplies.AddAsync(It.IsAny<ContactReply>()))
+                .ReturnsAsync((ContactReply reply) => reply);
             _contactService = new ContactService(
                 _unitOfWorkMock.Object,
                 _validatorMock.Object,
+                _replyValidatorMock.Object,
                 _emailServiceMock.Object,
                 new Mock<ILogger<ContactService>>().Object);
         }
@@ -270,6 +284,134 @@ namespace PortfolioAPI.UnitTests
             _emailServiceMock.Verify(
                 e => e.SendContactFormEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()),
                 Times.Never);
+        }
+
+        private static Contact RepliedContact(string subject = "Project quote") => new()
+        {
+            Id = 1,
+            Name = "Jane",
+            Email = "jane@example.com",
+            Subject = subject,
+            Message = "Can you build a dashboard?",
+            IsRead = false
+        };
+
+        [Fact]
+        public async Task ReplyToContactAsync_ShouldDeliverBeforeStoring_AndMarkTheMessageRead()
+        {
+            var contact = RepliedContact();
+            var calls = new List<string>();
+            _unitOfWorkMock.Setup(u => u.Contacts.GetByIdAsync(1)).ReturnsAsync(contact);
+            _unitOfWorkMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
+            _emailServiceMock
+                .Setup(e => e.SendContactReplyAsync("jane@example.com", "Re: Project quote", "Happy to help."))
+                .Callback(() => calls.Add("sent"))
+                .Returns(Task.CompletedTask);
+            _unitOfWorkMock.Setup(u => u.ContactReplies.AddAsync(It.IsAny<ContactReply>()))
+                .Callback(() => calls.Add("stored"))
+                .ReturnsAsync(new ContactReply());
+
+            var reply = await _contactService.ReplyToContactAsync(1, "  Happy to help.  ");
+
+            reply.ContactId.Should().Be(1);
+            reply.RecipientEmail.Should().Be("jane@example.com");
+            reply.Subject.Should().Be("Re: Project quote");
+            reply.Body.Should().Be("Happy to help.");
+            reply.SentAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(30));
+            contact.IsRead.Should().BeTrue();
+            contact.ReadAt.Should().NotBeNull();
+
+            // The whole point of send-first: the inbox history can never show a
+            // reply that was not actually delivered.
+            calls.Should().ContainInOrder("sent", "stored");
+            _unitOfWorkMock.Verify(u => u.Contacts.UpdateAsync(contact), Times.Once);
+            _unitOfWorkMock.Verify(u => u.SaveChangesAsync(), Times.Once);
+        }
+
+        [Fact]
+        public async Task ReplyToContactAsync_ShouldNotDoublePrefix_AnAlreadyThreadedSubject()
+        {
+            var contact = RepliedContact("Re: Update on the quote");
+            _unitOfWorkMock.Setup(u => u.Contacts.GetByIdAsync(1)).ReturnsAsync(contact);
+            _unitOfWorkMock.Setup(u => u.SaveChangesAsync()).ReturnsAsync(1);
+
+            var reply = await _contactService.ReplyToContactAsync(1, "Sounds good.");
+
+            reply.Subject.Should().Be("Re: Update on the quote");
+        }
+
+        [Fact]
+        public async Task ReplyToContactAsync_ShouldThrowEmailDeliveryException_AndStoreNothing_WhenSendingFails()
+        {
+            var contact = RepliedContact();
+            _unitOfWorkMock.Setup(u => u.Contacts.GetByIdAsync(1)).ReturnsAsync(contact);
+            _emailServiceMock
+                .Setup(e => e.SendContactReplyAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+                .ThrowsAsync(new InvalidOperationException("SMTP host rejected the connection"));
+
+            Func<Task> act = async () => await _contactService.ReplyToContactAsync(1, "Happy to help.");
+
+            await act.Should().ThrowAsync<EmailDeliveryException>();
+            contact.IsRead.Should().BeFalse();
+            _unitOfWorkMock.Verify(u => u.ContactReplies.AddAsync(It.IsAny<ContactReply>()), Times.Never);
+            _unitOfWorkMock.Verify(u => u.SaveChangesAsync(), Times.Never);
+        }
+
+        [Fact]
+        public async Task ReplyToContactAsync_ShouldThrowValidationException_WhenBodyIsEmpty()
+        {
+            var contact = RepliedContact();
+            _unitOfWorkMock.Setup(u => u.Contacts.GetByIdAsync(1)).ReturnsAsync(contact);
+            _replyValidatorMock
+                .Setup(v => v.ValidateAsync(It.IsAny<ContactReply>(), default))
+                .ReturnsAsync(new FluentValidation.Results.ValidationResult(
+                    new List<FluentValidation.Results.ValidationFailure>
+                    {
+                        new FluentValidation.Results.ValidationFailure("Body", "Write a reply before sending it.")
+                    }));
+
+            Func<Task> act = async () => await _contactService.ReplyToContactAsync(1, "   ");
+
+            await act.Should().ThrowAsync<ValidationException>();
+            _emailServiceMock.Verify(
+                e => e.SendContactReplyAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+            _unitOfWorkMock.Verify(u => u.ContactReplies.AddAsync(It.IsAny<ContactReply>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task ReplyToContactAsync_ShouldThrowNotFoundException_WhenContactIsMissing()
+        {
+            _unitOfWorkMock.Setup(u => u.Contacts.GetByIdAsync(99)).ReturnsAsync((Contact?)null);
+
+            Func<Task> act = async () => await _contactService.ReplyToContactAsync(99, "Hello");
+
+            await act.Should().ThrowAsync<NotFoundException>();
+            _emailServiceMock.Verify(
+                e => e.SendContactReplyAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task GetRepliesAsync_ShouldReturnOnlyThatThreadsReplies_NewestFirst()
+        {
+            var older = new ContactReply { Id = 1, ContactId = 1, SentAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) };
+            var newer = new ContactReply { Id = 2, ContactId = 1, SentAt = new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc) };
+            _unitOfWorkMock.Setup(u => u.Contacts.GetByIdAsync(1)).ReturnsAsync(RepliedContact());
+            _unitOfWorkMock.Setup(u => u.ContactReplies.FindAsync(It.IsAny<Expression<Func<ContactReply, bool>>>()))
+                .ReturnsAsync(new List<ContactReply> { older, newer });
+
+            var result = await _contactService.GetRepliesAsync(1);
+
+            result.Should().Equal(newer, older);
+        }
+
+        [Fact]
+        public async Task GetRepliesAsync_ShouldThrowNotFoundException_WhenContactIsMissing()
+        {
+            _unitOfWorkMock.Setup(u => u.Contacts.GetByIdAsync(99)).ReturnsAsync((Contact?)null);
+
+            Func<Task> act = async () => await _contactService.GetRepliesAsync(99);
+
+            await act.Should().ThrowAsync<NotFoundException>();
         }
     }
 }

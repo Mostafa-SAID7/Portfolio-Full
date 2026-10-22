@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { Observable, tap } from 'rxjs';
 import { AdminSession, AdminUser } from '../models/user.model';
 import { API_URL } from '../api.config';
+import { BrowserStorage, STORAGE_KEYS } from './storage.service';
 
 interface LoginResponse {
   token: string;
@@ -24,7 +25,7 @@ interface LoginResponse {
 export class AuthService {
   private readonly router = inject(Router);
   private readonly http = inject(HttpClient);
-  private readonly storageKey = 'portfolio_admin_session';
+  private readonly storage = inject(BrowserStorage);
 
   private readonly sessionSignal = signal<AdminSession | null>(this.restoreSession());
 
@@ -51,7 +52,7 @@ export class AuthService {
           }
         };
         this.sessionSignal.set(session);
-        localStorage.setItem(this.storageKey, JSON.stringify(session));
+        this.storage.set(STORAGE_KEYS.session, JSON.stringify(session));
         this.router.navigate(['/dashboard']);
       })
     );
@@ -59,7 +60,7 @@ export class AuthService {
 
   logout(): void {
     this.sessionSignal.set(null);
-    localStorage.removeItem(this.storageKey);
+    this.storage.remove(STORAGE_KEYS.session);
     this.router.navigate(['/auth/login']);
   }
 
@@ -90,21 +91,22 @@ export class AuthService {
   }
 
   private restoreSession(): AdminSession | null {
+    const raw = this.storage.get(STORAGE_KEYS.session);
+    if (!raw) return null;
     try {
-      const raw = localStorage.getItem(this.storageKey);
-      if (!raw) return null;
-
       const session = JSON.parse(raw) as AdminSession;
       if (!session?.token || !session.user) return null;
 
       // Expired tokens are worthless — drop them instead of firing doomed requests.
       if (session.expiresAt && Date.parse(session.expiresAt) <= Date.now()) {
-        localStorage.removeItem(this.storageKey);
+        this.storage.remove(STORAGE_KEYS.session);
         return null;
       }
 
       return session;
     } catch {
+      // Corrupted entry (partial write, old build) — treat as signed out.
+      this.storage.remove(STORAGE_KEYS.session);
       return null;
     }
   }

@@ -2,14 +2,17 @@ import { ReactNode } from "react";
 import { FolderSearch, RotateCcw } from "lucide-react";
 
 export interface EmptyStateProps {
-  title?: string;
-  message?: string;
-  icon?: ReactNode;
-  actionLabel?: string;
-  onAction?: () => void;
-  secondaryActionLabel?: string;
-  onSecondaryAction?: () => void;
-  className?: string;
+  // `| undefined` is explicit on purpose: the project compiles with
+  // `exactOptionalPropertyTypes`, so callers that pass a conditional
+  // (`cond ? value : undefined`) must be allowed to do so.
+  title?: string | undefined;
+  message?: string | undefined;
+  icon?: ReactNode | undefined;
+  actionLabel?: string | undefined;
+  onAction?: (() => void) | undefined;
+  secondaryActionLabel?: string | undefined;
+  onSecondaryAction?: (() => void) | undefined;
+  className?: string | undefined;
 }
 
 export function EmptyState({

@@ -24,7 +24,7 @@ export function CredentialFeaturedCard({
   detailsLabel,
   index,
 }: CredentialFeaturedCardProps) {
-  const Icon = iconForCredential(item.id);
+  const Icon = iconForCredential(item.tab);
 
   return (
     <motion.div

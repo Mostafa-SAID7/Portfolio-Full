@@ -20,6 +20,7 @@ namespace PortfolioAPI.Infrastructure.Repositories
         private IRepository<Skill>? _skills;
         private IRepository<Experience>? _experiences;
         private IRepository<Contact>? _contacts;
+        private IRepository<ContactReply>? _contactReplies;
         private IRepository<Testimonial>? _testimonials;
         private IRepository<Credential>? _credentials;
         private IRepository<Category>? _categories;
@@ -36,6 +37,7 @@ namespace PortfolioAPI.Infrastructure.Repositories
         public IRepository<Skill> Skills => _skills ??= new Repository<Skill>(_context);
         public IRepository<Experience> Experiences => _experiences ??= new Repository<Experience>(_context);
         public IRepository<Contact> Contacts => _contacts ??= new Repository<Contact>(_context);
+        public IRepository<ContactReply> ContactReplies => _contactReplies ??= new Repository<ContactReply>(_context);
         public IRepository<Testimonial> Testimonials => _testimonials ??= new Repository<Testimonial>(_context);
         public IRepository<Credential> Credentials => _credentials ??= new Repository<Credential>(_context);
         public IRepository<Category> Categories => _categories ??= new Repository<Category>(_context);

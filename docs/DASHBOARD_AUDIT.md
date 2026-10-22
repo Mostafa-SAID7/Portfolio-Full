@@ -38,7 +38,7 @@ All JSON routes use `/api/v1`; legacy aliases remain supported. Writes send requ
 | Categories | Category → CategoryDto → Category; Create/UpdateCategoryDto → CategoryPayload | GET/POST `/Categories`, PUT/DELETE `/Categories/{id}` | Both names required; order, active flag and server-derived projectCount; in-use deletion rejected; rename propagates English project category |
 | Skills | Skill → SkillDto → Skill; Create/UpdateSkillDto → SkillPayload | GET/POST `/Skills`, PUT/DELETE `/Skills/{id}` | Required bilingual names/categories, proficiency 0–100, nullable bilingual descriptions/icon; update replaces all fields |
 | Experience | Experience → ExperienceDto → Experience; Create/UpdateExperienceDto → ExperiencePayload; date-only UI draft differs | GET/POST `/Experience`, PUT/DELETE `/Experience/{id}` | Required bilingual company/position/description; nullable locations; current means null endDate, past means endDate >= startDate; <=20 technologies |
-| Messages | Contact → ContactDto → ContactMessage | GET `/Contact`, PUT `/Contact/{id}/read`, DELETE `/Contact/{id}` | Authenticated inbox, persisted read flag/readAt, public submission elsewhere; unread derived from stored flags |
+| Messages | Contact → ContactDto → ContactMessage; ContactReply → ContactReplyDto → ContactReply | GET `/Contact`, PUT `/Contact/{id}/read`, POST `/Contact/{id}/reply`, GET `/Contact/{id}/replies`, DELETE `/Contact/{id}` | Authenticated inbox, persisted read flag/readAt, public submission elsewhere; unread derived from stored flags. A reply is sent first and only stored once delivered (503 `EmailDeliveryException` otherwise); replying marks the message read; `?reply={id}` keeps the open thread across reloads |
 | Authentication | Login request → server credentials validation → token, expiry and numeric user ID → AdminSession | POST `/auth/login` | Bearer interceptor and expiry-aware guard; invalid login must not clear another session; no invented refresh flow |
 | Upload | Multipart `file` → backend-owned file → UploadedImage `{url,fileName,size}` | POST `/upload/image`, static `/api/files/...` | Authorized; allowed JPEG/PNG/GIF/WebP/AVIF; 10 MiB; relative URLs through same-origin proxy |
 
@@ -86,3 +86,59 @@ Final results and remaining limitations will be recorded after implementation.
 ### Remaining risks
 
 The backend issues in the earlier audit remain outside this frontend-only PR. Live CRUD, upload persistence, responsive browser behavior, and assistive-technology interaction need verification in an environment with the API, credentials, and Chrome available. No production API contract or authentication behavior was changed.
+
+## Implementation follow-up — 2026-10-22
+
+### Inbox replies
+
+- Added `ContactReply` (Core entity, EF configuration, `ContactReplies` table with a cascading FK to `Contacts`, one forward migration) and `POST /api/v1/Contact/{id}/reply` plus `GET /api/v1/Contact/{id}/replies`. Replies are validated, sent before they are stored, and a mail failure returns a typed `503 EmailDeliveryException` so nothing is recorded that never left the server. A delivered reply marks its message read in the same commit, and Reply-To is pinned to the owner address — never the visitor.
+- The dashboard inbox now has a composer (character budget, disabled-until-valid Send, `role=alert` failure line that keeps the draft), a `mailto:` fallback that always works while SMTP settings are unusable, a visible sent-reply history, and `?reply={id}` so reloading returns to the open thread. Markup only: no component CSS or SCSS was added.
+
+### Public contact form
+
+- Submission is API-first (`POST /api/v1/public/contact`, which persists and feeds the inbox) with Formspree as a redundant notification channel; a Formspree failure degrades the success message instead of faking an error, and only a confirmed API save is reported as sent.
+- Subject is now a fixed bilingual choice list (six enquiry types) instead of free text, with "Something else" revealing a bounded free-text field. The stored `Contact.Subject` is the label the visitor actually saw, so the API contract and the inbox are unchanged.
+- The disabled placeholder is honoured (`defaultValues`), so the required choice cannot be silently pre-filled, and the form declares `method="post" action="#"` so a pre-hydration Enter key can no longer fire a native GET submit that puts the visitor's name, email and message into the URL.
+
+### Scrollbar and dropdown path
+
+- `<body>` and `PageShell` used `overflow-x: hidden`, which forces the same box into scroll-container mode on the other axis. That second scroller is what painted a duplicate scrollbar when a route change changed the document height (jumping to page 2). Both now use `overflow-x: clip`: identical horizontal clipping, no extra scroll container, and `position: sticky` keeps working.
+- `ProjectsToolbar` no longer deletes `data-scroll-locked` or resets inline `overflow`/margin/padding on unmount. Those belong to react-remove-scroll; clearing them mid-lock leaves its counter unable to restore the page, which is how a closed dropdown could strand the page with no scrollbar. The scrollbar-neutralising `.select-scroll-keep` flag is now derived from committed open state in an effect that removes only its own class.
+- The welcome modal's capture-and-restore of `body.style.overflow` is replaced by `portfolio/src/lib/scroll-lock.ts`, a reference-counted class. Capturing the property was the failure: a second overlay that locks while the first holds it captures `hidden` and hands it back after everything has closed.
+- `useProjectsExplorer` no longer resets to page 1 on mount, so `?page=2` survives a reload and the Back button still restores the position.
+
+### Validation on 2026-10-22
+
+- Backend unit suite: 223 passed, 0 failed. Dashboard Karma suite: 134 passed, 0 failed.
+- `npx tsc --noEmit` in `portfolio`: no errors in the files touched here; the six remaining errors are pre-existing (`ProjectsExplorer.tsx`, `error-reporting.ts`, `image.ts`, `vite.config.ts`) and were left alone.
+- Browser verification was done against the running dev server by structural measurement: `<body>` computed `clip/visible`, a single 10px root gutter, no element becoming a secondary scroller while sampling the page-1→page-2 height change, and both close paths (Escape and choosing an option) leaving no lock residue. Payload assertions were made with `window.fetch` stubbed, so no verification message reached the API.
+- Screenshots were unavailable (the in-app browser exposes no visible surface), so this is layout-state evidence, not pixel confirmation of how the scrollbar paints.
+
+### Still unverified
+
+- Testcontainers integration tests did not run: the Docker daemon is unavailable in this environment. The new reply endpoints are covered by unit tests and by HTTP-level integration specs that have not been executed.
+- Real email delivery is untested on both channels. The local form posts with the Formspree id deliberately disabled (`formspree-id-disabled-for-local-verification`, which returns 404), so only the degraded-success path has been exercised; the API's SMTP settings are placeholders and no message has been confirmed to arrive anywhere.
+- One real submission did reach the local dev API during verification, before the stale page was reloaded: an inbox row for "Browser Check" / `browser.check@example.com` exists in the local development database and should be deleted from the dashboard.
+- The portfolio has no test runner, so its form behaviour is covered only by the measurements above.
+
+## Follow-up 2 — first load, splash scrollbar, Arabic fonts (2026-10-22)
+
+### Splash no longer leaks a scrollbar
+
+`:root[data-preloading]` was applied by `AppPreloader`'s effect, i.e. after hydration, so the page was scrollable (and showed its scrollbar) for the whole window the splash was up. The attribute is now set by the pre-paint bootstrap script in the `<head>`, with a 4s self-heal timer so a bundle that never hydrates cannot strand the document unscrollable. `<noscript>` hides the SSR-rendered splash entirely — without JS nothing would ever dismiss it.
+
+### Arabic webfont gap
+
+`ArabicFonts` appended the Cairo/Tajawal `<link>` from a post-hydration effect, so on an Arabic first visit the request started seconds after the Latin fonts. It is now injected by the same pre-paint head script that resolves the language (URL → cookie → localStorage → navigator), non-blocking, and `ArabicFonts` keeps only the runtime en→ar switch — it recognises the marker attribute and will not append a second copy. Tajawal was dropped from the request: Cairo is first in `--font-arabic` and is always loaded whenever that sheet is, so the extra family could never render.
+
+The bootstrap scripts were also moved above the blocking application stylesheet. An inline script placed after a stylesheet waits for that CSS to download and parse, which measured as a 477 ms start for the Arabic request instead of ~55 ms.
+
+### Sort control
+
+The visible "Sort projects" heading was not the current code: the stale `vite preview` on :4173 was serving an in-memory CSS snapshot (`styles-D6k6AWzj.css`) with no `.sr-only` rule at all, so every visually-hidden label rendered as ordinary text. The fresh build's stylesheet contains it and the label measures 1×1 while the trigger keeps its accessible name through `aria-labelledby`.
+
+### Measurements
+
+Dev server, Arabic first visit: Cairo stylesheet request moved from 5012 ms to 241 ms, with the Latin fonts at 178 ms — the gap collapsed from ~4.8 s to ~60 ms. Toggling `data-preloading` flips `<body>` to `overflow: hidden` and `documentElement.clientWidth` from 825 to 835 (the full viewport width), i.e. the 10 px scrollbar is gone for the splash window. `npm run build` succeeds; `tsc --noEmit` reports only the six pre-existing errors.
+
+Paint and load timings from this environment are not usable as production numbers: the in-app browser exposes no visible surface, so `first-paint` entries fire whenever something forces them (measured 3064 ms and 4704 ms on pages that finished loading in under 2 s), and the local `nitro` preview cannot reach the API, which inflates its SSR time.

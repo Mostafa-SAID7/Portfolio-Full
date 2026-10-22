@@ -10,5 +10,7 @@ namespace PortfolioAPI.Core.Interfaces.Services
         Task<Contact> CreateContactAsync(Contact contact);
         Task MarkAsReadAsync(int id);
         Task DeleteContactAsync(int id);
+        Task<ContactReply> ReplyToContactAsync(int id, string body);
+        Task<IEnumerable<ContactReply>> GetRepliesAsync(int id);
     }
 }

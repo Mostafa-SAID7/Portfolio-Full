@@ -2,7 +2,6 @@ import { Link } from "@tanstack/react-router";
 import { ArrowRight, Sparkles, X } from "lucide-react";
 import { m as motion, AnimatePresence, type Transition } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
-import { LottieIcon } from "@/components/ui/LottieIcon";
 import { useWelcomeModal, RING_RADIUS, CIRCUMFERENCE } from "@/hooks/useWelcomeModal";
 
 const AUTO_CLOSE_SECONDS = 5;
@@ -89,13 +88,14 @@ export function WelcomeModal() {
           <div className="relative grid gap-6 p-6 pb-10 text-center sm:p-8 sm:pb-12 md:grid-cols-[minmax(0,13rem)_minmax(0,1fr)] md:items-stretch md:gap-8 md:p-10 md:pb-14 md:text-start">
             {/* Visual rail */}
             <div className="grid min-h-[22rem] grid-rows-2 items-center justify-items-center md:min-h-full">
-              {/* Top half — Lottie */}
+              {/* Top half — the greeting mark. A pure CSS/SVG spark: the
+                  1.9 KB Lottie "hello" needed the 1.2 MB dotLottie runtime
+                  on the very first visit, which is the worst possible moment
+                  to spend 1.2 MB on a decoration. */}
               <div className="flex h-full w-full flex-col items-center justify-center gap-3">
-                <LottieIcon
-                  src="/lottie/welcome-hello.lottie"
-                  className="h-full max-h-[8.5rem] w-auto min-w-32"
-                  fallback={<Sparkles className="h-12 w-12 text-accent" />}
-                />
+                <span className="float-soft grid size-28 place-items-center rounded-3xl border border-border bg-card/70 text-accent shadow-glow sm:size-32">
+                  <Sparkles className="size-12 sm:size-14" strokeWidth={1.4} />
+                </span>
                 <span className="chip">
                   <Sparkles className="h-3.5 w-3.5 shrink-0" />
                   {tr("welcome.eyebrow")}

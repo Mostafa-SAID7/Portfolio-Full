@@ -9,13 +9,23 @@ import {
 import { Suspense, lazy, useEffect, useState, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
+import { createIsomorphicFn } from "@tanstack/react-start";
 import { describeError } from "@/lib/error-capture";
+import { LANG_COOKIE } from "@/lib/storage";
 import { ThemeProvider, themeBootstrapScript } from "@/lib/theme";
-import { I18nProvider, langBootstrapScript, useI18n } from "@/lib/i18n";
+import {
+  ARABIC_FONTS_URL,
+  asLang,
+  I18nProvider,
+  langBootstrapScript,
+  useI18n,
+  type Lang,
+} from "@/lib/i18n";
 import { MotionProvider } from "@/lib/motion-provider";
 import { useSmoothScroll } from "@/lib/smooth-scroll";
 import { PageSkeleton } from "@/components/ui/Skeletons";
 import { AppPreloader, preloaderBootstrapScript } from "@/components/ui/AppPreloader";
+import { Analytics } from "@/components/ui/Analytics";
 
 // Client-only chrome and the rarely-hit 404 screen are pulled out of the
 // initial bundle so the first route paints with the smallest possible JS.
@@ -40,28 +50,30 @@ function NotFoundComponent() {
   );
 }
 
-/** Arabic webfonts are only fetched once the UI actually switches to Arabic. */
+/**
+ * Runtime en → ar switch. First paint in Arabic is already covered by the
+ * pre-paint bootstrap (see `langBootstrapScript`), whose link carries the
+ * same `data-arabic-fonts` marker and is therefore left alone here.
+ */
 function ArabicFonts() {
   const { lang } = useI18n();
 
   useEffect(() => {
     if (lang !== "ar") return;
-    const href =
-      "https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&family=Tajawal:wght@400;700&display=swap";
 
     // Guard against duplicate appends (e.g. strict-mode double effects).
     const existing = document.querySelector(`link[data-arabic-fonts]`);
     if (existing) {
       // Update href if it changed (e.g. after a deploy), then bail out.
-      if ((existing as HTMLLinkElement).href !== href) {
-        (existing as HTMLLinkElement).href = href;
+      if ((existing as HTMLLinkElement).href !== ARABIC_FONTS_URL) {
+        (existing as HTMLLinkElement).href = ARABIC_FONTS_URL;
       }
       return;
     }
 
     const link = document.createElement("link");
     link.rel = "stylesheet";
-    link.href = href;
+    link.href = ARABIC_FONTS_URL;
     link.setAttribute("data-arabic-fonts", "true");
     document.head.appendChild(link);
 
@@ -82,7 +94,36 @@ function ErrorComponent({ error, reset }: { error: unknown; reset: () => void })
   );
 }
 
+// The language cookie is only readable on the server, so the reader is an
+// isomorphic function: erased from the client bundle (returns null there)
+// while the server implementation dynamically imports TanStack's server
+// module so it never enters the client graph (import-protection rules).
+const readLangCookie = createIsomorphicFn()
+  .server(async (): Promise<Lang | null> => {
+    try {
+      const { getCookie } = await import("@tanstack/react-start/server");
+      return asLang(getCookie(LANG_COOKIE));
+    } catch {
+      return null;
+    }
+  })
+  .client((): Lang | null => null);
+
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+  // Search-param contract: `?lang=ar|en` is the shareable, device-portable
+  // form of the language choice (validateSearch on the root keeps it alive
+  // across every client navigation). The loader resolves the SSR language —
+  // URL first (a shared link must render in its own language), then the
+  // cookie (returning visitors) — and the serialized value is reused at
+  // hydration, so server and client agree from the first byte.
+  validateSearch: (search: Record<string, unknown>): { lang?: Lang } => {
+    const lang = asLang(typeof search["lang"] === "string" ? (search["lang"] as string) : null);
+    return lang ? { lang } : {};
+  },
+  loader: async (): Promise<{ lang: Lang | null }> => {
+    if (typeof window !== "undefined") return { lang: null };
+    return { lang: await readLangCookie() };
+  },
   head: () => ({
     meta: [
       { charSet: "utf-8" },
@@ -146,17 +187,41 @@ header.max-w-2xl{max-width:42rem;margin-bottom:2rem;display:block}
 .mt-2{margin-top:calc(var(--spacing)*2)}
 .eyebrow{display:inline-block;font-size:0.6875rem;font-weight:700;letter-spacing:0.25em;text-transform:uppercase;border-radius:0.75rem;background-color:rgba(245,237,230,0.1);color:var(--primary);border:1px solid var(--border);padding:0.25rem 0.75rem}
 .type-h1{font-family:var(--font-display);font-size:clamp(2.25rem,6vw,4.25rem);font-weight:700;line-height:1.02;letter-spacing:-0.015em;text-transform:uppercase;margin:0;color:var(--foreground)}
-/* Critical path for the LCP text */
-p,p.type-body,.type-body{margin-top:calc(var(--spacing)*2);font-size:0.9375rem;line-height:var(--leading-relaxed);color:color-mix(in oklab,var(--foreground) 90%,transparent);text-wrap:pretty}
+/* Critical path for the LCP text
+   NOTE: no color here on purpose. This rule is unlayered, so a colour in it
+   would beat every Tailwind colour utility AND stop text from inheriting the
+   colour of its surface — which made the dark "featured" cards render dark
+   text on a dark background (invisible body copy in the light theme). The
+   default copy colour lives in styles.css (base layer) where utilities can
+   still override it. */
+p,p.type-body,.type-body{margin-top:calc(var(--spacing)*2);font-size:0.9375rem;line-height:var(--leading-relaxed);text-wrap:pretty}
 .text-foreground\\/90{color:color-mix(in oklab,var(--foreground) 90%,transparent)}
 .text-foreground{color:var(--foreground)}
 .text-primary{color:var(--primary)}
+/* Pre-paint scroll lock: the splash covers the page while it settles, so the
+   scrollbar must not appear (and the layout must not shift) behind it. Kept
+   here as well as in styles.css so it applies on the very first paint, even
+   before the external stylesheet has arrived. */
+html[data-preloading],html[data-preloading] body{overflow:hidden}
 `;
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="en" dir="ltr" suppressHydrationWarning>
       <head>
+        {/* Bootstrap scripts come FIRST: an inline script that sits after a
+            blocking stylesheet waits for that CSS to download and parse
+            before it runs. Measured on the production build, that delay put
+            the Arabic webfont request at 477ms instead of ~55ms. */}
+        <script dangerouslySetInnerHTML={{ __html: themeBootstrapScript }} />
+        <script dangerouslySetInnerHTML={{ __html: langBootstrapScript }} />
+        <script dangerouslySetInnerHTML={{ __html: preloaderBootstrapScript }} />
+        {/* Without JS nothing ever hydrates to dismiss the SSR-rendered splash,
+            so it would cover the page permanently. */}
+        <noscript>
+          <style>{".app-preloader{display:none!important}"}</style>
+        </noscript>
+
         {/* Critical inline CSS: handles typography, layout & variables for initial paint */}
         <style id="critical-css" dangerouslySetInnerHTML={{ __html: CRITICAL_CSS }} />
 
@@ -193,9 +258,6 @@ function RootShell({ children }: { children: ReactNode }) {
           <link rel="stylesheet" href={GOOGLE_FONTS_URL} />
         </noscript>
 
-        <script dangerouslySetInnerHTML={{ __html: themeBootstrapScript }} />
-        <script dangerouslySetInnerHTML={{ __html: langBootstrapScript }} />
-        <script dangerouslySetInnerHTML={{ __html: preloaderBootstrapScript }} />
         <HeadContent />
       </head>
       <body suppressHydrationWarning>
@@ -208,6 +270,15 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  // The SSR language contract, resolved in three layers (highest first):
+  // 1. `?lang=` in the validated URL search — a shared link's own language,
+  // 2. the language cookie read server-side in the root loader — a returning
+  //    visitor's stored choice, so the server and client hydrate identically,
+  // 3. null → the provider falls back to "en" and applies detected prefs
+  //    after hydration.
+  const search = Route.useSearch() as { lang?: Lang };
+  const loaderData = Route.useLoaderData() as { lang?: Lang | null } | undefined;
+  const ssrLang = search?.lang ?? (loaderData ? ((loaderData.lang ?? null) as Lang | null) : null);
   useSmoothScroll();
   // Overlay chrome is mounted after hydration so it never blocks first paint.
   const [hydrated, setHydrated] = useState(false);
@@ -216,8 +287,9 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <I18nProvider>
+        <I18nProvider initialLang={ssrLang}>
           <MotionProvider>
+            <Analytics />
             <ArabicFonts />
             <AppPreloader />
             {hydrated && (

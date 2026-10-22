@@ -63,12 +63,79 @@
               </div>
             </div>
             <div class="flex shrink-0 gap-2 pl-5 sm:pl-0">
+              <button
+                type="button"
+                class="btn-ghost"
+                [attr.aria-expanded]="openReplyFor() === message.id"
+                (click)="toggleReply(message)"
+              >
+                Reply
+              </button>
               @if (!message.isRead) {
                 <button type="button" class="btn-ghost" [disabled]="busy().has(message.id)" (click)="markRead(message)">Mark read</button>
               }
               <button type="button" class="btn-danger" [disabled]="busy().has(message.id)" (click)="remove(message)">Delete</button>
             </div>
           </div>
+
+          @if (openReplyFor() === message.id) {
+            <div class="mt-5 border-t border-line/10 pt-4">
+              <label class="field-label" [attr.for]="'reply-body-' + message.id">Reply to {{ message.name }}</label>
+              <textarea
+                [id]="'reply-body-' + message.id"
+                class="input min-h-[132px] resize-y"
+                rows="5"
+                [attr.maxlength]="maxReplyLength"
+                [attr.aria-describedby]="'reply-help-' + message.id"
+                [value]="replyDraft()"
+                (input)="onDraftInput($event)"
+              ></textarea>
+              <div class="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p [id]="'reply-help-' + message.id" class="text-xs text-muted">
+                  {{ remainingReplyCharacters() }} of {{ maxReplyLength }} characters left
+                  @if (replyHistoryMissing()) { — earlier replies could not be loaded }
+                </p>
+                <div class="flex flex-wrap items-center gap-2">
+                  <a class="btn-ghost" [href]="mailtoHref(message)">Open in mail app</a>
+                  <button type="button" class="btn-ghost" (click)="closeReply()">Cancel</button>
+                  <button
+                    type="button"
+                    class="btn-primary"
+                    [disabled]="!canSendReply()"
+                    [attr.aria-busy]="sendingReply()"
+                    (click)="sendReply(message)"
+                  >
+                    {{ sendingReply() ? 'Sending…' : 'Send reply' }}
+                  </button>
+                </div>
+              </div>
+              @if (replyError()) {
+                <p class="field-error" role="alert">{{ replyError() }}</p>
+              }
+              @if (replyDelivered()) {
+                <p class="field-hint text-success" role="status">Reply delivered — it is recorded in the history below.</p>
+              }
+            </div>
+          }
+
+          @if (repliesLoadingFor() === message.id) {
+            <p class="mt-3 text-xs text-muted" role="status">Loading previous replies…</p>
+          }
+          @if (repliesFor(message.id).length > 0) {
+            <div class="mt-4">
+              <p class="eyebrow mb-2">Sent replies</p>
+              <ul class="space-y-2">
+                @for (reply of repliesFor(message.id); track reply.id) {
+                  <li class="rounded-xl border border-line/10 bg-line/[0.03] p-3">
+                    <p class="text-xs text-muted">
+                      To {{ reply.recipientEmail }} · {{ reply.sentAt | date: 'MMM d, y, h:mm a' }}
+                    </p>
+                    <p class="mt-1 whitespace-pre-line text-sm leading-6 text-soft">{{ reply.body }}</p>
+                  </li>
+                }
+              </ul>
+            </div>
+          }
         </article>
       }
     </div>
@@ -77,7 +144,7 @@
       [totalItems]="visibleMessages().length"
       [pageSize]="pageSize"
       [page]="currentPage()"
-      (pageChange)="page.set($event)"
+      (pageChange)="onPageChange($event)"
     />
   }
 </div>

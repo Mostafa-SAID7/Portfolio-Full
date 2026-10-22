@@ -117,7 +117,6 @@
   }
 }
 
-
 @keyframes enter-up {
   from {
     opacity: 0;
@@ -154,8 +153,6 @@
   }
 }
 
-
-
 /* Scroll reveal (see components/ui/Reveal.tsx) — CSS only, no JS per frame. */
 .reveal {
   opacity: 0;
@@ -175,10 +172,6 @@
   animation: enter-up 0.7s cubic-bezier(0.21, 0.5, 0.3, 1) both;
 }
 
-
-
-
-
 /* ---------------------------------------------------------------------------
  * Utility layer — the single source of truth for every repeated surface,
  * button, chip and label in the app. Components compose these utilities and
@@ -196,7 +189,6 @@
   background-size: 200% 100%;
   animation: skeleton-sweep 1.4s linear infinite;
 }
-
 
 /* Defer offscreen section rendering without affecting scroll height. */
 @utility defer-paint {
@@ -253,7 +245,9 @@
   }
   &:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring);
+    box-shadow:
+      0 0 0 2px var(--background),
+      0 0 0 4px var(--ring);
   }
 }
 
@@ -303,7 +297,6 @@
   text-transform: uppercase;
   letter-spacing: 0.18em;
 }
-
 
 /* --- Typography ----------------------------------------------------------
  * Uppercase micro-label above headings. Color stays with the caller
@@ -507,8 +500,6 @@
   font-feature-settings: "kern" 1;
 }
 
-
-
 /* Heading entrance: rises and settles its tracking. Pair with `--type-delay`
  * for staggered lines. Honors reduced motion via the block at the bottom. */
 @utility type-in {
@@ -547,9 +538,6 @@
     animation: mark-swipe 0.7s 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 }
-
-
-
 
 @utility grid-bg {
   background-image: radial-gradient(
@@ -622,7 +610,6 @@
 @utility pad-card-y {
   padding-block: var(--pad-card);
 }
-
 
 /* Centred content measures. Width only — never padding, never background. */
 @utility container-page {
@@ -707,9 +694,6 @@
   }
 }
 
-
-
-
 :root {
   --radius: 1.25rem;
 
@@ -720,7 +704,6 @@
   --pad-pill-y: clamp(0.5rem, 0.9vw, 0.625rem);
   --pad-tag-x: 0.5rem;
   --pad-tag-y: 0.125rem;
-
 
   /* Warm Obsidian / Dark Theme (matches dashboard) */
   --background: #14100d;
@@ -817,6 +800,10 @@
     scroll-behavior: smooth;
     scrollbar-width: thin;
     scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+    /* Gutter is set to "auto" so it only appears when the content actually
+       overflows – this prevents a permanent reserved strip that can look like
+       a “duplicate scrollbar” after route changes (e.g. jumping to page 2). */
+    scrollbar-gutter: auto;
   }
 
   *::-webkit-scrollbar {
@@ -846,14 +833,57 @@
     background: transparent;
   }
 
+  /*
+   * Radix overlays (Select etc.) lock page scroll via react-remove-scroll,
+   * which hides the viewport scrollbar while a small picker like the sort
+   * menu is open — the whole page loses its scrollbar and (in RTL) shifts
+   * left for a moment. The toolbar toggles `.select-scroll-keep` on <body>
+   * while a small dropdown-type picker is open, and this rule restores the
+   * scrollbar for exactly that window (real modal overlays still lock).
+   */
+  body[data-scroll-locked].select-scroll-keep {
+    overflow: visible !important;
+    margin-right: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  /*
+   * `clip`, never `hidden`: a box with `overflow-x: hidden` is forced into
+   * scroll-container mode on the other axis too, which is what lets a second
+   * scrollbar appear next to the page one (seen after route changes such as
+   * jumping to page 2). `clip` paints the same horizontal clipping — the
+   * decorative blurs and marquees still cannot overflow — without turning
+   * <body> into a scroller, and it leaves `position: sticky` descendants
+   * working.
+   */
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
-    transition: background-color 0.35s ease, color 0.35s ease;
-    /* Safety net: decorative blurs/marquees must never create a horizontal scrollbar */
-    overflow-x: hidden;
+    transition:
+      background-color 0.35s ease,
+      color 0.35s ease;
+    overflow-x: clip;
+  }
+
+  /*
+   * App-owned overlays freeze the page through this class so several holders
+   * can share one lock (see lib/scroll-lock.ts). It replaces the old inline
+   * `body.style.overflow` writes, which captured whatever another overlay had
+   * left behind and could hand a stuck `hidden` back after everything closed.
+   */
+  body.scroll-locked {
+    overflow: hidden;
+  }
+
+  /* Default copy colour: the page foreground at 90%. It lives in the base
+     layer on purpose — a Tailwind colour utility on the element (e.g.
+     `text-muted-foreground`, `text-destructive`) must still win, and text
+     inside an inverted surface must be able to inherit that surface's
+     colour instead of this default. */
+  p {
+    color: color-mix(in oklab, var(--foreground) 90%, transparent);
   }
 
   /* Long unbroken words (URLs, emails, tech names) must not blow out narrow screens */
@@ -924,8 +954,6 @@
   padding-inline: 0;
 }
 
-
-
 /* Arabic mode. These rules sit outside @layer base on purpose: unlayered CSS
    beats Tailwind's utilities layer, so they win over `font-sans`,
    `tracking-*` and `uppercase` WITHOUT `!important` — that keeps the cascade
@@ -973,12 +1001,10 @@
   unicode-bidi: isolate;
 }
 
-
 /* Icons/arrows authored for LTR flip with the document direction */
 [dir="rtl"] .rtl-flip {
   transform: scaleX(-1);
 }
-
 
 /* ── Theme toggle: circular View Transition reveal ───────────────────────── */
 ::view-transition-old(root),
@@ -1021,9 +1047,58 @@ html.theme-transition-reverse::view-transition-new(root) {
 }
 
 @keyframes pen-writing {
-  0%   { transform: translateY(0) rotate(-8deg); }
-  50%  { transform: translateY(-2px) rotate(-2deg); }
-  100% { transform: translateY(0) rotate(-8deg); }
+  0% {
+    transform: translateY(0) rotate(-8deg);
+  }
+  50% {
+    transform: translateY(-2px) rotate(-2deg);
+  }
+  100% {
+    transform: translateY(0) rotate(-8deg);
+  }
+}
+
+/*
+ * Success check (contact form). Pure CSS: the old Lottie version needed the
+ * 1.2 MB dotLottie runtime and shipped an artwork with "Payment Successful"
+ * baked into it — wrong copy for a contact form, and 1.2 MB to say "sent".
+ */
+@keyframes check-pop {
+  0% {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.check-pop {
+  animation: check-pop 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+
+/*
+ * Soft float for the credential artwork icons. A pure CSS motion: no
+ * WebAssembly runtime, no JS, and it respects the reduced-motion block at
+ * the bottom of this file.
+ */
+@keyframes float-soft {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-7px);
+  }
+}
+
+.float-soft {
+  animation: float-soft 5.5s ease-in-out infinite;
 }
 
 .pen-writing {
@@ -1041,6 +1116,13 @@ html.theme-transition-reverse::view-transition-new(root) {
   display: none !important;
 }
 
+/* The pre-paint scroll lock (AppPreloader). It hides the scrollbar for the
+   whole first-load window, so the visitor never sees it pop in and the page
+   never jumps when the webfonts and the hydrated content settle. The lock is
+   released by the app once the document is stable — and by the bootstrap
+   script's own ceiling if the app never boots, so the page can never get
+   stuck unscrollable. */
+:root[data-preloading],
 :root[data-preloading] body {
   overflow: hidden;
 }
@@ -1054,7 +1136,9 @@ html.theme-transition-reverse::view-transition-new(root) {
   padding: 1.5rem;
   background: var(--background);
   opacity: 1;
-  transition: opacity 520ms ease, visibility 520ms ease;
+  transition:
+    opacity 520ms ease,
+    visibility 520ms ease;
 }
 
 .app-preloader::after {
@@ -1161,6 +1245,8 @@ html.theme-transition-reverse::view-transition-new(root) {
   .enter-up,
   .skeleton-shimmer,
   .pen-writing,
+  .float-soft,
+  .check-pop,
   .type-in,
   .type-mark::after,
   .app-preloader__art,

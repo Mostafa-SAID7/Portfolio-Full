@@ -99,6 +99,10 @@ function SocialTile({
             loop={false}
             playOnce
             speed={1.1}
+            // The project badge is a small delight, not content: it must not
+            // drag the 1.2 MB dotLottie runtime into a page just because the
+            // footer scrolled into view. It loads on the first real intent.
+            activateOn="interaction"
             className={featured ? "size-10 sm:size-11" : "size-8 sm:size-9"}
           />
         </span>

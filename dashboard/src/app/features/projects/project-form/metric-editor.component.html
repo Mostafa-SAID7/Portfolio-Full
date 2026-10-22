@@ -1,0 +1,49 @@
+<div class="rounded-xl border border-line/10 bg-surface/60 p-4">
+  <div class="mb-3 flex items-center justify-between gap-3">
+    <p class="type-label text-ink">{{ label }}</p>
+    <button type="button" class="btn-ghost" [disabled]="rows.length >= max" (click)="add()">Add metric</button>
+  </div>
+  @if (!rows.length) {
+    <p class="text-xs text-muted">No metrics yet — a metric is a short label with a value (e.g. "300% faster catalog queries").</p>
+  } @else {
+    <ul class="space-y-3">
+      @for (row of rows; track $index) {
+        <li class="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+          <input
+            class="input"
+            type="text"
+            [value]="row.labelEn"
+            (input)="update($index, 'labelEn', $any($event.target).value)"
+            placeholder="Label (English)"
+            [attr.aria-label]="'Metric label ' + ($index + 1) + ' (English)'"
+            maxlength="60"
+          />
+          <input
+            class="input"
+            type="text"
+            lang="ar"
+            dir="rtl"
+            [value]="row.labelAr"
+            (input)="update($index, 'labelAr', $any($event.target).value)"
+            placeholder="Label (Arabic)"
+            [attr.aria-label]="'Metric label ' + ($index + 1) + ' (Arabic)'"
+            maxlength="60"
+          />
+          <div class="flex gap-2">
+            <input
+              class="input"
+              type="text"
+              [value]="row.value"
+              (input)="update($index, 'value', $any($event.target).value)"
+              placeholder="Value"
+              [attr.aria-label]="'Metric value ' + ($index + 1)"
+              maxlength="60"
+            />
+            <button type="button" class="btn-danger" (click)="remove($index)" [attr.aria-label]="'Remove metric ' + ($index + 1)">×</button>
+          </div>
+        </li>
+      }
+    </ul>
+    <p class="mt-2 text-xs text-muted">Up to {{ max }} metrics. A row without a value is ignored when saving.</p>
+  }
+</div>

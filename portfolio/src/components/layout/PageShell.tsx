@@ -2,11 +2,16 @@ import { type ReactNode, type Ref, lazy, Suspense } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { cn } from "@/lib/utils";
 
-// Footer is below the fold — defer its module evaluation and icon imports
-// out of the hydration critical path entirely.
-const Footer = lazy(() =>
-  import("@/components/layout/Footer").then((m) => ({ default: m.Footer }))
-);
+// Footer is below the fold — its module evaluation and icon imports stay out
+// of the hydration critical path, but the promise is KICKED OFF at module
+// scope so it is resolved by the time React mounts the Suspense boundary: a
+// resolved promise renders synchronously, which removes the "boundary
+// hydrated after the language state settled" race entirely (it was the one
+// source of hydration-mismatch warnings on first Arabic paint). SSR resolves
+// the same promise (in-process, near-instant) so the footer still streams.
+const footerModulePromise: Promise<typeof import("@/components/layout/Footer")> =
+  import("@/components/layout/Footer");
+const Footer = lazy(() => footerModulePromise.then((m) => ({ default: m.Footer })));
 
 interface PageShellProps {
   children: ReactNode;
@@ -18,7 +23,7 @@ interface PageShellProps {
   className?: string;
   /** Optional ref for pages with pointer-driven main content. */
   mainRef?: Ref<HTMLElement>;
-  /** Disable the outer overflow-x-hidden wrapper. Useful when children rely on sticky positioning. */
+  /** Skip the outer horizontal clipping wrapper. */
   disableOverflowX?: boolean;
 }
 
@@ -38,7 +43,10 @@ export function PageShell({
     <div
       className={cn(
         "flex min-h-screen select-none flex-col bg-background text-foreground",
-        !disableOverflowX && "overflow-x-hidden",
+        // `clip`, not `hidden`: `hidden` would put this wrapper into
+        // scroll-container mode and let a second scrollbar appear beside the
+        // page one, and it is also why sticky children had to opt out below.
+        !disableOverflowX && "overflow-x-clip",
       )}
     >
       <Navbar />

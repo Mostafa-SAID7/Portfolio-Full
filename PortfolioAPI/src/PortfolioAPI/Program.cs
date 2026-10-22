@@ -42,6 +42,7 @@ builder.Services
     .AddDatabase(builder.Configuration)                      // SQL Server + UnitOfWork (fail-fast)
     .AddApplicationServices(builder.Configuration)           // domain services + email options + FluentValidation
     .AddStorage(builder.Configuration, builder.Environment); // local disk OR Cloudinary (fail-fast)
+builder.Services.AddAnalytics(builder.Configuration);        // GA4 Data API (private analytics dashboard)
 
 // Backend-owned upload storage: anchor App_Data to the content root so the
 // bound FileStorageOptions and the static-file middleware below agree

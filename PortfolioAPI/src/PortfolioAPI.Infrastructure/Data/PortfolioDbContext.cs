@@ -15,6 +15,7 @@ namespace PortfolioAPI.Infrastructure.Data
         public DbSet<Skill> Skills { get; set; } = null!;
         public DbSet<Experience> Experiences { get; set; } = null!;
         public DbSet<Contact> Contacts { get; set; } = null!;
+        public DbSet<ContactReply> ContactReplies { get; set; } = null!;
         public DbSet<Testimonial> Testimonials { get; set; } = null!;
         public DbSet<Credential> Credentials { get; set; } = null!;
         public DbSet<Category> Categories { get; set; } = null!;

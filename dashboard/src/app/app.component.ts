@@ -8,6 +8,7 @@ import { AuthService } from './core/services/auth.service';
 import { ContactService } from './core/services/contact.service';
 import { ApiInstanceService } from './core/services/api-instance.service';
 import { ThemeService } from './core/services/theme.service';
+import { BrowserStorage, STORAGE_KEYS } from './core/services/storage.service';
 import { ConfirmDialogComponent, ConfirmDialogService } from './shared/confirm-dialog.component';
 import { ToastComponent } from './shared/toast.component';
 
@@ -58,6 +59,24 @@ export class AppComponent {
   /** Breakpoint flag: true when the viewport is at the lg (desktop) width. */
   readonly isDesktop = signal(false);
 
+  /** Desktop-only icon rail (collapsed sidebar): labels hide, links become
+   *  centered icon squares and CSS tooltips carry the labels. The choice
+   *  persists in localStorage like the theme. Mobile keeps the full drawer.
+   */
+  private readonly storage = inject(BrowserStorage);
+  readonly sidebarCollapsed = signal(this.restoreSidebarCollapsed());
+
+  /** Persisted next to the theme so the choice survives reloads. */
+  toggleSidebar(): void {
+    const next = !this.sidebarCollapsed();
+    this.sidebarCollapsed.set(next);
+    this.storage.set(STORAGE_KEYS.sidebarCollapsed, String(next));
+  }
+
+  private restoreSidebarCollapsed(): boolean {
+    return this.storage.get(STORAGE_KEYS.sidebarCollapsed) === 'true';
+  }
+
   readonly navItems: NavItem[] = [
     {
       link: '/dashboard',
@@ -74,6 +93,11 @@ export class AppComponent {
       link: '/messages',
       label: 'Messages',
       icon: this.trust('<svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v8a2.5 2.5 0 0 1-2.5 2.5H9l-4 3.5v-3.5A2.5 2.5 0 0 1 4 14.5v-8Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>')
+    },
+    {
+      link: '/analytics',
+      label: 'Analytics',
+      icon: this.trust('<svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M4 20h16M7 16v-6M12 16V8M17 16v-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>')
     },
     {
       link: '/content',
@@ -103,6 +127,7 @@ export class AppComponent {
     if (path.startsWith('/projects')) return 'Projects';
     if (path.startsWith('/messages')) return 'Messages';
     if (path.startsWith('/content')) return 'Content';
+    if (path.startsWith('/analytics')) return 'Analytics';
     return 'Overview';
   }
 

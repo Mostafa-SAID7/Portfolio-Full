@@ -12,7 +12,7 @@ interface CredentialSideCardProps {
 
 /** Compact credential card shown beside the featured one. */
 export function CredentialSideCard({ item, lang, reduce, index }: CredentialSideCardProps) {
-  const Icon = iconForCredential(item.id);
+  const Icon = iconForCredential(item.tab);
 
   return (
     <motion.div

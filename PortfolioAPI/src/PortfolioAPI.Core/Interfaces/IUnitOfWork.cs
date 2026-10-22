@@ -17,6 +17,7 @@ namespace PortfolioAPI.Core.Interfaces
         IRepository<Skill> Skills { get; }
         IRepository<Experience> Experiences { get; }
         IRepository<Contact> Contacts { get; }
+        IRepository<ContactReply> ContactReplies { get; }
         IRepository<Testimonial> Testimonials { get; }
         IRepository<Credential> Credentials { get; }
         IRepository<Category> Categories { get; }

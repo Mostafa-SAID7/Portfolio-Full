@@ -5,9 +5,11 @@ import { NgForm } from '@angular/forms';
 import { By } from '@angular/platform-browser';
 import { Subject, of, tap, throwError } from 'rxjs';
 import { Category } from '../../core/models/category.model';
+import { Credential } from '../../core/models/credential.model';
 import { Experience, ExperiencePayload } from '../../core/models/experience.model';
 import { Skill } from '../../core/models/skill.model';
 import { CategoryService } from '../../core/services/category.service';
+import { CredentialService } from '../../core/services/credential.service';
 import { ExperienceService } from '../../core/services/experience.service';
 import { SkillService } from '../../core/services/skill.service';
 import { ConfirmDialogService } from '../../shared/confirm-dialog.component';
@@ -28,6 +30,18 @@ const experience: Experience = {
   technologies: ['Angular', '.NET'], current: false, order: 8, isActive: false,
   createdAt: '2024-01-01T00:00:00', updatedAt: null
 };
+const credential: Credential = {
+  id: 1, tab: 'certifications', year: '2024',
+  periodEn: '2024', periodAr: '2024',
+  titleEn: 'Cloud Architect', titleAr: 'مهندس سحابة',
+  orgEn: 'Microsoft', orgAr: 'مايكروسوفت',
+  locationEn: 'Remote', locationAr: 'عن بعد',
+  summaryEn: 'Designed cloud systems', summaryAr: 'صممت أنظمة سحابية',
+  highlightsEn: ['One point'], highlightsAr: ['نقطة'], stack: ['Azure'],
+  credentialId: 'AZ-1', statusEn: 'Done', statusAr: 'منجز',
+  featured: false, order: 1, isActive: true,
+  createdAt: '2024-01-01T00:00:00', updatedAt: null
+};
 
 describe('ContentComponent', () => {
   let fixture: ComponentFixture<ContentComponent>;
@@ -35,6 +49,7 @@ describe('ContentComponent', () => {
   let skills: ReturnType<typeof skillStub>;
   let categories: ReturnType<typeof categoryStub>;
   let experiences: ReturnType<typeof experienceStub>;
+  let credentials: ReturnType<typeof credentialStub>;
   let dialog: { confirm: jasmine.Spy<ConfirmDialogService['confirm']> };
   let toast: { show: jasmine.Spy<ToastService['show']> };
 
@@ -66,10 +81,21 @@ describe('ContentComponent', () => {
     };
   }
 
+  function credentialStub() {
+    return {
+      credentials: signal<Credential[]>([]), loading: signal(false), error: signal<string | null>(null),
+      loadCredentials: jasmine.createSpy<CredentialService['loadCredentials']>('loadCredentials').and.returnValue(of([])),
+      createCredential: jasmine.createSpy<CredentialService['createCredential']>('createCredential').and.returnValue(of(credential)),
+      updateCredential: jasmine.createSpy<CredentialService['updateCredential']>('updateCredential').and.returnValue(of(undefined)),
+      deleteCredential: jasmine.createSpy<CredentialService['deleteCredential']>('deleteCredential').and.returnValue(of(undefined))
+    };
+  }
+
   beforeEach(async () => {
     skills = skillStub();
     categories = categoryStub();
     experiences = experienceStub();
+    credentials = credentialStub();
     dialog = { confirm: jasmine.createSpy<ConfirmDialogService['confirm']>('confirm').and.returnValue(Promise.resolve(false)) };
     toast = { show: jasmine.createSpy<ToastService['show']>('show') };
     await TestBed.configureTestingModule({
@@ -77,6 +103,7 @@ describe('ContentComponent', () => {
       providers: [
         { provide: SkillService, useValue: skills }, { provide: CategoryService, useValue: categories },
         { provide: ExperienceService, useValue: experiences }, { provide: ConfirmDialogService, useValue: dialog },
+        { provide: CredentialService, useValue: credentials },
         { provide: ToastService, useValue: toast }
       ]
     }).compileComponents();
@@ -249,12 +276,55 @@ describe('ContentComponent', () => {
   it('uses ordinary labeled toggle buttons instead of incomplete ARIA tabs', () => {
     const group = fixture.debugElement.query(By.css('[role="group"]'));
     expect(group.attributes['aria-label']).toBe('Content type');
-    expect(group.queryAll(By.css('[aria-pressed]')).length).toBe(3);
+    // Skills · Experience · Credentials · Categories
+    expect(group.queryAll(By.css('[aria-pressed]')).length).toBe(4);
     expect(fixture.debugElement.query(By.css('[role="tab"]'))).toBeNull();
     group.queryAll(By.css('button'))[2].nativeElement.click();
     fixture.detectChanges();
-    expect(component.tab()).toBe('categories');
+    expect(component.tab()).toBe('credentials');
     expect(group.queryAll(By.css('button'))[2].attributes['aria-pressed']).toBe('true');
+  });
+
+  it('loads the credentials that feed the public portfolio tabs', async () => {
+    expect(credentials.loadCredentials).toHaveBeenCalled();
+    credentials.credentials.set([credential]);
+    fixture.detectChanges();
+    component.selectTab('credentials');
+    fixture.detectChanges();
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('Cloud Architect');
+    expect(text).toContain('مهندس سحابة');
+    expect(text).toContain('New credential');
+  });
+
+  it('saves a credential with both translations and the list fields', () => {
+    component.selectTab('credentials');
+    component.startCredentialCreate();
+    fixture.detectChanges();
+    const draft = component.credDraft!;
+    draft.titleEn = 'Cloud Architect';
+    draft.titleAr = 'مهندس سحابة';
+    draft.year = '2024';
+    draft.periodEn = '2024';
+    draft.periodAr = '2024';
+    draft.orgEn = 'Microsoft';
+    draft.orgAr = 'مايكروسوفت';
+    draft.summaryEn = 'Designed cloud systems';
+    draft.summaryAr = 'صممت أنظمة سحابية';
+    draft.highlightsEn = 'First point\nSecond point';
+    draft.stack = 'Azure, .NET';
+    component.saveCredential({
+      tab: 'certifications', year: '2024', periodEn: '2024', periodAr: '2024',
+      titleEn: 'Cloud Architect', titleAr: 'مهندس سحابة', orgEn: 'Microsoft', orgAr: 'مايكروسوفت',
+      locationEn: '', locationAr: '', summaryEn: 'Designed cloud systems', summaryAr: 'صممت أنظمة سحابية',
+      highlightsEn: ['First point', 'Second point'], highlightsAr: [], stack: ['Azure', '.NET'],
+      credentialId: null, statusEn: null, statusAr: null, featured: false, order: 1, isActive: true
+    });
+    expect(credentials.createCredential).toHaveBeenCalled();
+    const payload = credentials.createCredential.calls.mostRecent().args[0];
+    expect(payload.highlightsEn).toEqual(['First point', 'Second point']);
+    expect(payload.stack).toEqual(['Azure', '.NET']);
+    expect(payload.titleAr).toBe('مهندس سحابة');
   });
 
   it('cancels category, skill, and experience deletion without requests', async () => {

@@ -131,6 +131,56 @@ namespace PortfolioAPI.Infrastructure.Migrations
                     b.ToTable("Contacts");
                 });
 
+            modelBuilder.Entity("PortfolioAPI.Core.Entities.ContactReply", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<int>("ContactId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("RecipientEmail")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateTime>("SentAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContactId");
+
+                    b.HasIndex("SentAt");
+
+                    b.ToTable("ContactReplies");
+                });
+
             modelBuilder.Entity("PortfolioAPI.Core.Entities.Credential", b =>
                 {
                     b.Property<int>("Id")
@@ -735,6 +785,17 @@ namespace PortfolioAPI.Infrastructure.Migrations
                         {
                             t.HasCheckConstraint("CK_Testimonials_Rating", "[Rating] BETWEEN 1 AND 5");
                         });
+                });
+
+            modelBuilder.Entity("PortfolioAPI.Core.Entities.ContactReply", b =>
+                {
+                    b.HasOne("PortfolioAPI.Core.Entities.Contact", "Contact")
+                        .WithMany()
+                        .HasForeignKey("ContactId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Contact");
                 });
 
             modelBuilder.Entity("PortfolioAPI.Core.Entities.ProjectImage", b =>

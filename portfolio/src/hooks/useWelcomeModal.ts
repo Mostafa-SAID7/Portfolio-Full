@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { animate, useMotionValue, useReducedMotion, useTransform, type MotionValue } from "framer-motion";
+import {
+  animate,
+  useMotionValue,
+  useReducedMotion,
+  useTransform,
+  type MotionValue,
+} from "framer-motion";
+import { sessionFlags } from "@/lib/storage";
+import { holdBodyScroll } from "@/lib/scroll-lock";
 
-const STORAGE_KEY = "welcome-modal-seen";
 const DELAY_MS = 10_000;
 const AUTO_CLOSE_MS = 5_000;
 export const RING_RADIUS = 54;
@@ -39,11 +46,7 @@ export function useWelcomeModal(): UseWelcomeModalResult {
 
   const close = useCallback(() => {
     setOpen(false);
-    try {
-      sessionStorage.setItem(STORAGE_KEY, "1");
-    } catch {
-      /* storage unavailable — modal simply shows again next load */
-    }
+    sessionFlags.markWelcomeSeen();
     if (previouslyFocused.current instanceof HTMLElement) {
       previouslyFocused.current.focus();
     }
@@ -51,13 +54,7 @@ export function useWelcomeModal(): UseWelcomeModalResult {
 
   // Show once per session after initial entrance delay
   useEffect(() => {
-    let seen = false;
-    try {
-      seen = sessionStorage.getItem(STORAGE_KEY) === "1";
-    } catch {
-      seen = false;
-    }
-    if (seen) return;
+    if (sessionFlags.welcomeSeen()) return;
     const timer = window.setTimeout(() => setOpen(true), DELAY_MS);
     return () => window.clearTimeout(timer);
   }, []);
@@ -68,8 +65,7 @@ export function useWelcomeModal(): UseWelcomeModalResult {
     previouslyFocused.current = document.activeElement;
     closeRef.current?.focus();
 
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const releaseScroll = holdBodyScroll();
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -107,7 +103,7 @@ export function useWelcomeModal(): UseWelcomeModalResult {
 
     return () => {
       document.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = previousOverflow;
+      releaseScroll();
     };
   }, [open, close]);
 

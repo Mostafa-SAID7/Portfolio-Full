@@ -26,4 +26,21 @@ namespace PortfolioAPI.Core.DTOs
         public string Subject { get; set; } = string.Empty;
         public string Message { get; set; } = string.Empty;
     }
+
+    /// <summary>Read model for a reply the admin sent back to a visitor (api/Contact/{id}/replies).</summary>
+    public class ContactReplyDto
+    {
+        public int Id { get; set; }
+        public int ContactId { get; set; }
+        public string RecipientEmail { get; set; } = string.Empty;
+        public string Subject { get; set; } = string.Empty;
+        public string Body { get; set; } = string.Empty;
+        public DateTime SentAt { get; set; }
+    }
+
+    /// <summary>Payload accepted by POST api/Contact/{id}/reply.</summary>
+    public class ReplyToContactDto
+    {
+        public string Body { get; set; } = string.Empty;
+    }
 }

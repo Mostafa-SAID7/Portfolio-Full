@@ -118,6 +118,29 @@
         </div>
       </div>
 
+      <!-- Metrics and the card gradient: both are rendered by the public
+           portfolio, so they have to be editable here as well. -->
+      <div class="grid gap-4 lg:grid-cols-2">
+        <app-metric-editor
+          label="Metrics (English)"
+          [rows]="metricRowsEn"
+          (rowsChange)="metricRowsEn = $event"
+        />
+        <app-metric-editor
+          label="Metrics (Arabic) — المقاييس"
+          [rows]="metricRowsAr"
+          [arabic]="true"
+          (rowsChange)="metricRowsAr = $event"
+        />
+      </div>
+
+      <div>
+        <label for="gradient" class="field-label">Card gradient (CSS)</label>
+        <input id="gradient" type="text" formControlName="gradient" class="input" maxlength="200" placeholder="linear-gradient(135deg, #f0834e, #c25a26)" [attr.aria-invalid]="invalid('gradient')" />
+        <p class="mt-2 text-xs text-muted">Optional CSS gradient used behind the project card. Leave empty for the default theme gradient.</p>
+        @if (fieldError('gradient'); as message) { <p class="field-error" role="alert">{{ message }}</p> }
+      </div>
+
       <div class="grid gap-5 sm:grid-cols-2">
         <div>
           <label for="liveUrl" class="field-label">Live URL</label>

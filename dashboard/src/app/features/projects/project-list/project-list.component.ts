@@ -4,8 +4,9 @@ import { finalize } from 'rxjs';
 import { ToastService } from '../../../shared/toast.component';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ProjectListStateService } from '../../../core/services/project-list-state.service';
+import { replaceUrlParams, readUrlInt } from '../../../core/url-state';
 import { ProjectService } from '../../../core/services/project.service';
 import { Project } from '../../../core/models/project.model';
 import { isApiHostedImage, resolvePortfolioImage } from '../../../core/portfolio-origin';
@@ -34,6 +35,7 @@ export class ProjectListComponent implements OnInit {
   private readonly dialog = inject(ConfirmDialogService);
   private readonly listState = inject(ProjectListStateService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
   readonly deleting = signal<Set<number>>(new Set());
@@ -57,9 +59,19 @@ export class ProjectListComponent implements OnInit {
   }
   setQuery(query: string): void {
     this.listState.setQuery(query);
+    this.persistInUrl();
   }
   setPage(page: number): void {
     this.listState.setPage(page);
+    this.persistInUrl();
+  }
+
+  /** Mirror the shared list state into the URL (see ProjectListStateService). */
+  private persistInUrl(): void {
+    replaceUrlParams(this.route, this.router, {
+      q: this.listState.query().trim() || null,
+      page: this.listState.page() > 1 ? this.listState.page() : null,
+    });
   }
 
   readonly projectCount = computed(() => this.service.projects().length);
@@ -127,6 +139,14 @@ export class ProjectListComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    // Restore the position from the URL first (?q=…&page=…), then load:
+    // a reload on page 2 of search results reopens that exact view.
+    const params = this.route.snapshot.queryParamMap;
+    const savedPage = readUrlInt(params, 'page');
+    const savedQuery = params.get('q');
+    if (savedPage !== null || savedQuery !== null) {
+      this.listState.restore(savedPage ?? 1, savedQuery ?? '');
+    }
     this.load();
   }
 

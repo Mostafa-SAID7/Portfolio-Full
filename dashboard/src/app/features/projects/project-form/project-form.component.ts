@@ -8,6 +8,18 @@ import { ProjectService } from '../../../core/services/project.service';
 import { CategoryService } from '../../../core/services/category.service';
 import { SkillService } from '../../../core/services/skill.service';
 import { TagsInputComponent } from '../../../shared/tags-input.component';
+import { MetricEditorComponent, MetricRow } from './metric-editor.component';
+
+/** A metric row without a value is not a metric — it would render as an empty chip. */
+function completeMetricRows(rows: MetricRow[]): ProjectMetric[] {
+  return rows
+    .filter(row => row.value.trim())
+    .map(row => ({
+      labelEn: row.labelEn.trim() || row.value.trim(),
+      labelAr: row.labelAr.trim() || row.labelEn.trim() || row.value.trim(),
+      value: row.value.trim()
+    }));
+}
 import { Project, ProjectMetric, ProjectPayload } from '../../../core/models/project.model';
 import { isApiHostedImage, resolvePortfolioImage } from '../../../core/portfolio-origin';
 import { SelectFieldComponent } from '../../../shared/select-field.component';
@@ -48,7 +60,7 @@ const SERVER_CONTROL_NAMES: Record<string, FormControlName> = {
 @Component({
   selector: 'app-project-form',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, SelectFieldComponent, TagsInputComponent],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, SelectFieldComponent, TagsInputComponent, MetricEditorComponent],
   templateUrl: './project-form.component.html'
 })
 export class ProjectFormComponent implements OnInit, OnDestroy {
@@ -67,6 +79,9 @@ export class ProjectFormComponent implements OnInit, OnDestroy {
   private loadedGradient: string | null = null;
   private loadedMetricsEn: ProjectMetric[] = [];
   private loadedMetricsAr: ProjectMetric[] = [];
+  /** Editable metric rows (English / Arabic) — the portfolio renders them as chips. */
+  metricRowsEn: MetricRow[] = [];
+  metricRowsAr: MetricRow[] = [];
   private loadedImageUrl = '';
   private loadedProvider: string | null = null;
   private loadedPublicId: string | null = null;
@@ -136,7 +151,8 @@ export class ProjectFormComponent implements OnInit, OnDestroy {
     status: ['', Validators.maxLength(50)],
     statusAr: ['', Validators.maxLength(50)],
     badges: ['', listLimit(5)],
-    badgesAr: ['', listLimit(5)]
+    badgesAr: ['', listLimit(5)],
+    gradient: ['', Validators.maxLength(200)]
   }, { validators: () => {
     if (this.loadedMetricsEn.length > 6 || this.loadedMetricsAr.length > 6) {
       return { presentation: 'The stored project exceeds the limit of 6 metrics per language. Correct it before saving.' };
@@ -381,9 +397,9 @@ export class ProjectFormComponent implements OnInit, OnDestroy {
       databaseEn: optional(value.database), databaseAr: optional(value.databaseAr),
       statusEn: optional(value.status), statusAr: optional(value.statusAr),
       badgesEn: splitList(value.badges), badgesAr: splitList(value.badgesAr),
-      gradient: this.loadedGradient,
-      metricsEn: this.loadedMetricsEn.map(metric => ({ ...metric })),
-      metricsAr: this.loadedMetricsAr.map(metric => ({ ...metric }))
+      gradient: optional(value.gradient),
+      metricsEn: completeMetricRows(this.metricRowsEn),
+      metricsAr: completeMetricRows(this.metricRowsAr)
     };
     this.saving.set(true);
     this.errorMessage.set(null);
@@ -451,6 +467,8 @@ export class ProjectFormComponent implements OnInit, OnDestroy {
     this.loadedGradient = project.gradient ?? null;
     this.loadedMetricsEn = (project.metricsEn ?? []).map(metric => ({ ...metric }));
     this.loadedMetricsAr = (project.metricsAr ?? []).map(metric => ({ ...metric }));
+    this.metricRowsEn = this.loadedMetricsEn.map(metric => ({ ...metric }));
+    this.metricRowsAr = this.loadedMetricsAr.map(metric => ({ ...metric }));
     this.loadedImageUrl = project.imageUrl ?? '';
     // The stored row carries the asset's provider identity; an edit that does
     // not re-upload must pass it back so the backend never loses track of it.
@@ -471,7 +489,10 @@ export class ProjectFormComponent implements OnInit, OnDestroy {
       type: project.typeEn ?? '', typeAr: project.typeAr ?? '',
       database: project.databaseEn ?? '', databaseAr: project.databaseAr ?? '',
       status: project.statusEn ?? '', statusAr: project.statusAr ?? '',
-      badges: (project.badgesEn ?? []).join(', '), badgesAr: (project.badgesAr ?? []).join(', ')
+      badges: (project.badgesEn ?? []).join(', '), badgesAr: (project.badgesAr ?? []).join(', '),
+      // The gradient is editable now — it must be seeded, otherwise saving an
+      // untouched project would silently drop the stored gradient.
+      gradient: project.gradient ?? ''
     });
   }
 }
