@@ -1,0 +1,25 @@
+<section class="flex min-h-[calc(100vh-8rem)] flex-col items-center justify-center py-16 text-center">
+  <p class="eyebrow mb-4">404 — not found</p>
+
+  <!-- Giant ghost digits with the accent glow -->
+  <h1
+    class="font-display text-[7rem] font-bold leading-none tracking-[-0.06em] text-ink/10 select-none sm:text-[10rem]"
+    aria-hidden="true"
+  >
+    404<span class="text-accent/25">.</span>
+  </h1>
+
+  <h2 class="font-display -mt-6 text-2xl font-semibold tracking-[-0.04em] text-ink sm:-mt-10 sm:text-3xl">
+    This page doesn't exist.
+  </h2>
+  <p class="mt-3 max-w-md text-sm text-muted">
+    The address may be mistyped, or the page was moved or deleted.
+  </p>
+
+  <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
+    <button type="button" class="btn-primary" (click)="goBack()">
+      Back to dashboard
+    </button>
+    <a routerLink="/projects" class="btn-ghost">Browse projects</a>
+  </div>
+</section>

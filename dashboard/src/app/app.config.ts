@@ -1,5 +1,6 @@
 import {
   ApplicationConfig,
+  ErrorHandler,
   provideBrowserGlobalErrorListeners,
   provideZoneChangeDetection
 } from '@angular/core';
@@ -10,10 +11,13 @@ import { provideAnimationsAsync } from '@angular/platform-browser/animations/asy
 import { routes } from './app.routes';
 import { apiErrorInterceptor } from './core/interceptors/api-error.interceptor';
 import { authInterceptor } from './core/interceptors/auth.interceptor';
+import { AppErrorHandler } from './core/app-error-handler';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
+    // Catch-all boundary for unexpected framework/renderer crashes.
+    { provide: ErrorHandler, useClass: AppErrorHandler },
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideRouter(routes, withViewTransitions()),
     // authInterceptor attaches the JWT first; apiErrorInterceptor then

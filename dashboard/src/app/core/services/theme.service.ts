@@ -1,5 +1,6 @@
 import { Injectable, signal, effect, PLATFORM_ID, inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
+import { BrowserStorage, STORAGE_KEYS } from './storage.service';
 
 export type Theme = 'light' | 'dark';
 
@@ -11,7 +12,7 @@ export type Theme = 'light' | 'dark';
 @Injectable({ providedIn: 'root' })
 export class ThemeService {
   private readonly platformId = inject(PLATFORM_ID);
-  private readonly storageKey = 'portfolio_admin_theme';
+  private readonly storage = inject(BrowserStorage);
 
   private readonly themeSignal = signal<Theme>(this.loadTheme());
 
@@ -22,7 +23,7 @@ export class ThemeService {
       effect(() => {
         const theme = this.themeSignal();
         this.applyTheme(theme);
-        localStorage.setItem(this.storageKey, theme);
+        this.storage.set(STORAGE_KEYS.theme, theme);
       });
     }
   }
@@ -36,7 +37,7 @@ export class ThemeService {
       return 'dark';
     }
 
-    const saved = localStorage.getItem(this.storageKey) as Theme | null;
+    const saved = this.storage.get(STORAGE_KEYS.theme);
     if (saved === 'light' || saved === 'dark') {
       return saved;
     }

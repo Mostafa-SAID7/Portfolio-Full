@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { SESSION_KEYS, sessionFlags } from "@/lib/storage";
 
-const STORAGE_KEY = "app-preloaded";
 /** Never flash: once shown, the splash stays up at least this long. */
 const MIN_VISIBLE_MS = 100;
 /** Hard ceiling — a slow asset must never trap the visitor behind the splash. */
@@ -16,7 +16,7 @@ const FADE_MS = 150;
  * motion users skip it entirely.
  */
 export const preloaderBootstrapScript = `(function(){try{
-var seen=false;try{seen=sessionStorage.getItem("${STORAGE_KEY}")==="1";}catch(e){}
+var seen=false;try{seen=sessionStorage.getItem("${SESSION_KEYS.preloaded}")==="1";}catch(e){}
 var rm=window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 if(seen||rm){document.documentElement.setAttribute("data-preloaded","1");}
 }catch(e){}})();`;
@@ -36,14 +36,8 @@ export function AppPreloader() {
   const doneRef = useRef(false);
 
   useEffect(() => {
-    let seen = false;
-    try {
-      seen = sessionStorage.getItem(STORAGE_KEY) === "1";
-    } catch {
-      /* storage unavailable — splash simply shows again */
-    }
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (seen || reduced) {
+    if (sessionFlags.preloaderSeen() || reduced) {
       setMounted(false);
       return;
     }
@@ -69,11 +63,7 @@ export function AppPreloader() {
         setLeaving(true);
         window.setTimeout(() => {
           setMounted(false);
-          try {
-            sessionStorage.setItem(STORAGE_KEY, "1");
-          } catch {
-            /* ignore */
-          }
+          sessionFlags.markPreloaderSeen();
         }, FADE_MS);
       }, wait);
     };

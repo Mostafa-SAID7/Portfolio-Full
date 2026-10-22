@@ -10,6 +10,7 @@ import { EmptyStateComponent } from '../../shared/empty-state.component';
 import { ErrorStateComponent } from '../../shared/error-state.component';
 import { ToastService } from '../../shared/toast.component';
 import { ActivatedRoute, Router } from '@angular/router';
+import { readUrlInt, replaceUrlParams } from '../../core/url-state';
 
 const PAGE_SIZE = 8;
 
@@ -51,22 +52,17 @@ export class MessagesComponent implements OnInit {
     // Restore the view from the URL (?filter=unread&page=2) so a reload or a
     // shared link reopens the same inbox position.
     const params = this.route.snapshot.queryParamMap;
-    const savedPage = Number(params.get('page'));
+    const savedPage = readUrlInt(params, 'page');
     if (params.get('filter') === 'unread') this.filter.set('unread');
-    if (Number.isFinite(savedPage) && savedPage > 1) this.page.set(Math.floor(savedPage));
+    if (savedPage !== null) this.page.set(savedPage);
     this.load();
   }
 
-  /** Mirror filter/page into the URL (replace: no history flood). */
+  /** Mirror the inbox position into the URL (replace: no history flood). */
   private persistInUrl(): void {
-    this.router.navigate([], {
-      relativeTo: this.route,
-      queryParams: {
-        filter: this.filter() !== 'all' ? this.filter() : null,
-        page: this.page() > 1 ? this.page() : null,
-      },
-      queryParamsHandling: 'merge',
-      replaceUrl: true,
+    replaceUrlParams(this.route, this.router, {
+      filter: this.filter() !== 'all' ? this.filter() : null,
+      page: this.page() > 1 ? this.page() : null,
     });
   }
 

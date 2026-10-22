@@ -375,12 +375,16 @@ interface I18nContextValue {
   tr: (key: keyof typeof t | string) => string;
 }
 
+import { LOCAL_KEYS, LEGACY_LOCAL_KEYS, localStore, readMigrated } from "@/lib/storage";
+
 const I18nContext = createContext<I18nContextValue | undefined>(undefined);
 
-const STORAGE_KEY = "lang";
-
 /** Runs before hydration so the first paint already has the right lang/dir. */
-export const langBootstrapScript = `(function(){try{var l=localStorage.getItem("${STORAGE_KEY}");if(l!=="ar"&&l!=="en"){l=(navigator.language||"en").toLowerCase().indexOf("ar")===0?"ar":"en";}var r=document.documentElement;r.lang=l;r.dir=l==="ar"?"rtl":"ltr";}catch(e){}})();`;
+export const langBootstrapScript = `(function(){try{
+var l=localStorage.getItem("${LOCAL_KEYS.lang}")||localStorage.getItem("${LEGACY_LOCAL_KEYS.lang}");
+if(l!=="ar"&&l!=="en"){l=(navigator.language||"en").toLowerCase().indexOf("ar")===0?"ar":"en";}
+var r=document.documentElement;r.lang=l;r.dir=l==="ar"?"rtl":"ltr";
+}catch(e){}})();`;
 
 function readInitialLang(): Lang {
   if (typeof document === "undefined") return "en";
@@ -393,7 +397,9 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   const [lang, setLang] = useState<Lang>("en");
 
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY) as Lang | null;
+    // readMigrated also rewrites an old bare-"lang" entry into the namespaced
+    // key once, so returning visitors keep their choice across the rename.
+    const stored = readMigrated("lang", LEGACY_LOCAL_KEYS.lang);
     setLang(stored === "ar" || stored === "en" ? stored : readInitialLang());
   }, []);
 
@@ -401,7 +407,9 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     const root = document.documentElement;
     root.lang = lang;
     root.dir = lang === "ar" ? "rtl" : "ltr";
-    localStorage.setItem(STORAGE_KEY, lang);
+    localStore.set(LOCAL_KEYS.lang, lang);
+    // The rename migration is complete: the legacy key must not linger.
+    localStore.remove(LEGACY_LOCAL_KEYS.lang);
   }, [lang]);
 
   const toggleLang = () => setLang((l) => (l === "en" ? "ar" : "en"));

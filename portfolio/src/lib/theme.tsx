@@ -1,9 +1,8 @@
 import { flushSync } from "react-dom";
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { LOCAL_KEYS, LEGACY_LOCAL_KEYS, localStore, readMigrated } from "@/lib/storage";
 
 type Theme = "dark" | "light";
-
-const STORAGE_KEY = "theme";
 
 /**
  * Paint colors MUST match the --background CSS variable in styles.css for
@@ -31,8 +30,10 @@ const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
  * flash for light-mode visitors on reload.
  */
 export const themeBootstrapScript = `(function(){try{
-var s=null;try{s=localStorage.getItem("${STORAGE_KEY}");}catch(e){}
+var s=localStorage.getItem("${LOCAL_KEYS.theme}")||localStorage.getItem("${LEGACY_LOCAL_KEYS.theme}");
 if(s!=="light"&&s!=="dark"){s=window.matchMedia&&window.matchMedia("(prefers-color-scheme: light)").matches?"light":"dark";}
+else{ /* an explicit user choice: migrate the bare-"theme" entry forward */
+try{localStorage.setItem("${LOCAL_KEYS.theme}",s);localStorage.removeItem("${LEGACY_LOCAL_KEYS.theme}");}catch(e){}}
 var r=document.documentElement;
 r.classList.toggle("light",s==="light");
 r.style.colorScheme=s==="light"?"light":"dark";
@@ -57,12 +58,10 @@ function readAppliedTheme(): Theme {
 }
 
 function readStoredTheme(): Theme | null {
-  try {
-    const v = localStorage.getItem(STORAGE_KEY);
-    return v === "light" || v === "dark" ? v : null;
-  } catch {
-    return null;
-  }
+  // readMigrated rewrites an old bare-"theme" entry into the namespaced key
+  // once, so returning visitors keep their explicit choice across the rename.
+  const v = readMigrated("theme", LEGACY_LOCAL_KEYS.theme);
+  return v === "light" || v === "dark" ? v : null;
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
@@ -85,11 +84,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     if (!hydrated) return;
     applyTheme(theme);
     if (!explicitRef.current) return;
-    try {
-      localStorage.setItem(STORAGE_KEY, theme);
-    } catch {
-      /* storage blocked (private mode) — theme still applies for this session */
-    }
+    localStore.set(LOCAL_KEYS.theme, theme);
+    localStore.remove(LEGACY_LOCAL_KEYS.theme);
   }, [theme, hydrated]);
 
   // Follow the OS only while the visitor has never made an explicit choice.
@@ -106,7 +102,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   // Keep tabs/windows of the same site in sync.
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
-      if (e.key !== STORAGE_KEY) return;
+      if (e.key !== LOCAL_KEYS.theme) return;
       if (e.newValue === "light" || e.newValue === "dark") {
         explicitRef.current = true;
         setThemeState(e.newValue);

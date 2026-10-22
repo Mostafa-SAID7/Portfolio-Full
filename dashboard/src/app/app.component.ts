@@ -8,6 +8,7 @@ import { AuthService } from './core/services/auth.service';
 import { ContactService } from './core/services/contact.service';
 import { ApiInstanceService } from './core/services/api-instance.service';
 import { ThemeService } from './core/services/theme.service';
+import { BrowserStorage, STORAGE_KEYS } from './core/services/storage.service';
 import { ConfirmDialogComponent, ConfirmDialogService } from './shared/confirm-dialog.component';
 import { ToastComponent } from './shared/toast.component';
 
@@ -62,27 +63,18 @@ export class AppComponent {
    *  centered icon squares and CSS tooltips carry the labels. The choice
    *  persists in localStorage like the theme. Mobile keeps the full drawer.
    */
-  private readonly sidebarCollapseKey = 'portfolio_admin_sidebar_collapsed';
+  private readonly storage = inject(BrowserStorage);
   readonly sidebarCollapsed = signal(this.restoreSidebarCollapsed());
 
   /** Persisted next to the theme so the choice survives reloads. */
   toggleSidebar(): void {
     const next = !this.sidebarCollapsed();
     this.sidebarCollapsed.set(next);
-    try {
-      localStorage.setItem(this.sidebarCollapseKey, String(next));
-    } catch {
-      /* storage unavailable — state simply won't persist */
-    }
+    this.storage.set(STORAGE_KEYS.sidebarCollapsed, String(next));
   }
 
   private restoreSidebarCollapsed(): boolean {
-    if (!isPlatformBrowser(this.platformId)) return false;
-    try {
-      return localStorage.getItem(this.sidebarCollapseKey) === 'true';
-    } catch {
-      return false;
-    }
+    return this.storage.get(STORAGE_KEYS.sidebarCollapsed) === 'true';
   }
 
   readonly navItems: NavItem[] = [

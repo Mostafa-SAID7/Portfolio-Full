@@ -6,6 +6,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ProjectListStateService } from '../../../core/services/project-list-state.service';
+import { replaceUrlParams, readUrlInt } from '../../../core/url-state';
 import { ProjectService } from '../../../core/services/project.service';
 import { Project } from '../../../core/models/project.model';
 import { isApiHostedImage, resolvePortfolioImage } from '../../../core/portfolio-origin';
@@ -65,23 +66,11 @@ export class ProjectListComponent implements OnInit {
     this.persistInUrl();
   }
 
-  /**
-   * The list's search/page state lives in the URL: `/projects?q=…&page=…`.
-   * Reload, a shared or bookmarked link and the Back button all return to the
-   * exact position (page 2 stays page 2); in-app navigation keeps the same
-   * behaviour via ProjectListStateService, which seeds itself from the URL.
-   */
+  /** Mirror the shared list state into the URL (see ProjectListStateService). */
   private persistInUrl(): void {
-    const query = this.listState.query().trim();
-    const page = this.listState.page();
-    this.router.navigate([], {
-      relativeTo: this.route,
-      queryParams: {
-        q: query || null,          // null/omitted removes the param
-        page: page > 1 ? page : null,
-      },
-      queryParamsHandling: 'merge',
-      replaceUrl: true,
+    replaceUrlParams(this.route, this.router, {
+      q: this.listState.query().trim() || null,
+      page: this.listState.page() > 1 ? this.listState.page() : null,
     });
   }
 
@@ -153,13 +142,10 @@ export class ProjectListComponent implements OnInit {
     // Restore the position from the URL first (?q=…&page=…), then load:
     // a reload on page 2 of search results reopens that exact view.
     const params = this.route.snapshot.queryParamMap;
-    const savedPage = Number(params.get('page'));
+    const savedPage = readUrlInt(params, 'page');
     const savedQuery = params.get('q');
-    if (Number.isFinite(savedPage) && savedPage > 0 || savedQuery !== null) {
-      this.listState.restore(
-        Number.isFinite(savedPage) && savedPage > 0 ? Math.floor(savedPage) : 1,
-        savedQuery ?? ''
-      );
+    if (savedPage !== null || savedQuery !== null) {
+      this.listState.restore(savedPage ?? 1, savedQuery ?? '');
     }
     this.load();
   }
