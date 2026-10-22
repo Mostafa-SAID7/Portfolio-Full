@@ -28,6 +28,11 @@ export const routes: Routes = [
     loadComponent: () => import('./features/messages/messages.component').then(m => m.MessagesComponent)
   },
   {
+    path: 'analytics',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/analytics/analytics.component').then(m => m.AnalyticsComponent)
+  },
+  {
     path: 'content',
     canActivate: [authGuard],
     loadComponent: () => import('./features/content/content.component').then(m => m.ContentComponent)

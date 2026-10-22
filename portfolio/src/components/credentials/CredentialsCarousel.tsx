@@ -54,7 +54,7 @@ export function CredentialsCarousel() {
               reduce={reduce}
               part="details"
             />
-            <CredentialVisuals activeIdx={activeIdx} dir={dir} reduce={reduce} />
+            <CredentialVisuals slide={slide} dir={dir} reduce={reduce} />
             <CredentialControls
               total={total}
               activeIdx={activeIdx}

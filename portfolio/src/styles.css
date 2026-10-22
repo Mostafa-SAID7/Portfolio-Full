@@ -1082,6 +1082,25 @@ html.theme-transition-reverse::view-transition-new(root) {
   animation: check-pop 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
 }
 
+/*
+ * Soft float for the credential artwork icons. A pure CSS motion: no
+ * WebAssembly runtime, no JS, and it respects the reduced-motion block at
+ * the bottom of this file.
+ */
+@keyframes float-soft {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-7px);
+  }
+}
+
+.float-soft {
+  animation: float-soft 5.5s ease-in-out infinite;
+}
+
 .pen-writing {
   animation: pen-writing 0.28s ease-in-out infinite;
   transform-origin: bottom left;
@@ -1226,6 +1245,8 @@ html.theme-transition-reverse::view-transition-new(root) {
   .enter-up,
   .skeleton-shimmer,
   .pen-writing,
+  .float-soft,
+  .check-pop,
   .type-in,
   .type-mark::after,
   .app-preloader__art,

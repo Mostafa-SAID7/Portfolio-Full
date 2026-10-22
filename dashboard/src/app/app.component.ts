@@ -95,6 +95,11 @@ export class AppComponent {
       icon: this.trust('<svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v8a2.5 2.5 0 0 1-2.5 2.5H9l-4 3.5v-3.5A2.5 2.5 0 0 1 4 14.5v-8Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>')
     },
     {
+      link: '/analytics',
+      label: 'Analytics',
+      icon: this.trust('<svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M4 20h16M7 16v-6M12 16V8M17 16v-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>')
+    },
+    {
       link: '/content',
       label: 'Content',
       icon: this.trust('<svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M6 4.75h8.5L18 8.25v11H6v-14.5Z" stroke="currentColor" stroke-width="1.7"/><path d="M14 4.75v3.5h4M9 12h6M9 15.5h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>')
@@ -122,6 +127,7 @@ export class AppComponent {
     if (path.startsWith('/projects')) return 'Projects';
     if (path.startsWith('/messages')) return 'Messages';
     if (path.startsWith('/content')) return 'Content';
+    if (path.startsWith('/analytics')) return 'Analytics';
     return 'Overview';
   }
 

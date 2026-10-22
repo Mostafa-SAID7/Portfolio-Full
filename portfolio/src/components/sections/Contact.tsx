@@ -7,6 +7,7 @@ import { Reveal } from "@/components/ui/Reveal";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { LottieAside } from "@/components/ui/LottieAside";
 import { SelectField } from "@/components/ui/select-field";
+import { ANALYTICS_EVENTS, trackEvent } from "@/lib/analytics";
 import { useI18n } from "@/lib/i18n";
 import { SOCIAL_LINKS } from "@/lib/site";
 import {
@@ -162,6 +163,10 @@ export function Contact({ showHeading = true }: { showHeading?: boolean } = {}) 
         setPhase({ kind: "failed", message: saved.message });
         return;
       }
+
+      // Only now is the conversion real: the message is stored. Nothing about
+      // the visitor is sent to GA4 – just the fact that a message was sent.
+      trackEvent(ANALYTICS_EVENTS.contactSubmit, { success: true, subject: option });
 
       // Redundant email channel: a failure here must not discard a saved message.
       const notified = await notifyViaFormspree(payload);

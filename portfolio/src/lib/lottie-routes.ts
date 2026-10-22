@@ -9,11 +9,10 @@ import { prefetchLottie } from "@/lib/lottie-cache";
  * `lottie-cache`, so warming is free if the asset was seen before.
  */
 export const ROUTE_LOTTIE: Record<string, readonly string[]> = {
-  "/": [
-    "/lottie/cred-education.lottie",
-    "/lottie/cred-certification.lottie",
-    "/lottie/cred-award.lottie",
-  ],
+  // The home page no longer needs an animation up front: the credentials
+  // artwork is rendered with themed icons, so nothing is warmed here and the
+  // 1.2 MB dotLottie runtime stays out of the first-visit path.
+  "/": [],
   "/about": ["/lottie/about-side.lottie"],
   "/skills": ["/lottie/skills-side.lottie"],
   "/experience": ["/lottie/experience-side.lottie"],

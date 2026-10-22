@@ -25,6 +25,7 @@ import { MotionProvider } from "@/lib/motion-provider";
 import { useSmoothScroll } from "@/lib/smooth-scroll";
 import { PageSkeleton } from "@/components/ui/Skeletons";
 import { AppPreloader, preloaderBootstrapScript } from "@/components/ui/AppPreloader";
+import { Analytics } from "@/components/ui/Analytics";
 
 // Client-only chrome and the rarely-hit 404 screen are pulled out of the
 // initial bundle so the first route paints with the smallest possible JS.
@@ -288,6 +289,7 @@ function RootComponent() {
       <ThemeProvider>
         <I18nProvider initialLang={ssrLang}>
           <MotionProvider>
+            <Analytics />
             <ArabicFonts />
             <AppPreloader />
             {hydrated && (

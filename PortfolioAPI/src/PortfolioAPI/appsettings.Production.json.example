@@ -13,5 +13,19 @@
       "Microsoft.EntityFrameworkCore.Database.Command": "Warning"
     }
   },
-  "AllowedHosts": "*"
+  "AllowedHosts": "*",
+  "Analytics": {
+    "PropertyId": "345678901",
+    "ServiceAccountEmail": "ga4-reader@your-project.iam.gserviceaccount.com",
+    "PrivateKey": "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----",
+    "CacheSeconds": 300
+  }
 }
+/*
+  Environment-variable form (preferred):
+    GA4_PROPERTY_ID
+    GA4_SERVICE_ACCOUNT_EMAIL
+    GA4_PRIVATE_KEY
+  The dashboard reads /api/v1/analytics/status (501 when unset) and shows
+  an actionable "not configured" state - no fabricated numbers are ever shown.
+*/

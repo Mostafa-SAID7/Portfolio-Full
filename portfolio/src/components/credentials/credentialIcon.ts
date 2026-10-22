@@ -1,19 +1,40 @@
 import {
   Award,
+  BadgeCheck,
+  Briefcase,
   Compass,
-  Container,
-  Database,
-  Languages,
+  GraduationCap,
   Rocket,
-  ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
+import type { CredentialTab } from "@/data";
 
-const ICONS: LucideIcon[] = [Award, Compass, ShieldCheck, Rocket, Database, Container, Languages];
+/**
+ * The icon that tells the visitor what a credential IS.
+ *
+ * The previous mapping hashed the id and picked one of seven glyphs, so an
+ * education credential could show a database icon and a certification could
+ * show a rocket. The tab is the real signal, so the icon follows it.
+ */
+const TAB_ICONS: Record<CredentialTab, LucideIcon> = {
+  work: Briefcase,
+  projects: Rocket,
+  education: GraduationCap,
+  certifications: BadgeCheck,
+};
 
-/** Deterministic icon per credential id, so a card always shows the same glyph. */
-export function iconForCredential(id: string): LucideIcon {
-  let sum = 0;
-  for (const ch of id) sum += ch.charCodeAt(0);
-  return ICONS[sum % ICONS.length] ?? Award;
+/** Fallback for a tab we do not know yet. */
+const FALLBACK_ICON: LucideIcon = Award;
+
+/** The right icon for a credential type. */
+export function iconForCredential(tab: CredentialTab | string): LucideIcon {
+  return TAB_ICONS[tab as CredentialTab] ?? FALLBACK_ICON;
 }
+
+/** Icons used by the awards/credentials artwork — one per credential type. */
+export const CREDENTIAL_TYPE_ICONS = {
+  education: GraduationCap,
+  certifications: BadgeCheck,
+  award: Award,
+  direction: Compass,
+} as const;
