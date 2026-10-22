@@ -21,6 +21,7 @@ import {
   useI18n,
   type Lang,
 } from "@/lib/i18n";
+import { GTM_CONTAINER_ID } from "@/lib/analytics";
 import { MotionProvider } from "@/lib/motion-provider";
 import { useSmoothScroll } from "@/lib/smooth-scroll";
 import { PageSkeleton } from "@/components/ui/Skeletons";
@@ -261,6 +262,18 @@ function RootShell({ children }: { children: ReactNode }) {
         <HeadContent />
       </head>
       <body suppressHydrationWarning>
+        {/* GTM noscript fallback for visitors without JavaScript. */}
+        {GTM_CONTAINER_ID ? (
+          <noscript>
+            <iframe
+              src={`https://www.googletagmanager.com/ns.html?id=${GTM_CONTAINER_ID}`}
+              height="0"
+              width="0"
+              style={{ display: "none", visibility: "hidden" }}
+              title="gtm"
+            />
+          </noscript>
+        ) : null}
         {children}
         <Scripts />
       </body>

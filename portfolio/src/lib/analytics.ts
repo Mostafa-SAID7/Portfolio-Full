@@ -12,9 +12,19 @@
  *    Measurement ID behaves exactly like today.
  */
 
-/** The Measurement ID, e.g. "G-XXXXXXXXXX". Empty = analytics disabled. */
+/** The GA4 Measurement ID, e.g. "G-XXXXXXXXXX". Empty = GA4 direct disabled. */
 export const GA_MEASUREMENT_ID = (
   import.meta.env["VITE_GA_MEASUREMENT_ID"] as string | undefined
+)?.trim() ?? "";
+
+/**
+ * The Google Tag Manager container ID, e.g. "GTM-XXXXXXX". Empty = GTM disabled.
+ * When GTM is configured it takes precedence over the direct GA4 integration:
+ * GTM owns the dataLayer and can load GA4 (and other tags) itself, which avoids
+ * double-counting the same event twice.
+ */
+export const GTM_CONTAINER_ID = (
+  import.meta.env["VITE_GTM_CONTAINER_ID"] as string | undefined
 )?.trim() ?? "";
 
 /** Every event the site reports. One place, so the names never drift. */
@@ -88,21 +98,59 @@ export function setAnalyticsConsent(next: AnalyticsConsent): void {
   }
 }
 
-/** Is GA4 configured at all? */
+/** Is any analytics collection configured (direct GA4 or GTM)? */
 export function analyticsConfigured(): boolean {
-  return /^G-[A-Z0-9]+$/.test(GA_MEASUREMENT_ID);
+  return /^G-[A-Z0-9]+$/.test(GA_MEASUREMENT_ID) || /^GTM-[A-Z0-9]+$/.test(GTM_CONTAINER_ID);
+}
+
+/** Is the GTM container configured? When it is, GTM owns the dataLayer. */
+export function gtmConfigured(): boolean {
+  return /^GTM-[A-Z0-9]+$/.test(GTM_CONTAINER_ID);
 }
 
 /**
- * Loads gtag.js once and configures the property.
+ * Loads the Google Tag Manager container once.
+ *
+ * GTM owns `dataLayer` and can load GA4 (and any other tags) itself, which
+ * avoids double-counting the same event twice. The standard GTM snippet is
+ * used verbatim so the container's own consent/trigger configuration keeps
+ * working.
+ */
+export function initGtm(): void {
+  if (typeof window === "undefined") return;
+  if (!gtmConfigured()) return;
+  const w = window as GtagWindow & { __gtm_loaded?: boolean };
+  if (w.__gtm_loaded) return;
+  w.__gtm_loaded = true;
+  w.dataLayer = w.dataLayer || [];
+  w.dataLayer.push({ "gtm.start": new Date().getTime(), event: "gtm.js" });
+  const script = document.createElement("script");
+  script.async = true;
+  script.src = `https://www.googletagmanager.com/gtm.js?id=${GTM_CONTAINER_ID}`;
+  script.dataset["analyticsLoader"] = "gtm";
+  document.head.appendChild(script);
+}
+
+/**
+ * Loads gtag.js once and configures the property (direct GA4, used only when
+ * GTM is not configured).
  *
  * `send_page_view: false` – the page views are sent by the router hook, so a
  * client‑side navigation produces exactly one event per route (no duplicates
  * from the automatic Enhanced‑Measurement page view).
  */
 export function initAnalytics(): void {
-  if (initialized || !analyticsConfigured()) return;
+  if (initialized) return;
   if (typeof window === "undefined") return;
+
+  // GTM takes precedence: it owns the dataLayer and can load GA4 itself.
+  if (gtmConfigured()) {
+    initGtm();
+    initialized = true;
+    return;
+  }
+
+  if (!/^G-[A-Z0-9]+$/.test(GA_MEASUREMENT_ID)) return;
 
   const w = window as GtagWindow;
   w.dataLayer = w.dataLayer || [];
@@ -138,14 +186,19 @@ export function trackEvent(event: AnalyticsEvent, params: AnalyticsParams = {}):
   if (!analyticsConfigured() || consent !== "granted") return;
   if (typeof window === "undefined") return;
   const w = window as GtagWindow;
-  if (typeof w.gtag !== "function") return;
   const payload: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(params)) {
     if (value === undefined) continue;
     payload[key] = value;
   }
   try {
-    w.gtag("event", event, payload);
+    if (gtmConfigured()) {
+      // GTM owns the dataLayer: push a structured event it can route.
+      w.dataLayer = w.dataLayer || [];
+      (w.dataLayer as unknown[]).push({ event, ...payload });
+    } else if (typeof w.gtag === "function") {
+      w.gtag("event", event, payload);
+    }
   } catch {
     /* never let analytics break the UI */
   }
@@ -159,13 +212,22 @@ export function trackPageView(path: string, title?: string): void {
   if (!analyticsConfigured() || consent !== "granted") return;
   if (typeof window === "undefined") return;
   const w = window as GtagWindow;
-  if (typeof w.gtag !== "function") return;
   try {
-    w.gtag("event", ANALYTICS_EVENTS.pageView, {
-      page_path: path,
-      page_location: `${window.location.origin}${path}`,
-      ...(title ? { page_title: title } : {})
-    });
+    if (gtmConfigured()) {
+      w.dataLayer = w.dataLayer || [];
+      (w.dataLayer as unknown[]).push({
+        event: ANALYTICS_EVENTS.pageView,
+        page_path: path,
+        page_location: `${window.location.origin}${path}`,
+        ...(title ? { page_title: title } : {})
+      });
+    } else if (typeof w.gtag === "function") {
+      w.gtag("event", ANALYTICS_EVENTS.pageView, {
+        page_path: path,
+        page_location: `${window.location.origin}${path}`,
+        ...(title ? { page_title: title } : {})
+      });
+    }
   } catch {
     /* ignore */
   }

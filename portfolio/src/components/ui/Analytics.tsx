@@ -6,7 +6,9 @@ import {
   ANALYTICS_EVENTS,
   analyticsConfigured,
   analyticsConsent,
+  gtmConfigured,
   initAnalytics,
+  initGtm,
   restoreAnalyticsConsent,
   setAnalyticsConsent,
   trackEvent,
@@ -26,9 +28,11 @@ export function Analytics() {
   const [consent, setConsent] = useState<AnalyticsConsent>("denied");
   const location = useRouterState({ select: (state) => state.location });
 
-  // Restore the stored choice and (re)start GA4 when it was granted.
+  // Restore the stored choice and (re)start analytics when it was granted.
   useEffect(() => {
     setConsent(restoreAnalyticsConsent());
+    // Restore the GTM container too if consent was granted previously.
+    if (gtmConfigured()) initGtm();
   }, []);
 
   // One page view per route change – path only, never the query string.
@@ -39,7 +43,7 @@ export function Analytics() {
     trackPageView(path, title);
   }, [location.pathname]);
 
-  if (!analyticsConfigured()) return null;
+  if (!analyticsConfigured() && !gtmConfigured()) return null;
 
   return (
     <ConsentPrompt
@@ -47,6 +51,7 @@ export function Analytics() {
       onGrant={() => {
         setAnalyticsConsent("granted");
         initAnalytics();
+        if (gtmConfigured()) initGtm();
         setConsent("granted");
         trackEvent(ANALYTICS_EVENTS.ctaClick, { cta: "analytics_consent_granted" });
       }}
