@@ -26,9 +26,19 @@ namespace PortfolioAPI.Infrastructure.Data
 
             if (tables == 0)
             {
-                // Fresh database - let EF migrations create everything
+                // Fresh database - let EF migrations create the schema.
+                // Apply pending migrations before seeding so the app can never
+                // start against a schema that lags behind the code (which would
+                // surface as 500s on the first request instead of a clean boot).
+                await context.Database.MigrateAsync();
                 return;
             }
+
+            // Existing database - apply any pending migrations first (idempotent:
+            // MigrateAsync is a no-op when the DB is already up to date). This
+            // is what keeps the shared production DB in sync with the code
+            // without a manual `dotnet ef database update` step.
+            await context.Database.MigrateAsync();
 
             // Existing database - ensure schema compatibility and seed reference data
             // Only seed reference data in non-production environments (issue #40)

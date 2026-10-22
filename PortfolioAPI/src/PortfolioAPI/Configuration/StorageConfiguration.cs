@@ -73,11 +73,22 @@ namespace PortfolioAPI.Configuration
                 // Fail fast on incomplete Cloudinary configuration - the message must not
                 // print values (requirement 21). Uses the same merged instance as DI.
                 if (!cloudinaryOptions.IsConfigured)
-                    throw new InvalidOperationException("Cloudinary configuration is incomplete.");
-
-                services.AddScoped<IFileStorageService>(sp => sp.GetRequiredService<CloudinaryStorageService>());
+                {
+                    // In production, Cloudinary is preferred but must never prevent the
+                    // app from starting: a missing secret would otherwise surface as a
+                    // generic 500.30 (IIS) with no actionable message. Fall back to
+                    // local disk storage and log a warning so the operator sees it.
+                    // See: "HTTP Error 500.30 - ASP.NET Core app failed to start".
+                    storageProvider = MediaProvider.Local;
+                    Console.WriteLine("WARNING: Cloudinary configuration is incomplete; falling back to local storage.");
+                }
+                else
+                {
+                    services.AddScoped<IFileStorageService>(sp => sp.GetRequiredService<CloudinaryStorageService>());
+                }
             }
-            else
+
+            if (string.Equals(storageProvider, MediaProvider.Local, StringComparison.OrdinalIgnoreCase))
             {
                 services.AddScoped<IFileStorageService>(sp => sp.GetRequiredService<FileStorageService>());
             }
