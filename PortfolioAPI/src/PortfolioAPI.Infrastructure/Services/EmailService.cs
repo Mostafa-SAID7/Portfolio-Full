@@ -31,7 +31,30 @@ namespace PortfolioAPI.Infrastructure.Services
             _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
         }
 
-        public async Task SendEmailAsync(string to, string subject, string body, bool isHtml = false)
+        public Task SendEmailAsync(string to, string subject, string body, bool isHtml = false) =>
+            SendAsync(to, subject, body, isHtml, replyTo: null);
+
+        /// <summary>
+        /// Sends an admin reply back to a visitor. Reply-To is the OWNER's
+        /// address — never the visitor's — so answering the notification lands
+        /// in the portfolio inbox instead of being spoofed back at the sender.
+        /// The body is plain text: an admin-written reply must not become an
+        /// HTML injection point.
+        /// </summary>
+        public async Task SendContactReplyAsync(string toEmail, string subject, string body)
+        {
+            var adminEmail = FirstNonEmpty(_settings.AdminEmail, _configuration["Auth:Email"]);
+            if (!MailAddress.TryCreate(adminEmail?.Trim() ?? string.Empty, out var replyTo))
+            {
+                throw new InvalidOperationException(
+                    "No valid admin address (EmailSettings:AdminEmail) — a reply cannot be sent without a Reply-To identity.");
+            }
+
+            var ownerName = string.IsNullOrWhiteSpace(_settings.FromName) ? "Portfolio API" : _settings.FromName;
+            await SendAsync(toEmail, subject, body, isHtml: false, new MailAddress(replyTo.Address, ownerName));
+        }
+
+        private async Task SendAsync(string to, string subject, string body, bool isHtml, MailAddress? replyTo)
         {
             ValidateConnectionSettings();
 
@@ -54,7 +77,7 @@ namespace PortfolioAPI.Infrastructure.Services
                     _settings.Password.Replace(" ", string.Empty).Trim());
             }
 
-            using var mailMessage = BuildMessage(to, subject, body, isHtml);
+            using var mailMessage = BuildMessage(to, subject, body, isHtml, replyTo);
 
             await smtpClient.SendMailAsync(mailMessage);
         }
@@ -138,7 +161,7 @@ namespace PortfolioAPI.Infrastructure.Services
         /// A malformed recipient fails here with a clear reason instead of a
         /// generic FormatException from deep inside SmtpClient.
         /// </summary>
-        private MailMessage BuildMessage(string to, string subject, string body, bool isHtml)
+        private MailMessage BuildMessage(string to, string subject, string body, bool isHtml, MailAddress? replyTo = null)
         {
             if (string.IsNullOrWhiteSpace(to) || !MailAddress.TryCreate(to.Trim(), out _))
             {
@@ -151,7 +174,7 @@ namespace PortfolioAPI.Infrastructure.Services
                 throw new InvalidOperationException("EmailSettings:FromEmail is not a valid SMTP address.");
             }
 
-            return new MailMessage
+            var message = new MailMessage
             {
                 From = new MailAddress(from.Address, string.IsNullOrWhiteSpace(_settings.FromName)
                     ? "Portfolio API"
@@ -160,6 +183,15 @@ namespace PortfolioAPI.Infrastructure.Services
                 Body = body,
                 IsBodyHtml = isHtml
             };
+            // The recipient MUST be added to the message — without it every
+            // send fails with "A recipient must be specified" (the address was
+            // only validated above, never attached to the mail).
+            message.To.Add(to.Trim());
+            if (replyTo is not null)
+            {
+                message.ReplyToList.Add(replyTo);
+            }
+            return message;
         }
 
         /// <summary>

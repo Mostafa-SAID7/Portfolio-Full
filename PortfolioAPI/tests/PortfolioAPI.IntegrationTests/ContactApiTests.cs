@@ -1,6 +1,7 @@
 using System.Net;
 using Bogus;
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using PortfolioAPI.Core.DTOs;
 using PortfolioAPI.Core.Entities;
 using Xunit;
@@ -295,6 +296,104 @@ namespace PortfolioAPI.IntegrationTests
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        }
+
+        [Fact]
+        public async Task Reply_ReturnsOk_AndStoresTheDeliveredReply()
+        {
+            // Arrange — an unread visitor message; the test mail adapter accepts
+            // every delivery, so a successful reply must also be stored.
+            var existingContact = _contactFaker.Generate();
+            existingContact.IsRead = false;
+            await _dbContext.Contacts.AddAsync(existingContact);
+            await _dbContext.SaveChangesAsync();
+
+            // Act
+            var response = await PostAsync($"api/contact/{existingContact.Id}/reply",
+                new ReplyToContactDto { Body = "  Happy to help — here is my availability.  " });
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            var reply = await DeserializeResponseAsync<ContactReplyDto>(response);
+            reply.Should().NotBeNull();
+            reply!.ContactId.Should().Be(existingContact.Id);
+            reply.RecipientEmail.Should().Be(existingContact.Email);
+            reply.Subject.Should().Be($"Re: {existingContact.Subject.Trim()}");
+            reply.Body.Should().Be("Happy to help — here is my availability.");
+
+            // The mail adapter accepted the delivery, so the reply is stored…
+            var stored = await _dbContext.ContactReplies.FindAsync(reply.Id);
+            stored.Should().NotBeNull();
+
+            // …and answering clears the unread flag in the same commit.
+            var dbContact = await _dbContext.Contacts.FindAsync(existingContact.Id);
+            dbContact!.IsRead.Should().BeTrue();
+        }
+
+        [Fact]
+        public async Task Reply_ReturnsBadRequest_WhenBodyIsEmpty()
+        {
+            var existingContact = _contactFaker.Generate();
+            await _dbContext.Contacts.AddAsync(existingContact);
+            await _dbContext.SaveChangesAsync();
+
+            var response = await PostAsync($"api/contact/{existingContact.Id}/reply",
+                new ReplyToContactDto { Body = "   " });
+
+            response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+            (await _dbContext.ContactReplies.AnyAsync(r => r.ContactId == existingContact.Id)).Should().BeFalse();
+        }
+
+        [Fact]
+        public async Task Reply_ReturnsNotFound_WhenContactDoesNotExist()
+        {
+            var response = await PostAsync("api/contact/999/reply", new ReplyToContactDto { Body = "Hello" });
+
+            response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        }
+
+        [Fact]
+        public async Task GetReplies_ReturnsOnlyThatThreadsReplies_NewestFirst()
+        {
+            var contact = _contactFaker.Generate();
+            var otherContact = _contactFaker.Generate();
+            await _dbContext.Contacts.AddRangeAsync(contact, otherContact);
+            await _dbContext.SaveChangesAsync();
+
+            await _dbContext.ContactReplies.AddRangeAsync(
+                new ContactReply
+                {
+                    ContactId = contact.Id,
+                    RecipientEmail = contact.Email,
+                    Subject = "Re: first",
+                    Body = "older reply",
+                    SentAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+                },
+                new ContactReply
+                {
+                    ContactId = contact.Id,
+                    RecipientEmail = contact.Email,
+                    Subject = "Re: first",
+                    Body = "newest reply",
+                    SentAt = new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc)
+                },
+                new ContactReply
+                {
+                    ContactId = otherContact.Id,
+                    RecipientEmail = otherContact.Email,
+                    Subject = "Re: other",
+                    Body = "unrelated",
+                    SentAt = new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc)
+                });
+            await _dbContext.SaveChangesAsync();
+
+            var response = await GetAsync($"api/contact/{contact.Id}/replies");
+
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            var replies = await DeserializeResponseAsync<IEnumerable<ContactReplyDto>>(response);
+            replies.Should().HaveCount(2);
+            replies!.First().Body.Should().Be("newest reply");
+            replies.Should().OnlyContain(r => r.ContactId == contact.Id);
         }
 
         [Fact]

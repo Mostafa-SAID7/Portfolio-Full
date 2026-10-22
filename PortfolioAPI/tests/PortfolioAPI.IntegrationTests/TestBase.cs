@@ -205,6 +205,11 @@ namespace PortfolioAPI.IntegrationTests
             return SendEmailAsync(toEmail, "Welcome!", $"Welcome {userName}!");
         }
 
+        public Task SendContactReplyAsync(string toEmail, string subject, string body)
+        {
+            return SendEmailAsync(toEmail, subject, body);
+        }
+
         public Task SendNotificationEmailAsync(string toEmail, string title, string content)
         {
             return SendEmailAsync(toEmail, title, content);

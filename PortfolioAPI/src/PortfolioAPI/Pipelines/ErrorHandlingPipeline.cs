@@ -41,6 +41,13 @@ namespace PortfolioAPI.Pipelines
                         message = validation.Message;
                         errors = validation.Errors;
                         break;
+                    // Outbound mail is an upstream dependency: an unconfigured or
+                    // failing SMTP must read as "could not be sent", never as a
+                    // generic 500 and never as a saved reply.
+                    case EmailDeliveryException delivery:
+                        status = StatusCodes.Status503ServiceUnavailable;
+                        message = delivery.Message;
+                        break;
                     // Unique indexes (Skills.Name) reject duplicates at the
                     // database level — surface them as a clear 409 instead of a generic 500.
                     case DbUpdateException { InnerException: Microsoft.Data.SqlClient.SqlException { Number: 2601 or 2627 } }:

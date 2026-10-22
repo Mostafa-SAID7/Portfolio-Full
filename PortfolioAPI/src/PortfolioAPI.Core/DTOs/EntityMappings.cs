@@ -105,6 +105,16 @@ namespace PortfolioAPI.Core.DTOs
             UpdatedAt = c.UpdatedAt
         };
 
+        public static ContactReplyDto ToDto(ContactReply r) => new()
+        {
+            Id = r.Id,
+            ContactId = r.ContactId,
+            RecipientEmail = r.RecipientEmail,
+            Subject = r.Subject,
+            Body = r.Body,
+            SentAt = r.SentAt
+        };
+
         public static TestimonialDto ToDto(Testimonial t) => new()
         {
             Id = t.Id,

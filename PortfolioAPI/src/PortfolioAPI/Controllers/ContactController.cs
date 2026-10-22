@@ -65,6 +65,22 @@ namespace PortfolioAPI.Controllers
             return NoContent();
         }
 
+        /// <summary>Deliver the admin's answer to the visitor and record it in the thread.</summary>
+        [HttpPost("{id}/reply")]
+        public async Task<ActionResult<ContactReplyDto>> Reply(int id, [FromBody] ReplyToContactDto dto)
+        {
+            var reply = await _contactService.ReplyToContactAsync(id, dto.Body);
+            return Ok(EntityMappings.ToDto(reply));
+        }
+
+        /// <summary>Replies already delivered for this message, newest first.</summary>
+        [HttpGet("{id}/replies")]
+        public async Task<ActionResult<IEnumerable<ContactReplyDto>>> GetReplies(int id)
+        {
+            var replies = await _contactService.GetRepliesAsync(id);
+            return Ok(replies.Select(r => EntityMappings.ToDto(r)));
+        }
+
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteContact(int id)
         {

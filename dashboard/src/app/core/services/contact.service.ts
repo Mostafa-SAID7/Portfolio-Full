@@ -1,7 +1,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, catchError, finalize, of, shareReplay, tap, throwError } from 'rxjs';
-import { ContactMessage } from '../models/contact.model';
+import { ContactMessage, ContactReply } from '../models/contact.model';
 import { API_URL } from '../api.config';
 
 const ENDPOINT = `${API_URL}/Contact`;
@@ -82,6 +82,22 @@ export class ContactService {
     return this.http.put<void>(`${ENDPOINT}/${id}/read`, {}).pipe(
       tap(() => this.patchLocal(id, { isRead: true, readAt: new Date().toISOString() })),
       catchError(err => throwError(() => err))
+    );
+  }
+
+  /** Replies already delivered for one message (newest first). */
+  getReplies(id: number): Observable<ContactReply[]> {
+    return this.http.get<ContactReply[]>(`${ENDPOINT}/${id}/replies`);
+  }
+
+  /**
+   * Sends the answer through the API. A 503 from the mail layer means the text
+   * was NOT delivered and nothing was stored — the caller must not pretend
+   * otherwise; the inbox is only patched when the request succeeded.
+   */
+  replyToMessage(id: number, body: string): Observable<ContactReply> {
+    return this.http.post<ContactReply>(`${ENDPOINT}/${id}/reply`, { body }).pipe(
+      tap(reply => this.patchLocal(id, { isRead: true, readAt: reply.sentAt }))
     );
   }
 
