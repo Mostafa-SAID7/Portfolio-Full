@@ -23,15 +23,19 @@ namespace PortfolioAPI.Infrastructure.Repositories
             // Match the needle as a substring of title, description or the raw
             // comma-separated technologies column (same semantics as the old
             // in-expression filter: substring anywhere, including mid-item).
+            // Column names must match the bilingual schema (TitleEn/Ar, ... -
+            // the pre-bilingual [Title]/[Description] columns no longer exist).
             // LIKE wildcards in user input are escaped.
             var like = $"%{EscapeLike(searchTerm)}%";
 
             return await _dbSet
                 .FromSqlInterpolated($"""
                     SELECT * FROM [Projects]
-                    WHERE [Title] LIKE {like}
-                       OR [Description] LIKE {like}
+                    WHERE [TitleEn] LIKE {like}
+                       OR [DescriptionEn] LIKE {like}
                        OR [Technologies] LIKE {like}
+                       OR [TitleAr] LIKE {like}
+                       OR [DescriptionAr] LIKE {like}
                     """)
                 .AsNoTracking()
                 .ToListAsync();

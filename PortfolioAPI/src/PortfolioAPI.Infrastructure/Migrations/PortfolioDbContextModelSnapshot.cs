@@ -63,7 +63,7 @@ namespace PortfolioAPI.Infrastructure.Migrations
                     b.HasIndex("NameEn")
                         .IsUnique();
 
-                    b.ToTable("Categories");
+                    b.ToTable("Categories", (string)null);
                 });
 
             modelBuilder.Entity("PortfolioAPI.Core.Entities.Contact", b =>
@@ -128,7 +128,7 @@ namespace PortfolioAPI.Infrastructure.Migrations
 
                     b.HasIndex("IsRead");
 
-                    b.ToTable("Contacts");
+                    b.ToTable("Contacts", (string)null);
                 });
 
             modelBuilder.Entity("PortfolioAPI.Core.Entities.Credential", b =>
@@ -256,7 +256,7 @@ namespace PortfolioAPI.Infrastructure.Migrations
 
                     b.HasIndex("Tab");
 
-                    b.ToTable("Credentials");
+                    b.ToTable("Credentials", (string)null);
                 });
 
             modelBuilder.Entity("PortfolioAPI.Core.Entities.Experience", b =>
@@ -349,7 +349,7 @@ namespace PortfolioAPI.Infrastructure.Migrations
 
                     b.HasIndex("Current");
 
-                    b.ToTable("Experiences");
+                    b.ToTable("Experiences", (string)null);
                 });
 
             modelBuilder.Entity("PortfolioAPI.Core.Entities.Project", b =>
@@ -512,7 +512,7 @@ namespace PortfolioAPI.Infrastructure.Migrations
 
                     b.HasIndex("TitleEn");
 
-                    b.ToTable("Projects");
+                    b.ToTable("Projects", (string)null);
                 });
 
             modelBuilder.Entity("PortfolioAPI.Core.Entities.ProjectImage", b =>
@@ -561,7 +561,7 @@ namespace PortfolioAPI.Infrastructure.Migrations
 
                     b.HasIndex("ProjectId");
 
-                    b.ToTable("ProjectImages");
+                    b.ToTable("ProjectImages", (string)null);
                 });
 
             modelBuilder.Entity("PortfolioAPI.Core.Entities.Skill", b =>
@@ -638,7 +638,7 @@ namespace PortfolioAPI.Infrastructure.Migrations
                     b.HasIndex("NameEn")
                         .IsUnique();
 
-                    b.ToTable("Skills");
+                    b.ToTable("Skills", (string)null);
                 });
 
             modelBuilder.Entity("PortfolioAPI.Core.Entities.SkillProject", b =>
@@ -653,7 +653,7 @@ namespace PortfolioAPI.Infrastructure.Migrations
 
                     b.HasIndex("ProjectId");
 
-                    b.ToTable("SkillProject");
+                    b.ToTable("SkillProject", (string)null);
                 });
 
             modelBuilder.Entity("PortfolioAPI.Core.Entities.Testimonial", b =>
@@ -728,7 +728,7 @@ namespace PortfolioAPI.Infrastructure.Migrations
 
                     b.HasIndex("Rating");
 
-                    b.ToTable("Testimonials");
+                    b.ToTable("Testimonials", (string)null);
                 });
 
             modelBuilder.Entity("PortfolioAPI.Core.Entities.ProjectImage", b =>

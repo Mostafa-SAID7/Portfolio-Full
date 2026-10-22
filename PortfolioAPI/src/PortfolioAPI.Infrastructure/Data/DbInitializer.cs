@@ -187,12 +187,17 @@ namespace PortfolioAPI.Infrastructure.Data
             await context.SaveChangesAsync();
         }
 
+        // NOTE: the interpolation holes must stay UNQUOTED ({table}, {column}) -
+        // quoting them ('{table}') would keep the quotes in the generated SQL
+        // around the parameter token, turning the comparison into a comparison
+        // against the literal string '@p0' (always 0 rows, silently disabling
+        // both checks and re-attempting destructive DDL on every startup).
         private static async Task<bool> ColumnExistsAsync(PortfolioDbContext context, string table, string column)
         {
             try
             {
                 var count = await context.Database
-                    .SqlQuery<int>($"SELECT COUNT(*) AS Value FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '{table}' AND COLUMN_NAME = '{column}'")
+                    .SqlQuery<int>($"SELECT COUNT(*) AS Value FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = {table} AND COLUMN_NAME = {column}")
                     .SingleAsync();
                 return count > 0;
             }
@@ -208,7 +213,7 @@ namespace PortfolioAPI.Infrastructure.Data
             try
             {
                 var count = await context.Database
-                    .SqlQuery<int>($"SELECT COUNT(*) AS Value FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = '{table}'")
+                    .SqlQuery<int>($"SELECT COUNT(*) AS Value FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = {table}")
                     .SingleAsync();
                 return count > 0;
             }

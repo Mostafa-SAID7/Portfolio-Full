@@ -22,6 +22,11 @@ namespace PortfolioAPI.Infrastructure.Data.Configurations
 
             builder.Property(i => i.IsPrimary)
                 .HasDefaultValue(false);
+
+            // EF convention auto-indexes every FK (this one exists since the
+            // InitialCreate migration as IX_ProjectImages_ProjectId); declaring
+            // it explicitly pins that guarantee if the model ever changes.
+            builder.HasIndex(i => i.ProjectId);
         }
     }
 }

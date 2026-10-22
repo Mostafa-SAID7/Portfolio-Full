@@ -176,6 +176,13 @@ namespace PortfolioAPI.Application.Services
             await DeleteOrThrowAsync(id);
         }
 
+        /// <summary>
+        /// Stages a new managed category if the name is free. Deliberately does
+        /// NOT save: callers that write other aggregates in the same operation
+        /// (Project create/update) commit everything in ONE SaveChanges, which
+        /// keeps "project + its category" atomic (the previous behavior saved
+        /// here, splitting the unit of work in half).
+        /// </summary>
         public async Task EnsureCategoryAsync(string? name)
         {
             var trimmed = name?.Trim();
@@ -198,15 +205,15 @@ namespace PortfolioAPI.Application.Services
             };
 
             await UnitOfWork.Categories.AddAsync(category);
-            await UnitOfWork.SaveChangesAsync();
         }
 
         private async Task<bool> NameExistsAsync(string name, int? excludeId)
         {
-            var matches = await UnitOfWork.Categories.FindAsync(
-                c => c.NameEn.ToLower() == name.ToLower());
-
-            return matches.Any(c => excludeId == null || c.Id != excludeId);
+            // SQL EXISTS — the old FindAsync(...).Any() loaded every matching
+            // category row into memory just to answer "does it exist?".
+            return await UnitOfWork.Categories.AnyAsync(
+                c => c.NameEn.ToLower() == name.ToLower() &&
+                     (excludeId == null || c.Id != excludeId));
         }
 
         private async Task<int> NextOrderAsync()

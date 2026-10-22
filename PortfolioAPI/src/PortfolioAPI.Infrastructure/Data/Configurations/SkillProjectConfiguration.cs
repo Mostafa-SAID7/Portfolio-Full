@@ -20,6 +20,12 @@ namespace PortfolioAPI.Infrastructure.Data.Configurations
                 .WithMany()
                 .HasForeignKey(sp => sp.ProjectId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            // EF convention auto-indexes every FK (this one exists since the
+            // InitialCreate migration as IX_SkillProject_ProjectId — the
+            // composite PK alone would not cover the ProjectId direction);
+            // declaring it explicitly pins that guarantee.
+            builder.HasIndex(sp => sp.ProjectId);
         }
     }
 }
