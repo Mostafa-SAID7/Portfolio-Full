@@ -47,6 +47,12 @@ namespace PortfolioAPI.Infrastructure.Data.Configurations
 
             builder.HasIndex(t => t.IsActive);
             builder.HasIndex(t => t.Rating);
+
+            // Defense-in-depth: validators own 1-5 at the API boundary; the DB
+            // constraint guards direct SQL writes. (Existing rows verified:
+            // zero out-of-range values.)
+            builder.ToTable(t => t.HasCheckConstraint(
+                "CK_Testimonials_Rating", "[Rating] BETWEEN 1 AND 5"));
         }
     }
 }

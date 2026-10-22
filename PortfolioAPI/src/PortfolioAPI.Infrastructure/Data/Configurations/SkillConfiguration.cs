@@ -54,6 +54,13 @@ namespace PortfolioAPI.Infrastructure.Data.Configurations
             builder.HasIndex(s => s.CategoryEn);
 
             builder.HasIndex(s => s.IsActive);
+
+            // Defense-in-depth: the FluentValidation validator owns the range
+            // at the application boundary; this keeps direct SQL writes
+            // (migrations, manual admin fixes) from storing out-of-range
+            // proficiency the UI would render as nonsense.
+            builder.ToTable(t => t.HasCheckConstraint(
+                "CK_Skills_Proficiency", "[Proficiency] BETWEEN 0 AND 100"));
         }
     }
 }
