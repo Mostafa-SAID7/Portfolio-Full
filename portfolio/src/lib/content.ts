@@ -46,15 +46,22 @@ interface ApiProject {
 
 interface ApiCategory {
   id: number;
-  name: string;
+  // Bilingual schema (API v2). `nameEn` is the canonical name echoed on every
+  // project's `categoryEn`, so filter chips must compare with it.
+  nameEn: string;
+  nameAr: string;
   order: number;
   isActive: boolean;
 }
 
 interface ApiSkill {
   id: number;
-  name: string;
-  category: string;
+  // Bilingual schema (API v2) — the old single-`name`/`category` fields no
+  // longer exist on the wire, which silently emptied the skills page.
+  nameEn: string;
+  nameAr: string;
+  categoryEn: string;
+  categoryAr: string;
   proficiency: number;
   order: number;
   isActive: boolean;
@@ -228,14 +235,18 @@ export async function fetchPortfolioSkillGroups(): Promise<
   const groups = new Map<string, { icon: SkillIcon; skills: string[] }>();
   for (const skill of [...data].sort((a, b) => (a?.order ?? 0) - (b?.order ?? 0))) {
     if (!skill || !skill.isActive) continue;
-    const cat = (typeof skill.category === "string" ? skill.category.trim() : "") || "General";
+    // Group by the canonical English category: iconForCategory matches its
+    // keyword table against English strings ("front", "database", ...).
+    const cat =
+      (typeof skill.categoryEn === "string" ? skill.categoryEn.trim() : "") || "General";
     let group = groups.get(cat);
     if (!group) {
       group = { icon: iconForCategory(cat), skills: [] };
       groups.set(cat, group);
     }
-    if (skill.name && typeof skill.name === "string") {
-      group.skills.push(skill.name);
+    const name = typeof skill.nameEn === "string" ? skill.nameEn : "";
+    if (name) {
+      group.skills.push(name);
     }
   }
   return [...groups.entries()].map(([title, group]) => ({ title, ...group }));
@@ -290,11 +301,11 @@ export function usePortfolioSkillGroups(): {
 
 export async function fetchPortfolioCategories(): Promise<string[]> {
   const data = await getJson<ApiCategory[]>("categories");
-  if (!data) return [];
+  if (!data || !Array.isArray(data)) return [];
   return data
-    .filter((c) => c.isActive)
-    .map((c) => c.name)
-    .filter((name) => name.length > 0);
+    .filter((c) => c?.isActive)
+    .map((c) => c.nameEn)
+    .filter((name) => typeof name === "string" && name.length > 0);
 }
 
 export function usePortfolioCredentials(): CredentialItem[] {
