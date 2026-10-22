@@ -58,6 +58,33 @@ export class AppComponent {
   /** Breakpoint flag: true when the viewport is at the lg (desktop) width. */
   readonly isDesktop = signal(false);
 
+  /** Desktop-only icon rail (collapsed sidebar): labels hide, links become
+   *  centered icon squares and CSS tooltips carry the labels. The choice
+   *  persists in localStorage like the theme. Mobile keeps the full drawer.
+   */
+  private readonly sidebarCollapseKey = 'portfolio_admin_sidebar_collapsed';
+  readonly sidebarCollapsed = signal(this.restoreSidebarCollapsed());
+
+  /** Persisted next to the theme so the choice survives reloads. */
+  toggleSidebar(): void {
+    const next = !this.sidebarCollapsed();
+    this.sidebarCollapsed.set(next);
+    try {
+      localStorage.setItem(this.sidebarCollapseKey, String(next));
+    } catch {
+      /* storage unavailable — state simply won't persist */
+    }
+  }
+
+  private restoreSidebarCollapsed(): boolean {
+    if (!isPlatformBrowser(this.platformId)) return false;
+    try {
+      return localStorage.getItem(this.sidebarCollapseKey) === 'true';
+    } catch {
+      return false;
+    }
+  }
+
   readonly navItems: NavItem[] = [
     {
       link: '/dashboard',

@@ -227,17 +227,145 @@ a {
     @apply animate-pulse rounded-lg bg-line/[0.07];
   }
 
-  /* Mobile drawer / overlay, driven by the .is-open class from AppComponent.
-     Below lg: hidden off-canvas until .is-open. At lg+: always shown. */
+  /* Floating card sidebar. Below lg: off-canvas drawer hidden until .is-open.
+     At lg+: always visible as a rounded floating panel, with an optional
+     icon-only collapsed rail driven by the [data-collapsed] attribute
+     (state lives in AppComponent and is persisted next to the theme). */
   .sidebar {
-    @apply fixed inset-y-0 left-0 z-40 flex w-[268px] -translate-x-full flex-col border-r border-line/10 bg-surface transition-transform duration-200 ease-out;
+    @apply fixed inset-y-0 left-0 z-40 flex w-[280px] -translate-x-full flex-col shadow-card transition-[width,transform] duration-200 ease-out;
+    /* Layered gradient panel: a faint accent bloom from the top corner over a
+       vertical surface→canvas fade — reads as depth in both themes. */
+    background:
+      radial-gradient(130% 90% at 0% 0%, rgb(var(--accent) / 0.09), transparent 55%),
+      linear-gradient(180deg, rgb(var(--surface)), rgb(var(--canvas)));
+    border-right: 1px solid rgb(var(--line) / 0.1);
+    border-radius: 0 16px 16px 0;
   }
   .sidebar.is-open {
     @apply translate-x-0;
+    box-shadow: 0 24px 60px -12px rgb(0 0 0 / 0.55);
+  }
+  /* The nav scroll region never scrolls horizontally — during the width
+     transition wide labels would momentarily overflow and flash a scrollbar;
+     clipping it is intentional (tooltips escape via overflow:visible in
+     collapsed mode, and absolutely-positioned tooltips don't create scroll). */
+  .sidebar-scroll {
+    overflow-x: hidden;
+  }
+  /* The collapse control is desktop-only (mobile uses the full drawer). */
+  .sidebar .sidebar-toggle {
+    display: none;
   }
   @media (min-width: 1024px) {
     .sidebar {
+      top: 12px;
+      bottom: 12px;
+      left: 12px;
+      width: 264px;
+      border: 1px solid rgb(var(--line) / 0.1);
+      border-radius: 16px;
       @apply translate-x-0;
+    }
+    .sidebar .sidebar-toggle {
+      @apply flex;
+    }
+    /* Icon-only rail: labels disappear, links collapse to centered icon
+       squares and a right-side tooltip carries the label. */
+    .sidebar[data-collapsed='true'] {
+      width: 80px;
+    }
+    .sidebar[data-collapsed='true'] .nav-label,
+    .sidebar[data-collapsed='true'] .nav-eyebrow,
+    .sidebar[data-collapsed='true'] .nav-badge,
+    .sidebar[data-collapsed='true'] .nav-fineprint {
+      display: none;
+    }
+    .sidebar[data-collapsed='true'] .nav-link {
+      @apply justify-center gap-0 px-0;
+      width: 48px;
+      margin-inline: auto;
+    }
+    /* Collapsed header: the collapse/expand control sits at the very top of
+       the rail with the brand mark directly beneath it (column-reverse),
+       everything centered, nothing overflowing the 80px rail. */
+    .sidebar[data-collapsed='true'] .sidebar-header {
+      flex-direction: column-reverse;
+      align-items: center;
+      gap: 12px;
+      padding-bottom: 14px;
+    }
+    /* The expand control inside the rail: accent-tinted pill, static flow. */
+    .sidebar[data-collapsed='true'] .sidebar-toggle {
+      margin: 0;
+      border-radius: 12px;
+      border: 1px solid rgb(var(--accent) / 0.3);
+      background: rgb(var(--raised));
+      color: rgb(var(--accent-text));
+      box-shadow: 0 8px 24px -8px rgb(0 0 0 / 0.55);
+    }
+    /* Stacked footer: avatar above the sign-out square, both centered —
+       side-by-side would overflow the 80px rail. */
+    .sidebar[data-collapsed='true'] .sidebar-footer {
+      flex-direction: column;
+      gap: 12px;
+      @apply justify-center;
+    }
+    /* The icon rail cannot scroll, so tooltips must NOT be clipped by the
+       nav scroll container (overflow-y:auto would clip the ::after). */
+    .sidebar[data-collapsed='true'] .sidebar-scroll {
+      overflow: visible;
+    }
+
+    .sidebar[data-collapsed='true'] .sidebar-toggle:hover {
+      border-color: rgb(var(--accent) / 0.55);
+      color: rgb(var(--accent));
+    }
+    .sidebar[data-collapsed='true'] .sidebar-toggle svg {
+      transform: rotate(180deg);
+    }
+
+    /* Pure-CSS tooltips (no JS on hover): hover/focus reveal the label to the
+       right of the collapsed rail; ink-on-canvas keeps AAA-level contrast in
+       both themes. */
+    .sidebar [data-tip] {
+      position: relative;
+      overflow: visible;
+    }
+    .sidebar[data-collapsed='true'] [data-tip]:hover::after,
+    .sidebar[data-collapsed='true'] [data-tip]:focus-visible::after {
+      content: attr(data-tip);
+      @apply pointer-events-none absolute rounded-lg px-2.5 py-1.5 text-[11px] font-semibold shadow-card;
+      left: calc(100% + 14px);
+      top: 50%;
+      transform: translateY(-50%);
+      white-space: nowrap;
+      z-index: 80;
+      background: rgb(var(--ink));
+      color: rgb(var(--canvas));
+    }
+    .sidebar[data-collapsed='true'] [data-tip]:hover::before,
+    .sidebar[data-collapsed='true'] [data-tip]:focus-visible::before {
+      content: '';
+      @apply pointer-events-none absolute z-[80] h-2 w-2 rotate-45;
+      left: calc(100% + 10px);
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 80;
+      background: rgb(var(--ink));
+    }
+  }
+
+  /* Main column offset: expanded = 12px sidebar offset + 264px rail + 16px gap;
+     collapsed = 12px + 80px + 16px. */
+  .shell-main {
+    min-width: 0;
+  }
+  @media (min-width: 1024px) {
+    .shell-main {
+      padding-left: 292px;
+    }
+    .shell-main[data-collapsed='true'] {
+      padding-left: 108px;
     }
   }
   .sidebar-overlay {

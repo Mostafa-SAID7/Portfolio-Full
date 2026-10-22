@@ -16,27 +16,38 @@
           #sidebar
           id="app-sidebar"
           class="sidebar"
+          [attr.data-collapsed]="isDesktop() && sidebarCollapsed() ? 'true' : null"
           [class.is-open]="drawerOpen() && !isDesktop()"
           [inert]="!isDesktop() && !drawerOpen()"
           [attr.aria-hidden]="isDesktop() ? null : !drawerOpen()"
           aria-label="Sidebar"
           tabindex="-1"
         >
-          <div class="flex items-center gap-3 px-5 pb-5 pt-6">
-            <a routerLink="/dashboard" class="flex items-center gap-3" (click)="closeDrawer()" aria-label="Portfolio admin home">
-              <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-on-accent shadow-accent-glow">
+          <div class="sidebar-header flex items-center gap-3 px-5 pb-5 pt-6">
+            <a routerLink="/dashboard" class="flex min-w-0 items-center gap-3" (click)="closeDrawer()" aria-label="Portfolio admin home">
+              <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent text-on-accent shadow-accent-glow">
                 <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path d="M4 13.5 12 5l8 8.5M6.5 11.5v7h11v-7M9.5 18.5v-4h5v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
               </span>
-              <span class="font-display text-lg font-bold tracking-[-0.03em] text-ink">Portfolio<span class="text-accent">.</span>admin</span>
+              <span class="nav-label min-w-0 truncate font-display text-lg font-bold tracking-[-0.03em] text-ink">Portfolio<span class="text-accent">.</span>admin</span>
             </a>
+            <button
+              type="button"
+              class="icon-btn sidebar-toggle ml-auto"
+              (click)="toggleSidebar()"
+              [attr.aria-expanded]="!sidebarCollapsed()"
+              [attr.aria-label]="sidebarCollapsed() ? 'Expand sidebar' : 'Collapse sidebar'"
+              [attr.data-tip]="isDesktop() && sidebarCollapsed() ? 'Expand sidebar' : null"
+            >
+              <svg class="h-4 w-4 transition-transform duration-150" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m14 6-6 6 6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
           </div>
 
           <!-- Scrollable nav region: keeps the footer pinned while short
                viewports scroll the links independently. -->
-          <div class="min-h-0 flex-1 overflow-y-auto px-3">
-            <p class="eyebrow px-3 pb-2 pt-1">Manage</p>
+          <div class="sidebar-scroll min-h-0 flex-1 overflow-y-auto px-3">
+            <p class="eyebrow nav-eyebrow px-3 pb-2 pt-1">Manage</p>
             <nav class="space-y-1" aria-label="Main navigation">
               @for (item of navItems; track item.link) {
                 <a
@@ -44,10 +55,12 @@
                   routerLinkActive="nav-active"
                   [routerLinkActiveOptions]="{ exact: !!item.exact }"
                   class="nav-link"
+                  [attr.aria-label]="item.label"
+                  [attr.data-tip]="isDesktop() && sidebarCollapsed() ? item.label : null"
                   (click)="closeDrawer()"
                 >
                   <span class="flex h-[18px] w-[18px] shrink-0 items-center justify-center" [innerHTML]="item.icon" aria-hidden="true"></span>
-                  {{ item.label }}
+                  <span class="nav-label">{{ item.label }}</span>
                   @if (item.link === '/messages' && unreadCount() > 0) {
                     <span class="nav-badge">{{ unreadCount() }}</span>
                   }
@@ -55,24 +68,24 @@
               }
             </nav>
 
-            <p class="eyebrow px-3 pb-2 pt-8">Site</p>
-            <a [href]="portfolioUrl" target="_blank" rel="noopener" class="nav-link" (click)="closeDrawer()">
+            <p class="eyebrow nav-eyebrow px-3 pb-2 pt-8">Site</p>
+            <a [href]="portfolioUrl" target="_blank" rel="noopener" class="nav-link" [attr.data-tip]="isDesktop() && sidebarCollapsed() ? 'View portfolio' : null" (click)="closeDrawer()">
               <span class="flex h-[18px] w-[18px] shrink-0 items-center justify-center" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="1.7"/><path d="M4 12h16M12 4c2.5 2.2 2.5 13.8 0 16-2.5-2.2-2.5-13.8 0-16Z" stroke="currentColor" stroke-width="1.7"/></svg>
               </span>
-              View portfolio
-              <span class="ml-auto text-faint" aria-hidden="true">↗</span>
+              <span class="nav-label">View portfolio</span>
+              <span class="nav-label ml-auto text-faint" aria-hidden="true">↗</span>
             </a>
           </div>
 
           <!-- Pinned footer: identity + logout, always visible. -->
           <div class="border-t border-line/10 p-4">
             @if (currentUser(); as user) {
-              <div class="flex items-center gap-3">
-                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet/20 text-sm font-bold text-violet">
+              <div class="sidebar-footer flex items-center gap-3">
+                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet/20 text-sm font-bold text-violet" [attr.data-tip]="isDesktop() && sidebarCollapsed() ? user.name : null">
                   {{ initials() }}
                 </span>
-                <div class="min-w-0 flex-1">
+                <div class="nav-fineprint min-w-0 flex-1">
                   <p class="truncate text-sm font-semibold text-ink">{{ user.name }}</p>
                   <p class="truncate text-xs text-muted">{{ user.email }}</p>
                   @if (apiInstance.instance(); as instance) {
@@ -81,7 +94,7 @@
                     </p>
                   }
                 </div>
-                <button type="button" (click)="logout()" class="icon-btn" aria-label="Sign out" title="Sign out">
+                <button type="button" (click)="logout()" class="icon-btn shrink-0" [attr.data-tip]="isDesktop() && sidebarCollapsed() ? 'Sign out' : null" aria-label="Sign out" title="Sign out">
                   <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M10 5H6.5A1.5 1.5 0 0 0 5 6.5v11A1.5 1.5 0 0 0 6.5 19H10M14 16l4-4-4-4M18 12H9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 </button>
               </div>
@@ -90,7 +103,7 @@
         </aside>
 
         <!-- Main column -->
-        <div class="min-w-0 lg:pl-[268px]" [inert]="drawerOpen() && !isDesktop()">
+        <div class="shell-main" [attr.data-collapsed]="isDesktop() && sidebarCollapsed() ? 'true' : null" [inert]="drawerOpen() && !isDesktop()">
           <header class="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-line/10 bg-canvas/85 px-4 backdrop-blur-xl sm:px-7">
             <button
               #drawerTrigger
