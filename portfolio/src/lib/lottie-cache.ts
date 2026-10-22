@@ -17,6 +17,32 @@ let playerPromise: Promise<PlayerModule> | null = null;
 /** Self-hosted runtime: avoids a cross-origin DNS+TLS round trip to a CDN. */
 const WASM_URL = "/wasm/dotlottie-player.wasm";
 
+let wasmPreloadInjected = false;
+
+/**
+ * Put the 1.2 MB runtime into the browser's high-priority fetch queue as
+ * soon as a Lottie exists on the page.
+ *
+ * The runtime used to be fetched from an idle callback, which meant the
+ * artwork simply was not there for the first second or two after it scrolled
+ * into view. Preloading it in parallel with the player bundle makes the
+ * animation appear as soon as its (tiny) bytes are parsed.
+ */
+export function preloadLottieRuntime(): void {
+  if (wasmPreloadInjected || typeof document === "undefined") return;
+  wasmPreloadInjected = true;
+  try {
+    const link = document.createElement("link");
+    link.rel = "preload";
+    link.as = "fetch";
+    link.href = WASM_URL;
+    link.crossOrigin = "anonymous";
+    document.head.appendChild(link);
+  } catch {
+    /* preload is an optimisation — the runtime still loads on demand */
+  }
+}
+
 /**
  * The dotLottie runtime is a ~1.2 MB WebAssembly download for purely
  * decorative artwork. Skip it entirely when the user asked for less motion,
@@ -39,7 +65,9 @@ export function canLoadLottiePlayer(): boolean {
 }
 
 export function loadLottiePlayer(): Promise<PlayerModule> {
-  if (!playerPromise)
+  if (!playerPromise) {
+    // Start the heavy download right away — in parallel with the JS bundle.
+    preloadLottieRuntime();
     playerPromise = import("@lottiefiles/dotlottie-react").then((mod) => {
       mod.setWasmUrl(WASM_URL);
       // Start fetching + compiling the ~1.2 MB WASM immediately, in parallel
@@ -56,6 +84,7 @@ export function loadLottiePlayer(): Promise<PlayerModule> {
         .catch(() => {});
       return mod;
     });
+  }
   return playerPromise;
 }
 

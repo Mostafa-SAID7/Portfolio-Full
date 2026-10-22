@@ -1,12 +1,6 @@
 import { useEffect, useState } from "react";
 import { ArrowUpDown, LayoutGrid, Rows3, Search, X } from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SelectField } from "@/components/ui/select-field";
 import { useI18n } from "@/lib/i18n";
 import { PROJECT_SORTS, type SortValue } from "@/hooks/useProjectsExplorer";
 import type { ProjectView } from "../types";
@@ -31,10 +25,9 @@ export function ProjectsToolbar({
 }: ProjectsToolbarProps) {
   const { tr } = useI18n();
   // @radix-ui/react-select's SelectProvider calls useMemo internally which
-  // crashes during SSR when React's dispatcher is null. Defer the Select
-  // to client-only rendering while keeping the search input visible in SSR HTML.
-  const [isClient, setIsClient] = useState(false);
-  useEffect(() => { setIsClient(true); }, []);
+  // crashes during SSR when React's dispatcher is null. The shared
+  // SelectField handles that (it renders an inert placeholder until
+  // hydration), so the toolbar can stay simple.
 
   return (
     <div
@@ -68,46 +61,19 @@ export function ProjectsToolbar({
         </div>
 
         <div className="relative">
-          <label htmlFor="project-sort" className="sr-only">
-            {tr("projects.index.sort")}
-          </label>
-          {isClient ? (
-            <Select value={sort} onValueChange={(v) => onSortChange(v as SortValue)}>
-              <SelectTrigger
-                id="project-sort"
-                aria-label={tr("projects.index.sort")}
-                className="h-9 w-full gap-2 rounded-xl border-border bg-foreground/10 px-3 type-control text-card-foreground shadow-none transition-all hover:bg-foreground/15 focus:ring-0 md:w-44"
-              >
-                <div className="flex min-w-0 flex-1 items-center gap-2 whitespace-nowrap text-start">
-                  <ArrowUpDown className="size-4 shrink-0 text-primary" />
-                  <SelectValue />
-                </div>
-              </SelectTrigger>
-              <SelectContent className="rounded-xl border-border bg-card text-card-foreground">
-                {PROJECT_SORTS.map((option) => (
-                  <SelectItem
-                    key={option.value}
-                    value={option.value}
-                    className="cursor-pointer rounded-xl type-control text-card-foreground hover:bg-foreground/10 focus:bg-foreground/10"
-                  >
-                    {tr(option.key)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : (
-            // SSR placeholder: accessible button matching label id and dimensions
-            <button
-              id="project-sort"
-              type="button"
-              disabled
-              aria-label={tr("projects.index.sort")}
-              className="flex h-9 w-full items-center gap-2 rounded-xl border border-border bg-foreground/10 px-3 type-control text-card-foreground opacity-80 md:w-44"
-            >
-              <ArrowUpDown className="size-4 shrink-0 text-primary" />
-              <span>{tr("projects.index.featured")}</span>
-            </button>
-          )}
+          <SelectField
+            id="project-sort"
+            label={tr("projects.index.sort")}
+            labelClassName="sr-only"
+            value={sort}
+            onValueChange={(value) => onSortChange(value as SortValue)}
+            options={PROJECT_SORTS.map((option) => ({
+              value: option.value,
+              label: tr(option.key),
+            }))}
+            icon={<ArrowUpDown className="size-4 shrink-0 text-primary" />}
+            triggerClassName="h-9 gap-2 px-3 py-0 shadow-none transition-all hover:bg-foreground/15 focus:ring-0 md:w-44"
+          />
         </div>
 
         <div

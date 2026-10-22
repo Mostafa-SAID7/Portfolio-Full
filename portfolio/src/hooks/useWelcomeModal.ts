@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { animate, useMotionValue, useReducedMotion, useTransform, type MotionValue } from "framer-motion";
+import {
+  animate,
+  useMotionValue,
+  useReducedMotion,
+  useTransform,
+  type MotionValue,
+} from "framer-motion";
 import { sessionFlags } from "@/lib/storage";
+import { holdBodyScroll } from "@/lib/scroll-lock";
 
 const DELAY_MS = 10_000;
 const AUTO_CLOSE_MS = 5_000;
@@ -58,8 +65,7 @@ export function useWelcomeModal(): UseWelcomeModalResult {
     previouslyFocused.current = document.activeElement;
     closeRef.current?.focus();
 
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const releaseScroll = holdBodyScroll();
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -97,7 +103,7 @@ export function useWelcomeModal(): UseWelcomeModalResult {
 
     return () => {
       document.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = previousOverflow;
+      releaseScroll();
     };
   }, [open, close]);
 

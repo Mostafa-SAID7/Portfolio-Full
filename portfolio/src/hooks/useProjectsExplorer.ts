@@ -1,6 +1,7 @@
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { type Project } from "@/data";
+import { useI18n, asLang, type Lang } from "@/lib/i18n";
 import { usePortfolioProjects } from "@/lib/content";
 import type { ProjectView } from "@/components/projects/types";
 
@@ -29,6 +30,13 @@ export interface ProjectsSearch {
   sort?: SortValue | undefined;
   view?: ProjectView | undefined;
   page?: number | undefined;
+  /**
+   * The root route owns `?lang=` (validateSearch there) — the explorer only
+   * needs to carry it along every time it rewrites its own slice of the URL,
+   * otherwise the language would silently disappear from the address bar on
+   * the first filter/sort/page change.
+   */
+  lang?: Lang;
 }
 
 /** Normalises (and validates) the search params of the /projects route. */
@@ -135,12 +143,22 @@ export function useProjectsExplorer() {
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
 
+  // Only a *change* of state sends the visitor back to page 1. Without the
+  // guard this effect also runs on mount, which clobbered the page restored
+  // from `?page=2` and made a reload (or Back) land on page 1.
+  const mounted = useRef(false);
   useEffect(() => {
+    if (!mounted.current) {
+      mounted.current = true;
+      return;
+    }
     setCurrentPage(1);
   }, [filter, searchQuery, sort, view]);
 
   // Mirror the state into the URL (replace, so the history is not flooded
   // with every keystroke) - that is what makes Back restore the position.
+  // `lang` is re-included verbatim from the URL root slice so the language
+  // query param survives every explorer-driven URL rewrite.
   useEffect(() => {
     const query = searchQuery.trim();
     const next: ProjectsSearch = {};
@@ -149,6 +167,8 @@ export function useProjectsExplorer() {
     if (sort !== "default") next.sort = sort;
     if (view !== "grid") next.view = view;
     if (currentPage > 1) next.page = currentPage;
+    const urlLang = asLang(search.lang);
+    if (urlLang) next.lang = urlLang;
 
     if (!sameSearch(next, search)) {
       navigate({ search: next, replace: true });

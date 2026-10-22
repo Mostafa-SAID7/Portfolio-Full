@@ -37,6 +37,16 @@ export const SESSION_KEYS = {
   welcomeSeen: `${NAMESPACE}_welcome_seen`,
 } as const;
 
+/**
+ * Language cookie — the SSR half of the language contract. localStorage
+ * applies pre-paint (client-only), but the server can only see cookies, so
+ * whenever a language choice is known it is ALSO mirrored into this cookie:
+ * the server then renders the same language the client will hydrate with,
+ * and streamed/lazy boundaries never disagree (no hydration mismatch, no
+ * bilingual flash). Client consumers can just read document.cookie.
+ */
+export const LANG_COOKIE = `${NAMESPACE}_lang`;
+
 /** Namespaced localStorage accessors. */
 export const localStore = {
   get(key: string): string | null {

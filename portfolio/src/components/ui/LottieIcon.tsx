@@ -6,6 +6,7 @@ import {
   loadLottieData,
   loadLottiePlayer,
   prefetchLottie,
+  preloadLottieRuntime,
 } from "@/lib/lottie-cache";
 
 /**
@@ -27,7 +28,7 @@ export function LottieIcon({
   fallback = null,
   speed = 1,
   playOnce = false,
-  rootMargin = "0px",
+  rootMargin = "300px",
   eager = false,
   activateOn = "visible",
 }: {
@@ -69,6 +70,12 @@ export function LottieIcon({
     const host = hostRef.current;
     if (!host) return;
     if (!canLoadLottiePlayer()) return;
+
+    // The runtime is 1.2 MB of WebAssembly: start pulling it in as soon as a
+    // Lottie that plays on its own exists on the page, not when the element
+    // finally scrolls into view. An "interaction" animation deliberately waits
+    // for a real hover/tap, so it must not drag the runtime in either.
+    if (activateOn === "visible" || eager) preloadLottieRuntime();
 
     let cancelled = false;
     let idleHandle = 0;
@@ -146,9 +153,15 @@ export function LottieIcon({
   // `useEffect(() => load({data}), [data])` would otherwise reload and restart
   // the animation every time a parent re-renders (theme toggle, i18n, …).
   const playerData = useMemo(() => (data ? data.slice(0) : null), [data]);
+  const ready = Boolean(Player && playerData);
 
   return (
-    <div ref={hostRef} className={className} aria-hidden="true">
+    <div
+      ref={hostRef}
+      className={className}
+      style={{ opacity: ready ? 1 : 0, transition: "opacity 420ms ease" }}
+      aria-hidden="true"
+    >
       {Player && playerData ? (
         <Player
           data={playerData}

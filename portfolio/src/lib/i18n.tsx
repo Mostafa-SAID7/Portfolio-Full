@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { useRouterState } from "@tanstack/react-router";
 
-type Lang = "en" | "ar";
+export type Lang = "en" | "ar";
 
 type Dict = Record<string, { en: string; ar: string }>;
 
@@ -107,14 +108,16 @@ const t: Dict = {
   "error.boundary.copied": { en: "Copied!", ar: "تم النسخ!" },
 
   "empty.general.title": { en: "No items found", ar: "لم يتم العثور على عناصر" },
-  "empty.general.desc": { en: "There is nothing to display here yet.", ar: "لا يوجد شيء لعرضه هنا حتى الآن." },
+  "empty.general.desc": {
+    en: "There is nothing to display here yet.",
+    ar: "لا يوجد شيء لعرضه هنا حتى الآن.",
+  },
   "empty.projects.title": { en: "No projects found", ar: "لم يتم العثور على مشاريع" },
   "empty.projects.desc": {
     en: "No projects match your current filters or search term. Try resetting your filters.",
     ar: "لا توجد مشاريع تطابق الفلاتر أو عبارة البحث الحالية. جرّب إعادة ضبط الفلاتر.",
   },
   "empty.projects.clear": { en: "Reset all filters", ar: "إعادة ضبط الفلاتر" },
-
 
   "contact.title": { en: "Let's Build Something", ar: "لنبنِ شيئاً معاً" },
   "contact.subtitle": {
@@ -123,11 +126,90 @@ const t: Dict = {
   },
   "contact.name": { en: "Name", ar: "الاسم" },
   "contact.email": { en: "Email", ar: "البريد الإلكتروني" },
+  "contact.subject": { en: "Subject", ar: "الموضوع" },
+  "contact.subject.choose": {
+    en: "Choose what your message is about",
+    ar: "اختر موضوع رسالتك",
+  },
+  "contact.subject.project": {
+    en: "New project enquiry",
+    ar: "استفسار عن مشروع جديد",
+  },
+  "contact.subject.fulltime": {
+    en: "Full-time opportunity",
+    ar: "فرصة عمل بدوام كامل",
+  },
+  "contact.subject.freelance": {
+    en: "Freelance or contract work",
+    ar: "عمل حر أو عقد",
+  },
+  "contact.subject.collaboration": {
+    en: "Collaboration or open source",
+    ar: "تعاون أو مصادر مفتوحة",
+  },
+  "contact.subject.question": {
+    en: "Question about my work",
+    ar: "سؤال عن أعمالي",
+  },
+  "contact.subject.other": { en: "Something else", ar: "موضوع آخر" },
+  "contact.subject.otherDetail": {
+    en: "Tell me the subject in a few words",
+    ar: "اكتب الموضوع في بضع كلمات",
+  },
   "contact.message": { en: "Message", ar: "الرسالة" },
+  "contact.message.hint": { en: "10–1000 characters.", ar: "من 10 إلى 1000 حرف." },
   "contact.send": { en: "Send Message", ar: "إرسال الرسالة" },
-  "contact.success": {
-    en: "Email draft opened — send it from your email app.",
-    ar: "تم فتح مسودة البريد — أرسلها من تطبيق البريد.",
+  "contact.sending": { en: "Sending message...", ar: "جارٍ إرسال الرسالة..." },
+  "contact.sent.title": { en: "Message sent successfully!", ar: "تم إرسال الرسالة بنجاح!" },
+  "contact.sent.body": {
+    en: "Thanks for reaching out. Your message has been received and saved, and I'll reply as soon as I can.",
+    ar: "شكراً لتواصلك. وصلت رسالتك وتم حفظها، وسأرد في أقرب وقت.",
+  },
+  "contact.sent.action": { en: "Send another message", ar: "إرسال رسالة أخرى" },
+  "contact.notify.warning": {
+    en: "Your message is saved, but one email notification could not be sent.",
+    ar: "تم حفظ رسالتك، لكن لم يتمكن من إرسال إشعار بريدي واحد.",
+  },
+  "contact.error": {
+    en: "Your message couldn't be sent. Please try again.",
+    ar: "لم يتم إرسال رسالتك. حاول مرة أخرى.",
+  },
+  "contact.error.kept": {
+    en: "Nothing was lost — your text is still here, fix the issue and retry.",
+    ar: "لم يضيع شيء — نصك ما زال هنا، صحّح المشكلة وأعد المحاولة.",
+  },
+  "contact.fallback": { en: "Email me directly instead", ar: "راسلني مباشرة بدلاً من ذلك" },
+
+  /* Form validation — the visitor reads these, so they must follow the
+     language they are browsing in. */
+  "contact.validation.name": { en: "Please enter your name", ar: "من فضلك اكتب اسمك" },
+  "contact.validation.nameMax": {
+    en: "Name must not exceed 100 characters",
+    ar: "يجب ألا يتجاوز الاسم 100 حرف",
+  },
+  "contact.validation.email": {
+    en: "Please enter a valid email",
+    ar: "من فضلك أدخل بريدًا إلكترونيًا صحيحًا",
+  },
+  "contact.validation.subject": {
+    en: "Please choose what your message is about.",
+    ar: "من فضلك اختر موضوع رسالتك.",
+  },
+  "contact.validation.subjectOther": {
+    en: "Please add a short subject",
+    ar: "من فضلك أضف موضوعًا مختصرًا",
+  },
+  "contact.validation.subjectMax": {
+    en: "Subject must not exceed 200 characters",
+    ar: "يجب ألا يتجاوز الموضوع 200 حرف",
+  },
+  "contact.validation.messageMin": {
+    en: "Message must be at least 10 characters",
+    ar: "يجب ألا تقل الرسالة عن 10 أحرف",
+  },
+  "contact.validation.messageMax": {
+    en: "Message must not exceed 1000 characters",
+    ar: "يجب ألا تتجاوز الرسالة 1000 حرف",
   },
 
   "welcome.eyebrow": { en: "Welcome aboard", ar: "أهلاً بك" },
@@ -375,15 +457,49 @@ interface I18nContextValue {
   tr: (key: keyof typeof t | string) => string;
 }
 
-import { LOCAL_KEYS, LEGACY_LOCAL_KEYS, localStore, readMigrated } from "@/lib/storage";
+import {
+  LOCAL_KEYS,
+  LEGACY_LOCAL_KEYS,
+  LANG_COOKIE,
+  localStore,
+  readMigrated,
+} from "@/lib/storage";
 
 const I18nContext = createContext<I18nContextValue | undefined>(undefined);
 
-/** Runs before hydration so the first paint already has the right lang/dir. */
+/**
+ * Arabic UI faces. Only fetched once the bootstrap below resolves to `ar`.
+ * Requested weights are 400 (body), 700 and 900 — the latter covers the
+ * `font-weight: 800` display steps, since font matching rounds upward.
+ *
+ * ONE url for the whole app: the pre-paint bootstrap and the post-hydration
+ * `ArabicFonts` component share it, so the browser never downloads two
+ * stylesheets (and therefore never re-resolves the same font files twice).
+ */
+export const ARABIC_FONTS_URL =
+  "https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&family=Tajawal:wght@400;700&display=swap";
+
+/**
+ * Runs before hydration so the first paint already has the right lang/dir.
+ *
+ * Resolution order: `?lang=` from the URL (a shared link must render in its
+ * own language) → cookie (the SSR contract — see storage.ts) → namespaced
+ * localStorage → legacy bare "lang" key → navigator language. When a choice
+ * is found from storage/legacy but the cookie is missing, the cookie is
+ * written right away so the NEXT server render agrees with the client.
+ *
+ * Arabic visitors also get the Cairo stylesheet requested here, at head-parse
+ * time and non-blocking. Waiting for the post-hydration effect instead made
+ * the request start seconds after first paint, so Arabic text sat on the
+ * fallback face for the whole gap.
+ */
 export const langBootstrapScript = `(function(){try{
-var l=localStorage.getItem("${LOCAL_KEYS.lang}")||localStorage.getItem("${LEGACY_LOCAL_KEYS.lang}");
+var u=new URLSearchParams(location.search).get("lang");var c=document.cookie.match(/(?:^|; )${LANG_COOKIE}=(ar|en)(?:;|$)/);var l=u||(c?c[1]:null);
+if(!l){l=localStorage.getItem("${LOCAL_KEYS.lang}")||localStorage.getItem("${LEGACY_LOCAL_KEYS.lang}");}
 if(l!=="ar"&&l!=="en"){l=(navigator.language||"en").toLowerCase().indexOf("ar")===0?"ar":"en";}
+try{if(!c)document.cookie="${LANG_COOKIE}="+l+";path=/;max-age=31536000;samesite=lax";}catch(e){}
 var r=document.documentElement;r.lang=l;r.dir=l==="ar"?"rtl":"ltr";
+if(l==="ar"&&!document.querySelector("link[data-arabic-fonts]")){var p=document.createElement("link");p.rel="preload";p.as="style";p.href="${ARABIC_FONTS_URL}";var s=document.createElement("link");s.rel="stylesheet";s.href="${ARABIC_FONTS_URL}";s.media="print";s.setAttribute("data-arabic-fonts","true");s.onload=function(){s.media="all";};document.head.appendChild(p);document.head.appendChild(s);}
 }catch(e){}})();`;
 
 function readInitialLang(): Lang {
@@ -391,16 +507,54 @@ function readInitialLang(): Lang {
   return document.documentElement.lang === "ar" ? "ar" : "en";
 }
 
-export function I18nProvider({ children }: { children: ReactNode }) {
-  // SSR renders "en"; the bootstrap script already set <html lang/dir>, and this
-  // effect syncs React state right after hydration (no mismatch warnings).
-  const [lang, setLang] = useState<Lang>("en");
+function writeLangCookie(lang: Lang): void {
+  try {
+    document.cookie = `${LANG_COOKIE}=${lang};path=/;max-age=31536000;samesite=lax`;
+  } catch {
+    /* cookies blocked — SSR keeps rendering the default language */
+  }
+}
+
+/** Validate an untrusted cookie/loader value down to the two supported languages. */
+export function asLang(value: string | null | undefined): Lang | null {
+  return value === "ar" || value === "en" ? value : null;
+}
+
+export function I18nProvider({
+  children,
+  initialLang,
+}: {
+  children: ReactNode;
+  initialLang?: Lang | undefined | null;
+}) {
+  // The loader shells the language cookie during SSR and the same serialized
+  // value is reused in the client's first render — so server and client agree
+  // from the very first byte (required because lazy/streamed subtrees like
+  // the Footer are re-rendered on the client, where post-hydration state
+  // changes would otherwise produce a hydration mismatch). When there is no
+  // cookie (first ever visit) both sides render "en" and the effect applies
+  // the detected language afterwards, exactly as before.
+  const [lang, setLang] = useState<Lang>(asLang(initialLang) ?? "en");
+  // The router's current address — subscribing to it is what keeps `?lang=`
+  // alive across client navigations (see the mirror effect below).
+  const locationHref = useRouterState({ select: (state) => state.location.href });
 
   useEffect(() => {
+    // A `?lang=` query param in the address bar is this visit's explicit
+    // choice (a shared/bookmarked link) and beats every stored value.
+    try {
+      const urlLang = asLang(new URLSearchParams(window.location.search).get("lang"));
+      if (urlLang) {
+        setLang(urlLang);
+        return;
+      }
+    } catch {
+      /* history/URL unavailable — fall through to stored prefs */
+    }
     // readMigrated also rewrites an old bare-"lang" entry into the namespaced
     // key once, so returning visitors keep their choice across the rename.
     const stored = readMigrated("lang", LEGACY_LOCAL_KEYS.lang);
-    setLang(stored === "ar" || stored === "en" ? stored : readInitialLang());
+    setLang(asLang(stored) ?? readInitialLang());
   }, []);
 
   useEffect(() => {
@@ -410,7 +564,38 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     localStore.set(LOCAL_KEYS.lang, lang);
     // The rename migration is complete: the legacy key must not linger.
     localStore.remove(LEGACY_LOCAL_KEYS.lang);
+    // Mirror into the cookie so the NEXT server render (and its streamed
+    // boundaries) uses the same language the client just adopted.
+    writeLangCookie(lang);
+    // And mirror into the address bar: the current language becomes visible,
+    // shareable and copy-pasteable on any device (?lang=ar|en). replaceState
+    // keeps the visit from reloading while every other query param stays.
+    if (typeof window === "undefined") return;
+    try {
+      const url = new URL(window.location.href);
+      if (url.searchParams.get("lang") === lang) return;
+      url.searchParams.set("lang", lang);
+      window.history.replaceState(window.history.state, "", url);
+    } catch {
+      /* never let URL mirroring break the language switch */
+    }
   }, [lang]);
+
+  // Belt-and-braces: some navigations (links that build their own search) can
+  // drop the language query param from the URL. Whenever the router reports a
+  // new address without `?lang=`, restore it so the language stays visible,
+  // shareable and reload-proof on every route.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const url = new URL(window.location.href);
+      if (url.searchParams.get("lang") === lang) return;
+      url.searchParams.set("lang", lang);
+      window.history.replaceState(window.history.state, "", url);
+    } catch {
+      /* ignore */
+    }
+  }, [lang, locationHref]);
 
   const toggleLang = () => setLang((l) => (l === "en" ? "ar" : "en"));
   const tr = (key: string) => t[key]?.[lang] ?? key;

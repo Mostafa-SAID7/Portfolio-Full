@@ -50,7 +50,11 @@ export function CareerRow({ item, icon: Icon, open, reduce, onToggle }: CareerRo
 
           <div className="min-w-0">
             <h3 className="type-h4">{item.title[lang]}</h3>
-            <p className={`type-body mt-1 ${featured ? "opacity-80" : "text-muted-foreground"}`}>
+            <p
+              className={`type-body mt-1 ${
+                featured ? "text-background/80" : "text-muted-foreground"
+              }`}
+            >
               {item.org[lang]} · {item.location[lang]}
             </p>
           </div>
@@ -58,7 +62,9 @@ export function CareerRow({ item, icon: Icon, open, reduce, onToggle }: CareerRo
 
         <div className="flex items-center gap-3 sm:max-w-[20rem] sm:justify-end">
           <p
-            className={`type-body sm:text-end ${featured ? "opacity-90" : "text-muted-foreground"}`}
+            className={`type-body sm:text-end ${
+              featured ? "text-background/90" : "text-muted-foreground"
+            }`}
           >
             {item.summary[lang]}
           </p>

@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import { LottieIcon } from "@/components/ui/LottieIcon";
-import { LottiePoster } from "@/components/ui/LottiePoster";
 
 /**
  * Content on the start side, a lazy-loaded Lottie on the end side.
@@ -29,7 +28,6 @@ export function LottieAside({
         <LottieIcon
           src={src}
           activateOn="visible"
-          fallback={<LottiePoster />}
           className={`mx-auto aspect-square w-full ${size} ${mediaClassName}`}
         />
       </div>
