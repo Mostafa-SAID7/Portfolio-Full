@@ -63,22 +63,11 @@ namespace PortfolioAPI.Infrastructure.Data
 
         private static async Task EnsureSchemaCompatibilityAsync(PortfolioDbContext context)
         {
-            // The Category column on Projects was added by migration.
-            // If the column is missing (extremely old DB), add it.
-            try
-            {
-                if (!await ColumnExistsAsync(context, "Projects", "Category"))
-                {
-                    await context.Database.ExecuteSqlRawAsync(@"
-                        ALTER TABLE dbo.Projects
-                        ADD Category nvarchar(100) NULL;
-                    ");
-                }
-            }
-            catch (Exception)
-            {
-                // Column might already exist or permissions insufficient - continue
-            }
+            // NOTE: there is deliberately no legacy "[Category] column" step
+            // anymore. MakeProjectsBilingual renamed that column and the
+            // DropDeadCategoryColumn migration removed it wherever the broken
+            // schema checks had re-added it — ALTER-adding it here would undo
+            // that drop on every startup.
 
             // The SkillProject join table was added by migration.
             // If it's missing, create it.
@@ -192,22 +181,6 @@ namespace PortfolioAPI.Infrastructure.Data
         // around the parameter token, turning the comparison into a comparison
         // against the literal string '@p0' (always 0 rows, silently disabling
         // both checks and re-attempting destructive DDL on every startup).
-        private static async Task<bool> ColumnExistsAsync(PortfolioDbContext context, string table, string column)
-        {
-            try
-            {
-                var count = await context.Database
-                    .SqlQuery<int>($"SELECT COUNT(*) AS Value FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = {table} AND COLUMN_NAME = {column}")
-                    .SingleAsync();
-                return count > 0;
-            }
-            catch (Exception)
-            {
-                // Assume column exists if we can't check
-                return true;
-            }
-        }
-
         private static async Task<bool> TableExistsAsync(PortfolioDbContext context, string table)
         {
             try
