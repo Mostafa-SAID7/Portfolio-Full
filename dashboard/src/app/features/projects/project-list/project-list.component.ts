@@ -15,8 +15,21 @@ import { ConfirmDialogService } from '../../../shared/confirm-dialog.component';
 import { PaginatorComponent } from '../../../shared/paginator.component';
 import { EmptyStateComponent } from '../../../shared/empty-state.component';
 import { ErrorStateComponent } from '../../../shared/error-state.component';
+import { SelectFieldComponent, SelectOptionValue } from '../../../shared/select-field.component';
 
 const PAGE_SIZE = 9;
+
+const DEFAULT_WEBSITES: { slug: string; name: string }[] = [
+  { slug: 'marketplace', name: 'Marketplace' },
+  { slug: 'banking', name: 'Fintech / Banking' },
+  { slug: 'edutech', name: 'EduTech' },
+  { slug: 'real-estate', name: 'Real Estate' },
+  { slug: 'healthcare', name: 'Healthcare' },
+  { slug: 'restaurants', name: 'Restaurants' },
+  { slug: 'platforms', name: 'Platforms' },
+  { slug: 'entertainment', name: 'Entertainment / Booking' },
+  { slug: 'asp-net', name: 'ASP.NET Projects' }
+];
 
 @Component({
   selector: 'app-project-list',
@@ -28,6 +41,7 @@ const PAGE_SIZE = 9;
     PaginatorComponent,
     EmptyStateComponent,
     ErrorStateComponent,
+    SelectFieldComponent,
   ],
   templateUrl: "./project-list.component.html"
 })
@@ -78,11 +92,39 @@ export class ProjectListComponent implements OnInit {
     this.persistInUrl();
   }
 
+  /** Options formatted for the reusable SelectFieldComponent */
+  readonly websiteOptions = computed<SelectOptionValue[]>(() => {
+    const map = new Map<string, string>();
+    for (const w of this.websiteService.websites()) {
+      map.set(w.slug, w.name);
+    }
+    if (map.size === 0) {
+      for (const d of DEFAULT_WEBSITES) {
+        map.set(d.slug, d.name);
+      }
+    }
+    for (const p of this.service.projects()) {
+      if (p.websites) {
+        for (const w of p.websites) {
+          if (!map.has(w.websiteSlug)) {
+            map.set(w.websiteSlug, w.websiteName);
+          }
+        }
+      }
+    }
+    const list: SelectOptionValue[] = [{ value: '', label: 'All websites' }];
+    for (const [slug, name] of map.entries()) {
+      list.push({ value: slug, label: name });
+    }
+    return list;
+  });
+
   /** Mirror the shared list state into the URL (see ProjectListStateService). */
   private persistInUrl(): void {
     replaceUrlParams(this.route, this.router, {
       q: this.listState.query().trim() || null,
       page: this.listState.page() > 1 ? this.listState.page() : null,
+      website: this.selectedWebsiteSlug() || null,
     });
   }
 
@@ -122,12 +164,6 @@ export class ProjectListComponent implements OnInit {
   /** Hide a broken cover so the gradient + letter fallback shows through. */
   onCoverError(event: Event, project: Project): void {
     (event.currentTarget as HTMLImageElement).style.display = 'none';
-    // Flag it ONLY for an API-hosted upload (/api/files/...): those can be
-    // missing on the server (uploaded through a different deployment, or the
-    // upload folder was wiped by a redeploy) and the admin can fix that by
-    // uploading again. A bundled portfolio cover is served by the portfolio
-    // app, which the dashboard cannot reach - a failed preview there says
-    // nothing about the live site, so it must not raise an alarm.
     if (isApiHostedImage(project.imageUrl)) {
       this.brokenCovers.update(ids => new Set(ids).add(project.id));
     }
@@ -156,13 +192,15 @@ export class ProjectListComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    // Restore the position from the URL first (?q=…&page=…), then load:
-    // a reload on page 2 of search results reopens that exact view.
     const params = this.route.snapshot.queryParamMap;
     const savedPage = readUrlInt(params, 'page');
     const savedQuery = params.get('q');
+    const savedWebsite = params.get('website');
     if (savedPage !== null || savedQuery !== null) {
       this.listState.restore(savedPage ?? 1, savedQuery ?? '');
+    }
+    if (savedWebsite) {
+      this.selectedWebsiteSlug.set(savedWebsite);
     }
     // Load websites for the filter dropdown.
     if (this.websiteService.websites().length === 0) {

@@ -6,6 +6,18 @@ import { API_URL } from '../api.config';
 
 const ENDPOINT = `${API_URL}/Websites`;
 
+export const DEFAULT_WEBSITES: Website[] = [
+  { id: 1, name: 'Marketplace', slug: 'marketplace', description: 'E-Commerce & Digital Marketplace Frontend', baseUrl: 'https://portfolio-market.vercel.app/?lang=en', order: 1, isActive: true, assignedProjectsCount: 0, createdAt: '' },
+  { id: 2, name: 'Fintech / Banking', slug: 'banking', description: 'Financial Technology & Modern Banking Solutions', baseUrl: 'https://ms-banking.vercel.app/', order: 2, isActive: true, assignedProjectsCount: 0, createdAt: '' },
+  { id: 3, name: 'EduTech', slug: 'edutech', description: 'Educational Technology & Learning Management Platforms', baseUrl: 'https://m-portfoilio.vercel.app/', order: 3, isActive: true, assignedProjectsCount: 0, createdAt: '' },
+  { id: 4, name: 'Real Estate', slug: 'real-estate', description: 'Property Listings, Brokerage & Real Estate Hub', baseUrl: 'https://ms-reall-estate.vercel.app/', order: 4, isActive: true, assignedProjectsCount: 0, createdAt: '' },
+  { id: 5, name: 'Healthcare', slug: 'healthcare', description: 'Health, Medical Care & Clinic Management', baseUrl: 'https://ms-healthy-care.vercel.app/', order: 5, isActive: true, assignedProjectsCount: 0, createdAt: '' },
+  { id: 6, name: 'Restaurants', slug: 'restaurants', description: 'Food, Dining & Restaurant Point of Sale Systems', baseUrl: 'https://m-s-restaurant.vercel.app/', order: 6, isActive: true, assignedProjectsCount: 0, createdAt: '' },
+  { id: 7, name: 'Platforms', slug: 'platforms', description: 'SaaS Products, Dashboards & Multi-tenant Platforms', baseUrl: 'https://ms-frontend-three.vercel.app/', order: 7, isActive: true, assignedProjectsCount: 0, createdAt: '' },
+  { id: 8, name: 'Entertainment / Booking', slug: 'entertainment', description: 'Events, Tickets & Leisure Booking Services', baseUrl: 'https://m-s-bookings.vercel.app/', order: 8, isActive: true, assignedProjectsCount: 0, createdAt: '' },
+  { id: 9, name: 'ASP.NET Projects', slug: 'asp-net', description: 'Enterprise .NET Core & Cloud Native Architecture', baseUrl: 'https://ms-asp-dev.vercel.app/', order: 9, isActive: true, assignedProjectsCount: 0, createdAt: '' },
+];
+
 function byOrder(a: Website, b: Website): number {
   if (a.order !== b.order) return a.order - b.order;
   return a.name.localeCompare(b.name);
@@ -15,7 +27,7 @@ function byOrder(a: Website, b: Website): number {
 export class WebsiteService {
   private readonly http = inject(HttpClient);
 
-  private readonly websitesSignal = signal<Website[]>([]);
+  private readonly websitesSignal = signal<Website[]>([...DEFAULT_WEBSITES]);
   private readonly loadingSignal = signal(false);
   private readonly errorSignal = signal<string | null>(null);
 
@@ -29,7 +41,9 @@ export class WebsiteService {
       this.errorSignal.set(null);
       return this.http.get<Website[]>(ENDPOINT).pipe(
         tap(websites => {
-          const list = (websites ?? []).sort(byOrder);
+          const list = (websites && websites.length > 0)
+            ? [...websites].sort(byOrder)
+            : [...DEFAULT_WEBSITES];
           this.websitesSignal.set(list);
         }),
         catchError(err => {
@@ -95,4 +109,3 @@ export class WebsiteService {
     return this.http.put<void>(`${API_URL}/Projects/${projectId}/websites`, { websites: assignments });
   }
 }
-

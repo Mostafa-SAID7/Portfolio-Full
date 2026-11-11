@@ -110,6 +110,13 @@ export class SelectFieldComponent implements ControlValueAccessor {
     return match ? match.label : this.value;
   }
 
+  get displayLabel(): string {
+    const match = this.normalizedOptions.find(option => option.value === this.value);
+    if (match) return match.label;
+    if (this.value) return this.value;
+    return this.placeholder;
+  }
+
   private get selectableOptions(): Option[] {
     const custom = this.customValue;
     return custom ? [...this.visibleOptions, { value: custom, label: custom }] : this.visibleOptions;
@@ -149,7 +156,8 @@ export class SelectFieldComponent implements ControlValueAccessor {
   /** Trigger button: the shared field style, dimmed while nothing is selected. */
   get triggerClass(): string {
     const base = 'input flex items-center justify-between gap-2 text-left disabled:cursor-not-allowed disabled:opacity-60';
-    const tone = this.value ? 'text-ink' : 'text-faint';
+    const isOptionSelected = Boolean(this.value || this.normalizedOptions.some(option => option.value === this.value));
+    const tone = isOptionSelected ? 'text-ink' : 'text-faint';
     return `${base} ${tone} ${this.inputClass}`.trim();
   }
 

@@ -6,18 +6,16 @@
       <p class="mt-2 text-sm text-soft">{{ projectCount() }} projects served by the Portfolio API.</p>
     </div>
     <div class="flex flex-wrap items-center gap-3">
-      <!-- Website filter dropdown -->
-      <select
-        class="input max-w-[180px] py-2.5 text-sm"
-        aria-label="Filter by website"
-        [value]="selectedWebsiteSlug()"
-        (change)="setWebsiteFilter($any($event.target).value)"
-      >
-        <option value="">All websites</option>
-        @for (website of websiteService.websites(); track website.id) {
-          <option [value]="website.slug">{{ website.name }}</option>
-        }
-      </select>
+      <!-- Website filter dropdown using reusable SelectFieldComponent -->
+      <div class="w-48 shrink-0">
+        <app-select-field
+          [options]="websiteOptions()"
+          [ngModel]="selectedWebsiteSlug()"
+          (ngModelChange)="setWebsiteFilter($event)"
+          placeholder="All websites"
+          inputClass="!py-2.5 text-sm"
+        />
+      </div>
       <input
         type="search"
         [(ngModel)]="queryValue"
@@ -155,8 +153,7 @@
       [totalItems]="filteredProjects().length"
       [pageSize]="pageSize"
       [page]="currentPage()"
-          (pageChange)="setPage($event)"
+      (pageChange)="setPage($event)"
     />
   }
-
 </div>

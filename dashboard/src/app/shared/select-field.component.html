@@ -1,5 +1,7 @@
 <div class="relative">
-  <label [attr.for]="inputId" class="field-label">{{ label }}</label>
+  @if (label) {
+    <label [attr.for]="inputId" class="field-label">{{ label }}</label>
+  }
   @if (allowCustom) {
     <div class="relative">
       <input
@@ -25,7 +27,7 @@
       [disabled]="disabled()" [attr.aria-expanded]="open()" [attr.aria-controls]="open() ? listId : null"
       [attr.aria-activedescendant]="activeDescendant" (click)="toggle()" (blur)="onBlur()" (keydown)="onKeydown($event)"
     >
-      <span class="truncate">{{ value ? selectedLabel() : placeholder }}</span>
+      <span class="truncate">{{ displayLabel }}</span>
       <svg class="h-4 w-4 shrink-0 text-muted transition-transform" [class.rotate-180]="open()" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="m6 9 6 6 6-6" />
       </svg>
