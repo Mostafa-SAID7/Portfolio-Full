@@ -23,12 +23,12 @@ namespace PortfolioAPI.Infrastructure.Repositories
             _dbSet = context.Set<T>();
         }
 
-        public async Task<T?> GetByIdAsync(int id)
+        public virtual async Task<T?> GetByIdAsync(int id)
         {
             return await _dbSet.FindAsync(id);
         }
 
-        public async Task<IEnumerable<T>> GetAllAsync()
+        public virtual async Task<IEnumerable<T>> GetAllAsync()
         {
             // Read-only list endpoint: no change tracking. EF would otherwise
             // build a snapshot for every row (47 skills + 13 projects per

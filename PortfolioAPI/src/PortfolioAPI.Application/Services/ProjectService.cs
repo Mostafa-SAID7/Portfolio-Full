@@ -33,7 +33,7 @@ namespace PortfolioAPI.Application.Services
 
         public async Task<Result<ProjectDto>> GetByIdAsync(int id)
         {
-            var project = await _unitOfWork.Projects.GetByIdAsync(id);
+            var project = await _unitOfWork.Projects.GetByIdWithWebsitesAsync(id) ?? await _unitOfWork.Projects.GetByIdAsync(id);
             return project == null
                 ? Result<ProjectDto>.NotFound($"Project with id {id} was not found.")
                 : Result<ProjectDto>.Ok(EntityMappings.ToDto(project));
@@ -234,8 +234,7 @@ namespace PortfolioAPI.Application.Services
                             WebsiteId = assign.WebsiteId,
                             IsPublished = assign.IsPublished,
                             DisplayOrder = assign.DisplayOrder,
-                            CreatedAt = DateTime.UtcNow,
-                            Website = website
+                            CreatedAt = DateTime.UtcNow
                         };
                         await _unitOfWork.ProjectWebsites.AddAsync(pw);
                         created.ProjectWebsites.Add(pw);
@@ -250,7 +249,7 @@ namespace PortfolioAPI.Application.Services
 
         public async Task<Result<ProjectDto>> UpdateAsync(int id, UpdateProjectDto dto)
         {
-            var project = await _unitOfWork.Projects.GetByIdAsync(id);
+            var project = await _unitOfWork.Projects.GetByIdWithWebsitesAsync(id) ?? await _unitOfWork.Projects.GetByIdAsync(id);
             if (project == null)
             {
                 return Result<ProjectDto>.NotFound($"Project with id {id} was not found.");
@@ -359,8 +358,9 @@ namespace PortfolioAPI.Application.Services
                     {
                         existing.IsPublished = assign.IsPublished;
                         existing.DisplayOrder = assign.DisplayOrder;
+                        existing.IsDeleted = false;
+                        existing.DeletedAt = null;
                         existing.UpdatedAt = DateTime.UtcNow;
-                        existing.Website = allWebsites[assign.WebsiteId];
                     }
                     else
                     {
@@ -370,8 +370,7 @@ namespace PortfolioAPI.Application.Services
                             WebsiteId = assign.WebsiteId,
                             IsPublished = assign.IsPublished,
                             DisplayOrder = assign.DisplayOrder,
-                            CreatedAt = DateTime.UtcNow,
-                            Website = allWebsites[assign.WebsiteId]
+                            CreatedAt = DateTime.UtcNow
                         };
                         await _unitOfWork.ProjectWebsites.AddAsync(newAssignment);
                         project.ProjectWebsites.Add(newAssignment);

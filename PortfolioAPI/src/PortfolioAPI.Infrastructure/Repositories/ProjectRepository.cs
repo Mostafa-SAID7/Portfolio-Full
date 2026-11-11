@@ -18,7 +18,7 @@ namespace PortfolioAPI.Infrastructure.Repositories
         {
         }
 
-        public new async Task<Project?> GetByIdAsync(int id)
+        public override async Task<Project?> GetByIdAsync(int id)
         {
             return await _dbSet
                 .Include(p => p.ProjectWebsites)
@@ -34,7 +34,7 @@ namespace PortfolioAPI.Infrastructure.Repositories
                 .FirstOrDefaultAsync(p => p.Id == id);
         }
 
-        public new async Task<IEnumerable<Project>> GetAllAsync()
+        public override async Task<IEnumerable<Project>> GetAllAsync()
         {
             return await _dbSet
                 .AsNoTracking()
