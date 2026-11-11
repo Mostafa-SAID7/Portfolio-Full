@@ -1,6 +1,5 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@config "../tailwind.config.js";
 
 @layer base {
   /* ------------------------------------------------------------------
@@ -150,13 +149,13 @@ a {
     @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60;
   }
   .btn-primary {
-    @apply btn bg-accent font-bold text-on-accent shadow-accent-glow hover:brightness-110;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 bg-accent font-bold text-on-accent shadow-accent-glow hover:brightness-110;
   }
   .btn-ghost {
-    @apply btn border border-line/15 bg-line/[0.03] text-soft hover:border-line/25 hover:bg-line/[0.07] hover:text-ink;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 border border-line/15 bg-line/[0.03] text-soft hover:border-line/25 hover:bg-line/[0.07] hover:text-ink;
   }
   .btn-danger {
-    @apply btn border border-danger/30 bg-danger/10 text-danger hover:bg-danger/20;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 border border-danger/30 bg-danger/10 text-danger hover:bg-danger/20;
   }
   .icon-btn {
     @apply flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-line/10 text-muted transition hover:border-line/25 hover:text-ink;
@@ -187,22 +186,22 @@ a {
     @apply inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide;
   }
   .badge-accent {
-    @apply badge bg-accent/15 text-accent-text;
+    @apply inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide bg-accent/15 text-accent-text;
   }
   .badge-success {
-    @apply badge bg-success/15 text-success;
+    @apply inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide bg-success/15 text-success;
   }
   .badge-warning {
-    @apply badge bg-warning/15 text-warning;
+    @apply inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide bg-warning/15 text-warning;
   }
   .badge-violet {
-    @apply badge bg-violet/15 text-violet;
+    @apply inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide bg-violet/15 text-violet;
   }
   .badge-muted {
-    @apply badge bg-line/10 text-muted;
+    @apply inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide bg-line/10 text-muted;
   }
   .badge-danger {
-    @apply badge bg-danger/15 text-danger;
+    @apply inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide bg-danger/15 text-danger;
   }
 
   /* ---------------- Segmented control (tabs) ---------------- */
