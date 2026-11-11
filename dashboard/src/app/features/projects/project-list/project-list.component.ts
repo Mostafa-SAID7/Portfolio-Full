@@ -133,11 +133,18 @@ export class ProjectListComponent implements OnInit {
 
   readonly filteredProjects = computed(() => {
     const needle = this.listState.query().trim().toLowerCase();
-    const websiteSlug = this.selectedWebsiteSlug();
+    const websiteSlug = (this.selectedWebsiteSlug() || '').trim().toLowerCase();
     const projects = [...this.service.projects()].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
     return projects.filter(project => {
       // Website filter
-      if (websiteSlug && !project.websites?.some(w => w.websiteSlug === websiteSlug)) return false;
+      if (websiteSlug) {
+        const matches = project.websites?.some(w =>
+          (w.websiteSlug && w.websiteSlug.trim().toLowerCase() === websiteSlug) ||
+          (w.websiteName && w.websiteName.trim().toLowerCase() === websiteSlug) ||
+          String(w.websiteId) === websiteSlug
+        );
+        if (!matches) return false;
+      }
       // Text search filter
       if (!needle) return true;
       return (

@@ -222,16 +222,24 @@ namespace PortfolioAPI.Application.Services
 
             if (dto.WebsiteAssignments != null && dto.WebsiteAssignments.Any())
             {
+                var allWebsites = (await _unitOfWork.Websites.GetAllAsync()).ToDictionary(w => w.Id);
+                created.ProjectWebsites ??= new List<ProjectWebsite>();
                 foreach (var assign in dto.WebsiteAssignments)
                 {
-                    await _unitOfWork.ProjectWebsites.AddAsync(new ProjectWebsite
+                    if (allWebsites.TryGetValue(assign.WebsiteId, out var website))
                     {
-                        ProjectId = created.Id,
-                        WebsiteId = assign.WebsiteId,
-                        IsPublished = assign.IsPublished,
-                        DisplayOrder = assign.DisplayOrder,
-                        CreatedAt = DateTime.UtcNow
-                    });
+                        var pw = new ProjectWebsite
+                        {
+                            ProjectId = created.Id,
+                            WebsiteId = assign.WebsiteId,
+                            IsPublished = assign.IsPublished,
+                            DisplayOrder = assign.DisplayOrder,
+                            CreatedAt = DateTime.UtcNow,
+                            Website = website
+                        };
+                        await _unitOfWork.ProjectWebsites.AddAsync(pw);
+                        created.ProjectWebsites.Add(pw);
+                    }
                 }
                 await _unitOfWork.SaveChangesAsync();
             }
@@ -330,34 +338,43 @@ namespace PortfolioAPI.Application.Services
 
             if (dto.WebsiteAssignments != null)
             {
-                var existingAssignments = (await _unitOfWork.ProjectWebsites.FindAsync(pw => pw.ProjectId == id)).ToList();
-                var newIds = dto.WebsiteAssignments.Select(a => a.WebsiteId).ToHashSet();
+                var allWebsites = (await _unitOfWork.Websites.GetAllAsync()).ToDictionary(w => w.Id);
 
-                foreach (var existing in existingAssignments.Where(e => !newIds.Contains(e.WebsiteId)))
+                // Use the tracked collection on the loaded project entity to avoid EF entity tracking conflicts
+                project.ProjectWebsites ??= new List<ProjectWebsite>();
+                var existingMap = project.ProjectWebsites.ToDictionary(pw => pw.WebsiteId);
+                var validAssignments = dto.WebsiteAssignments.Where(a => allWebsites.ContainsKey(a.WebsiteId)).ToList();
+                var validWebsiteIds = validAssignments.Select(a => a.WebsiteId).ToHashSet();
+
+                var toRemove = project.ProjectWebsites.Where(pw => !validWebsiteIds.Contains(pw.WebsiteId)).ToList();
+                foreach (var rem in toRemove)
                 {
-                    await _unitOfWork.ProjectWebsites.DeleteAsync(existing);
+                    await _unitOfWork.ProjectWebsites.DeleteAsync(rem);
+                    project.ProjectWebsites.Remove(rem);
                 }
 
-                foreach (var assign in dto.WebsiteAssignments)
+                foreach (var assign in validAssignments)
                 {
-                    var existing = existingAssignments.FirstOrDefault(e => e.WebsiteId == assign.WebsiteId);
-                    if (existing != null)
+                    if (existingMap.TryGetValue(assign.WebsiteId, out var existing))
                     {
                         existing.IsPublished = assign.IsPublished;
                         existing.DisplayOrder = assign.DisplayOrder;
                         existing.UpdatedAt = DateTime.UtcNow;
-                        await _unitOfWork.ProjectWebsites.UpdateAsync(existing);
+                        existing.Website = allWebsites[assign.WebsiteId];
                     }
                     else
                     {
-                        await _unitOfWork.ProjectWebsites.AddAsync(new ProjectWebsite
+                        var newAssignment = new ProjectWebsite
                         {
                             ProjectId = id,
                             WebsiteId = assign.WebsiteId,
                             IsPublished = assign.IsPublished,
                             DisplayOrder = assign.DisplayOrder,
-                            CreatedAt = DateTime.UtcNow
-                        });
+                            CreatedAt = DateTime.UtcNow,
+                            Website = allWebsites[assign.WebsiteId]
+                        };
+                        await _unitOfWork.ProjectWebsites.AddAsync(newAssignment);
+                        project.ProjectWebsites.Add(newAssignment);
                     }
                 }
             }

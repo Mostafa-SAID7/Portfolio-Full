@@ -5,8 +5,99 @@
       <h2 class="font-display text-3xl font-semibold tracking-[-0.05em] text-ink">Websites</h2>
       <p class="mt-2 text-sm text-soft">{{ websites().length }} registered frontend websites. Projects can be assigned to any combination.</p>
     </div>
-    <a routerLink="/projects" class="btn-ghost shrink-0">← Back to projects</a>
+    <div class="flex items-center gap-3">
+      <button type="button" class="btn-primary" (click)="openCreate()">+ New Website</button>
+      <a routerLink="/projects" class="btn-ghost shrink-0">← Back to projects</a>
+    </div>
   </div>
+
+  @if (showCreateModal()) {
+    <div class="rounded-2xl border border-accent/20 bg-line/[0.04] p-5 shadow-sm">
+      <div class="mb-4 flex items-center justify-between">
+        <h3 class="font-display text-lg font-semibold text-ink">Add New Website</h3>
+        <button type="button" class="btn-ghost text-xs" (click)="cancelCreate()">Close</button>
+      </div>
+      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div>
+          <label class="field-label">Website Name *</label>
+          <input
+            type="text"
+            class="input"
+            [ngModel]="newWebsite().name"
+            (ngModelChange)="onNewNameChange($event)"
+            placeholder="e.g. Logistics"
+            maxlength="100"
+          />
+        </div>
+        <div>
+          <label class="field-label">Slug *</label>
+          <input
+            type="text"
+            class="input"
+            [ngModel]="newWebsite().slug"
+            (ngModelChange)="updateNewField('slug', $event)"
+            placeholder="e.g. logistics"
+            maxlength="100"
+          />
+        </div>
+        <div>
+          <label class="field-label">Base URL (optional)</label>
+          <input
+            type="url"
+            class="input"
+            [ngModel]="newWebsite().baseUrl"
+            (ngModelChange)="updateNewField('baseUrl', $event)"
+            placeholder="https://... (or leave empty)"
+            maxlength="500"
+          />
+        </div>
+        <div class="sm:col-span-2">
+          <label class="field-label">Description (optional)</label>
+          <input
+            type="text"
+            class="input"
+            [ngModel]="newWebsite().description"
+            (ngModelChange)="updateNewField('description', $event)"
+            placeholder="Short description of this website frontend"
+            maxlength="250"
+          />
+        </div>
+        <div>
+          <label class="field-label">Display Order</label>
+          <input
+            type="number"
+            class="input"
+            min="0"
+            step="1"
+            [ngModel]="newWebsite().order"
+            (ngModelChange)="updateNewField('order', +$event)"
+          />
+        </div>
+        <div class="flex items-center gap-2">
+          <label class="flex cursor-pointer items-center gap-2 text-sm text-ink">
+            <input
+              type="checkbox"
+              class="h-4 w-4 accent-[rgb(var(--accent))]"
+              [ngModel]="newWebsite().isActive"
+              (ngModelChange)="updateNewField('isActive', $event)"
+            />
+            Active &amp; visible
+          </label>
+        </div>
+      </div>
+      <div class="mt-4 flex justify-end gap-2 border-t border-line/10 pt-4">
+        <button type="button" class="btn-ghost" (click)="cancelCreate()">Cancel</button>
+        <button
+          type="button"
+          class="btn-primary"
+          [disabled]="creating() || !newWebsite().name.trim()"
+          (click)="saveNewWebsite()"
+        >
+          {{ creating() ? 'Saving...' : 'Create Website' }}
+        </button>
+      </div>
+    </div>
+  }
 
   @if (websiteService.loading()) {
     <div class="card flex min-h-[200px] items-center justify-center">
@@ -43,8 +134,8 @@
                       <input type="text" class="input" [value]="getDraft(website.id)?.slug ?? ''" (input)="updateDraft(website.id, { slug: $any($event.target).value })" maxlength="100" />
                     </div>
                     <div>
-                      <label class="field-label">Base URL</label>
-                      <input type="url" class="input" [value]="getDraft(website.id)?.baseUrl ?? ''" (input)="updateDraft(website.id, { baseUrl: $any($event.target).value })" placeholder="https://..." maxlength="500" />
+                      <label class="field-label">Base URL (optional)</label>
+                      <input type="url" class="input" [value]="getDraft(website.id)?.baseUrl ?? ''" (input)="updateDraft(website.id, { baseUrl: $any($event.target).value })" placeholder="https://... (or leave empty)" maxlength="500" />
                     </div>
                     <div>
                       <label class="field-label">Display order</label>
@@ -112,4 +203,3 @@
     </div>
   }
 </div>
-

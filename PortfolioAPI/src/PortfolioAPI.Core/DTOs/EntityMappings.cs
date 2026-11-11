@@ -48,13 +48,39 @@ namespace PortfolioAPI.Core.DTOs
             MetricsAr = p.MetricsAr?.Select(m => new ProjectMetricDto { LabelEn = m.LabelEn, LabelAr = m.LabelAr, Value = m.Value }).ToList()
                           ?? new List<ProjectMetricDto>(),
             Gradient = p.Gradient,
-            Websites = p.ProjectWebsites?.Select(pw => new ProjectWebsiteDto
+            Websites = p.ProjectWebsites?.Where(pw => !pw.IsDeleted).Select(pw =>
             {
-                WebsiteId = pw.WebsiteId,
-                WebsiteSlug = pw.Website?.Slug ?? string.Empty,
-                WebsiteName = pw.Website?.Name ?? string.Empty,
-                IsPublished = pw.IsPublished,
-                DisplayOrder = pw.DisplayOrder
+                var slug = !string.IsNullOrWhiteSpace(pw.Website?.Slug)
+                    ? pw.Website.Slug
+                    : (pw.WebsiteId == 1 ? "marketplace" :
+                       pw.WebsiteId == 2 ? "banking" :
+                       pw.WebsiteId == 3 ? "edutech" :
+                       pw.WebsiteId == 4 ? "real-estate" :
+                       pw.WebsiteId == 5 ? "healthcare" :
+                       pw.WebsiteId == 6 ? "restaurants" :
+                       pw.WebsiteId == 7 ? "platforms" :
+                       pw.WebsiteId == 8 ? "entertainment" :
+                       pw.WebsiteId == 9 ? "asp-net" : string.Empty);
+                var name = !string.IsNullOrWhiteSpace(pw.Website?.Name)
+                    ? pw.Website.Name
+                    : (pw.WebsiteId == 1 ? "Marketplace" :
+                       pw.WebsiteId == 2 ? "Fintech / Banking" :
+                       pw.WebsiteId == 3 ? "EduTech" :
+                       pw.WebsiteId == 4 ? "Real Estate" :
+                       pw.WebsiteId == 5 ? "Healthcare" :
+                       pw.WebsiteId == 6 ? "Restaurants" :
+                       pw.WebsiteId == 7 ? "Platforms" :
+                       pw.WebsiteId == 8 ? "Entertainment / Booking" :
+                       pw.WebsiteId == 9 ? "ASP.NET Projects" : string.Empty);
+
+                return new ProjectWebsiteDto
+                {
+                    WebsiteId = pw.WebsiteId,
+                    WebsiteSlug = slug,
+                    WebsiteName = name,
+                    IsPublished = pw.IsPublished,
+                    DisplayOrder = pw.DisplayOrder
+                };
             }).ToList() ?? new List<ProjectWebsiteDto>(),
             CreatedAt = p.CreatedAt,
             UpdatedAt = p.UpdatedAt
