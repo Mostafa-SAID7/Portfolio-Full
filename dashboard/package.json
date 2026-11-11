@@ -1,5 +1,8 @@
 {
   "name": "portfolio-dashboard",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "version": "1.0.0",
   "description": "Admin dashboard for the Portfolio API (projects, content, messages, stats).",
   "author": "Mostafa Said",
