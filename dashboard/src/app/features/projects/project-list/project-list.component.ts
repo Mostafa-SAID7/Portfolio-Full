@@ -8,6 +8,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ProjectListStateService } from '../../../core/services/project-list-state.service';
 import { replaceUrlParams, readUrlInt } from '../../../core/url-state';
 import { ProjectService } from '../../../core/services/project.service';
+import { WebsiteService } from '../../../core/services/website.service';
 import { Project } from '../../../core/models/project.model';
 import { isApiHostedImage, resolvePortfolioImage } from '../../../core/portfolio-origin';
 import { ConfirmDialogService } from '../../../shared/confirm-dialog.component';
@@ -32,6 +33,7 @@ const PAGE_SIZE = 9;
 })
 export class ProjectListComponent implements OnInit {
   readonly service = inject(ProjectService);
+  readonly websiteService = inject(WebsiteService);
   private readonly dialog = inject(ConfirmDialogService);
   private readonly listState = inject(ProjectListStateService);
   private readonly router = inject(Router);
@@ -39,6 +41,9 @@ export class ProjectListComponent implements OnInit {
   private readonly toast = inject(ToastService);
   private readonly destroyRef = inject(DestroyRef);
   readonly deleting = signal<Set<number>>(new Set());
+
+  /** Currently selected website slug for filtering (empty = all websites). */
+  readonly selectedWebsiteSlug = signal<string>('');
 
   createProject(): void {
     this.router.navigate(['/projects/new']);
@@ -59,10 +64,17 @@ export class ProjectListComponent implements OnInit {
   }
   setQuery(query: string): void {
     this.listState.setQuery(query);
+    this.listState.setPage(1);
     this.persistInUrl();
   }
   setPage(page: number): void {
     this.listState.setPage(page);
+    this.persistInUrl();
+  }
+
+  setWebsiteFilter(slug: string): void {
+    this.selectedWebsiteSlug.set(slug);
+    this.listState.setPage(1);
     this.persistInUrl();
   }
 
@@ -75,20 +87,25 @@ export class ProjectListComponent implements OnInit {
   }
 
   readonly projectCount = computed(() => this.service.projects().length);
-  readonly hasActiveQuery = computed(() => this.listState.query().trim().length > 0);
+  readonly hasActiveQuery = computed(() => this.listState.query().trim().length > 0 || this.selectedWebsiteSlug().length > 0);
 
   readonly filteredProjects = computed(() => {
     const needle = this.listState.query().trim().toLowerCase();
+    const websiteSlug = this.selectedWebsiteSlug();
     const projects = [...this.service.projects()].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-    if (!needle) return projects;
-    return projects.filter(
-      project =>
+    return projects.filter(project => {
+      // Website filter
+      if (websiteSlug && !project.websites?.some(w => w.websiteSlug === websiteSlug)) return false;
+      // Text search filter
+      if (!needle) return true;
+      return (
         (project.titleEn || '').toLowerCase().includes(needle) ||
         (project.descriptionEn || '').toLowerCase().includes(needle) ||
         (project.technologies || []).join(' ').toLowerCase().includes(needle) ||
         (project.clientEn ?? '').toLowerCase().includes(needle) ||
         (project.categoryEn ?? '').toLowerCase().includes(needle)
-    );
+      );
+    });
   });
 
   readonly currentPage = computed(() => Math.min(Math.max(1, this.page()), Math.max(1, Math.ceil(this.filteredProjects().length / PAGE_SIZE))));
@@ -146,6 +163,10 @@ export class ProjectListComponent implements OnInit {
     const savedQuery = params.get('q');
     if (savedPage !== null || savedQuery !== null) {
       this.listState.restore(savedPage ?? 1, savedQuery ?? '');
+    }
+    // Load websites for the filter dropdown.
+    if (this.websiteService.websites().length === 0) {
+      this.websiteService.loadWebsites().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({ error: () => undefined });
     }
     this.load();
   }

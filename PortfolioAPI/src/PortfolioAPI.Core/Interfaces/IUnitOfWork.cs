@@ -1,4 +1,4 @@
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using PortfolioAPI.Core.Entities;
 
 namespace PortfolioAPI.Core.Interfaces
@@ -21,6 +21,8 @@ namespace PortfolioAPI.Core.Interfaces
         IRepository<Testimonial> Testimonials { get; }
         IRepository<Credential> Credentials { get; }
         IRepository<Category> Categories { get; }
+        IRepository<Website> Websites { get; }
+        IRepository<ProjectWebsite> ProjectWebsites { get; }
 
         Task<int> SaveChangesAsync();
     }

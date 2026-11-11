@@ -1,4 +1,4 @@
-using PortfolioAPI.Core.Entities;
+﻿using PortfolioAPI.Core.Entities;
 using PortfolioAPI.Core.Interfaces;
 using PortfolioAPI.Infrastructure.Data;
 
@@ -24,6 +24,8 @@ namespace PortfolioAPI.Infrastructure.Repositories
         private IRepository<Testimonial>? _testimonials;
         private IRepository<Credential>? _credentials;
         private IRepository<Category>? _categories;
+        private IRepository<Website>? _websites;
+        private IRepository<ProjectWebsite>? _projectWebsites;
 
         public UnitOfWork(PortfolioDbContext context)
         {
@@ -41,6 +43,8 @@ namespace PortfolioAPI.Infrastructure.Repositories
         public IRepository<Testimonial> Testimonials => _testimonials ??= new Repository<Testimonial>(_context);
         public IRepository<Credential> Credentials => _credentials ??= new Repository<Credential>(_context);
         public IRepository<Category> Categories => _categories ??= new Repository<Category>(_context);
+        public IRepository<Website> Websites => _websites ??= new Repository<Website>(_context);
+        public IRepository<ProjectWebsite> ProjectWebsites => _projectWebsites ??= new Repository<ProjectWebsite>(_context);
 
         public async Task<int> SaveChangesAsync()
         {

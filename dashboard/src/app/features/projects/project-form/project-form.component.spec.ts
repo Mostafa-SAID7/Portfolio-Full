@@ -10,6 +10,8 @@ import { UploadedImage } from '../../../core/portfolio-origin';
 import { CategoryService } from '../../../core/services/category.service';
 import { ProjectService } from '../../../core/services/project.service';
 import { SkillService } from '../../../core/services/skill.service';
+import { WebsiteService } from '../../../core/services/website.service';
+import { Website } from '../../../core/models/website.model';
 import { ProjectFormComponent } from './project-form.component';
 
 function projectFixture(id = 1): Project {
@@ -42,6 +44,7 @@ describe('ProjectFormComponent', () => {
   let projectState: WritableSignal<Project[]>;
   let categories: jasmine.SpyObj<CategoryService>;
   let skills: jasmine.SpyObj<SkillService>;
+  let websites: jasmine.SpyObj<WebsiteService>;
   let navigate: jasmine.Spy;
 
   beforeEach(async () => {
@@ -60,6 +63,8 @@ describe('ProjectFormComponent', () => {
     categories.loadCategories.and.returnValue(of([]));
     skills = jasmine.createSpyObj<SkillService>('SkillService', ['loadSkills'], { skills: signal<Skill[]>([]) });
     skills.loadSkills.and.returnValue(of([]));
+    websites = jasmine.createSpyObj<WebsiteService>('WebsiteService', ['loadWebsites'], { websites: signal<Website[]>([]), loading: signal(false) });
+    websites.loadWebsites.and.returnValue(of([]));
     await TestBed.configureTestingModule({
       imports: [ProjectFormComponent],
       providers: [
@@ -67,7 +72,8 @@ describe('ProjectFormComponent', () => {
         { provide: ActivatedRoute, useValue: { paramMap: params.asObservable(), snapshot } },
         { provide: ProjectService, useValue: projects },
         { provide: CategoryService, useValue: categories },
-        { provide: SkillService, useValue: skills }
+        { provide: SkillService, useValue: skills },
+        { provide: WebsiteService, useValue: websites }
       ]
     }).compileComponents();
     navigate = spyOn(TestBed.inject(Router), 'navigate').and.resolveTo(true);

@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PortfolioAPI.Core.DTOs;
 using PortfolioAPI.Core.Interfaces;
@@ -127,6 +127,21 @@ namespace PortfolioAPI.Controllers
         {
             var result = await _projectService.ToggleFeaturedAsync(id);
             return result.Success ? Ok(new { isFeatured = result.Data }) : Failure(result);
+        }
+
+        [HttpGet("{id:int}/websites")]
+        public async Task<ActionResult<IEnumerable<ProjectWebsiteDto>>> GetProjectWebsites(int id)
+        {
+            var result = await _projectService.GetWebsiteAssignmentsAsync(id);
+            return Mapped(result);
+        }
+
+        [HttpPut("{id:int}/websites")]
+        [Authorize]
+        public async Task<ActionResult<IEnumerable<ProjectWebsiteDto>>> UpdateProjectWebsites(int id, [FromBody] UpdateProjectWebsitesDto dto)
+        {
+            var result = await _projectService.UpdateWebsiteAssignmentsAsync(id, dto);
+            return Mapped(result);
         }
 
         /// <summary>

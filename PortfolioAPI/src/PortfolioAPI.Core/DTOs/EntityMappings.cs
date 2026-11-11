@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using PortfolioAPI.Core.DTOs;
@@ -48,8 +48,30 @@ namespace PortfolioAPI.Core.DTOs
             MetricsAr = p.MetricsAr?.Select(m => new ProjectMetricDto { LabelEn = m.LabelEn, LabelAr = m.LabelAr, Value = m.Value }).ToList()
                           ?? new List<ProjectMetricDto>(),
             Gradient = p.Gradient,
+            Websites = p.ProjectWebsites?.Select(pw => new ProjectWebsiteDto
+            {
+                WebsiteId = pw.WebsiteId,
+                WebsiteSlug = pw.Website?.Slug ?? string.Empty,
+                WebsiteName = pw.Website?.Name ?? string.Empty,
+                IsPublished = pw.IsPublished,
+                DisplayOrder = pw.DisplayOrder
+            }).ToList() ?? new List<ProjectWebsiteDto>(),
             CreatedAt = p.CreatedAt,
             UpdatedAt = p.UpdatedAt
+        };
+
+        public static WebsiteDto ToDto(Website w) => new()
+        {
+            Id = w.Id,
+            Name = w.Name,
+            Slug = w.Slug,
+            Description = w.Description,
+            BaseUrl = w.BaseUrl,
+            Order = w.Order,
+            IsActive = w.IsActive,
+            AssignedProjectsCount = w.ProjectWebsites?.Count(pw => pw.Project != null && !pw.Project.IsDeleted) ?? 0,
+            CreatedAt = w.CreatedAt,
+            UpdatedAt = w.UpdatedAt
         };
 
         public static SkillDto ToDto(Skill s) => new()

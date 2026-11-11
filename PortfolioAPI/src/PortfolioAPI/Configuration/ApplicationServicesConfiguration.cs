@@ -1,4 +1,4 @@
-using FluentValidation;
+﻿using FluentValidation;
 using PortfolioAPI.Application.Services;
 using PortfolioAPI.Core.Interfaces;
 using PortfolioAPI.Core.Interfaces.Services;
@@ -29,6 +29,7 @@ namespace PortfolioAPI.Configuration
 
             services.AddScoped<ICredentialService, CredentialService>();
             services.AddScoped<ICategoryService, CategoryService>();
+            services.AddScoped<IWebsiteService, WebsiteService>();
 
             // Add infrastructure services
             services.AddScoped<IEmailService, EmailService>();

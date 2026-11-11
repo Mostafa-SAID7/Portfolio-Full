@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace PortfolioAPI.Core.Entities
 {
@@ -58,5 +58,6 @@ namespace PortfolioAPI.Core.Entities
 
         // Navigation properties
         public ICollection<ProjectImage> Images { get; set; } = new List<ProjectImage>();
+        public ICollection<ProjectWebsite> ProjectWebsites { get; set; } = new List<ProjectWebsite>();
     }
 }

@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 using PortfolioAPI.Core.Common;
 using PortfolioAPI.Core.DTOs;
@@ -18,5 +18,11 @@ namespace PortfolioAPI.Core.Interfaces.Services
         Task<Result<ProjectDto>> UpdateAsync(int id, UpdateProjectDto dto);
         Task<Result<bool>> DeleteAsync(int id);
         Task<Result<bool>> ToggleFeaturedAsync(int id);
+
+        Task<Result<IEnumerable<ProjectDto>>> GetProjectsByWebsiteAsync(string websiteSlug, string? category = null, string? search = null, bool? featured = null);
+        Task<Result<ProjectDto>> GetProjectByWebsiteAndSlugAsync(string websiteSlug, string projectSlug);
+        Task<Result<IEnumerable<string>>> GetCategoriesByWebsiteAsync(string websiteSlug);
+        Task<Result<IEnumerable<ProjectWebsiteDto>>> GetWebsiteAssignmentsAsync(int projectId);
+        Task<Result<IEnumerable<ProjectWebsiteDto>>> UpdateWebsiteAssignmentsAsync(int projectId, UpdateProjectWebsitesDto dto);
     }
 }

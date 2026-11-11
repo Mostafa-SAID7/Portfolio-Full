@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace PortfolioAPI.Core.DTOs
 {
@@ -35,6 +35,7 @@ namespace PortfolioAPI.Core.DTOs
         public List<ProjectMetricDto> MetricsEn { get; set; } = new();
         public List<ProjectMetricDto> MetricsAr { get; set; } = new();
         public string? Gradient { get; set; }
+        public List<AssignProjectWebsiteDto>? WebsiteAssignments { get; set; }
     }
 
     /// <summary>Payload accepted when updating a project.</summary>

@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.AspNetCore.RateLimiting;
 using PortfolioAPI.Core.DTOs;
@@ -25,6 +25,7 @@ namespace PortfolioAPI.Controllers
         private readonly IContactService _contactService;
         private readonly ICredentialService _credentialService;
         private readonly ICategoryService _categoryService;
+        private readonly IWebsiteService _websiteService;
 
         public PublicController(
             IProjectService projectService,
@@ -33,7 +34,8 @@ namespace PortfolioAPI.Controllers
             ITestimonialService testimonialService,
             IContactService contactService,
             ICredentialService credentialService,
-            ICategoryService categoryService)
+            ICategoryService categoryService,
+            IWebsiteService websiteService)
         {
             _projectService = projectService;
             _skillService = skillService;
@@ -42,6 +44,59 @@ namespace PortfolioAPI.Controllers
             _contactService = contactService;
             _credentialService = credentialService;
             _categoryService = categoryService;
+            _websiteService = websiteService;
+        }
+
+        /// <summary>Active registered frontend websites in the ecosystem.</summary>
+        [HttpGet("websites")]
+        [OutputCache(PolicyName = "public-content")]
+        public async Task<ActionResult<IEnumerable<WebsiteDto>>> GetWebsites()
+        {
+            var result = await _websiteService.GetActiveWebsitesAsync();
+            return Ok(result.Data ?? Enumerable.Empty<WebsiteDto>());
+        }
+
+        /// <summary>Active, published projects assigned to a specific frontend website.</summary>
+        [HttpGet("websites/{websiteSlug}/projects")]
+        [OutputCache(PolicyName = "public-content")]
+        public async Task<ActionResult<IEnumerable<ProjectDto>>> GetProjectsByWebsite(
+            string websiteSlug,
+            [FromQuery] string? category,
+            [FromQuery] string? search,
+            [FromQuery] bool? featured)
+        {
+            var result = await _projectService.GetProjectsByWebsiteAsync(websiteSlug, category, search, featured);
+            if (!result.Success)
+            {
+                return BadRequest(new { message = result.Message });
+            }
+            return Ok(result.Data ?? Enumerable.Empty<ProjectDto>());
+        }
+
+        /// <summary>Get project details scoped to a specific frontend website.</summary>
+        [HttpGet("websites/{websiteSlug}/projects/{projectSlug}")]
+        [OutputCache(PolicyName = "public-content")]
+        public async Task<ActionResult<ProjectDto>> GetProjectByWebsite(string websiteSlug, string projectSlug)
+        {
+            var result = await _projectService.GetProjectByWebsiteAndSlugAsync(websiteSlug, projectSlug);
+            if (!result.Success || result.Data == null)
+            {
+                return NotFound(new { message = result.Message });
+            }
+            return Ok(result.Data);
+        }
+
+        /// <summary>Categories used by published projects on a specific frontend website.</summary>
+        [HttpGet("websites/{websiteSlug}/categories")]
+        [OutputCache(PolicyName = "public-content")]
+        public async Task<ActionResult<IEnumerable<string>>> GetCategoriesByWebsite(string websiteSlug)
+        {
+            var result = await _projectService.GetCategoriesByWebsiteAsync(websiteSlug);
+            if (!result.Success)
+            {
+                return BadRequest(new { message = result.Message });
+            }
+            return Ok(result.Data ?? Enumerable.Empty<string>());
         }
 
         /// <summary>Active projects (optionally only featured), ordered for display.</summary>

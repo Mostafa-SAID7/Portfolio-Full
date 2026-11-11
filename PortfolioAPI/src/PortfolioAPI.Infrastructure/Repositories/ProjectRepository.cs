@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using PortfolioAPI.Core.Entities;
 using PortfolioAPI.Core.Interfaces;
 using PortfolioAPI.Infrastructure.Data;
@@ -16,6 +16,107 @@ namespace PortfolioAPI.Infrastructure.Repositories
     {
         public ProjectRepository(PortfolioDbContext context) : base(context)
         {
+        }
+
+        public new async Task<Project?> GetByIdAsync(int id)
+        {
+            return await _dbSet
+                .Include(p => p.ProjectWebsites)
+                    .ThenInclude(pw => pw.Website)
+                .FirstOrDefaultAsync(p => p.Id == id);
+        }
+
+        public async Task<Project?> GetByIdWithWebsitesAsync(int id)
+        {
+            return await _dbSet
+                .Include(p => p.ProjectWebsites)
+                    .ThenInclude(pw => pw.Website)
+                .FirstOrDefaultAsync(p => p.Id == id);
+        }
+
+        public new async Task<IEnumerable<Project>> GetAllAsync()
+        {
+            return await _dbSet
+                .AsNoTracking()
+                .Include(p => p.ProjectWebsites)
+                    .ThenInclude(pw => pw.Website)
+                .Where(p => !p.IsDeleted)
+                .OrderBy(p => p.Order)
+                .ThenByDescending(p => p.CreatedAt)
+                .ToListAsync();
+        }
+
+        public async Task<List<Project>> GetProjectsByWebsiteAsync(string websiteSlug, string? category = null, string? search = null, bool? featured = null)
+        {
+            var normalizedSlug = websiteSlug.Trim().ToLowerInvariant();
+
+            var query = _dbSet
+                .AsNoTracking()
+                .Include(p => p.ProjectWebsites)
+                    .ThenInclude(pw => pw.Website)
+                .Where(p => p.IsActive && !p.IsDeleted &&
+                            p.ProjectWebsites.Any(pw => pw.Website.Slug.ToLower() == normalizedSlug &&
+                                                        pw.Website.IsActive &&
+                                                        pw.IsPublished));
+
+            if (!string.IsNullOrWhiteSpace(category))
+            {
+                var normCat = category.Trim().ToLower();
+                query = query.Where(p => (p.CategoryEn != null && p.CategoryEn.ToLower() == normCat) ||
+                                         (p.CategoryAr != null && p.CategoryAr.ToLower() == normCat));
+            }
+
+            if (featured.HasValue)
+            {
+                query = query.Where(p => p.Featured == featured.Value);
+            }
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var term = search.Trim().ToLower();
+                query = query.Where(p => p.TitleEn.ToLower().Contains(term) ||
+                                         p.TitleAr.ToLower().Contains(term) ||
+                                         p.DescriptionEn.ToLower().Contains(term) ||
+                                         p.DescriptionAr.ToLower().Contains(term) ||
+                                         (p.ClientEn != null && p.ClientEn.ToLower().Contains(term)));
+            }
+
+            return await query
+                .OrderBy(p => p.Order)
+                .ThenByDescending(p => p.CreatedAt)
+                .ToListAsync();
+        }
+
+        public async Task<Project?> GetProjectByWebsiteAndSlugAsync(string websiteSlug, string projectSlug)
+        {
+            var normWeb = websiteSlug.Trim().ToLowerInvariant();
+            var normProj = projectSlug.Trim().ToLowerInvariant();
+
+            return await _dbSet
+                .AsNoTracking()
+                .Include(p => p.ProjectWebsites)
+                    .ThenInclude(pw => pw.Website)
+                .FirstOrDefaultAsync(p => p.IsActive && !p.IsDeleted &&
+                                          p.Slug.ToLower() == normProj &&
+                                          p.ProjectWebsites.Any(pw => pw.Website.Slug.ToLower() == normWeb &&
+                                                                      pw.Website.IsActive &&
+                                                                      pw.IsPublished));
+        }
+
+        public async Task<List<string>> GetCategoriesByWebsiteAsync(string websiteSlug)
+        {
+            var normWeb = websiteSlug.Trim().ToLowerInvariant();
+
+            return await _dbSet
+                .AsNoTracking()
+                .Where(p => p.IsActive && !p.IsDeleted &&
+                            p.CategoryEn != null && p.CategoryEn != string.Empty &&
+                            p.ProjectWebsites.Any(pw => pw.Website.Slug.ToLower() == normWeb &&
+                                                        pw.Website.IsActive &&
+                                                        pw.IsPublished))
+                .Select(p => p.CategoryEn!)
+                .Distinct()
+                .ToListAsync();
         }
 
         public async Task<List<Project>> SearchAsync(string searchTerm)

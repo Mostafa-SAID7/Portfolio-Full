@@ -17,7 +17,7 @@ namespace PortfolioAPI.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.0")
+                .HasAnnotation("ProductVersion", "9.0.22")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -614,6 +614,54 @@ namespace PortfolioAPI.Infrastructure.Migrations
                     b.ToTable("ProjectImages");
                 });
 
+            modelBuilder.Entity("PortfolioAPI.Core.Entities.ProjectWebsite", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("DisplayOrder")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsPublished")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<int>("ProjectId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("WebsiteId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProjectId", "WebsiteId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_ProjectWebsites_Project_Website");
+
+                    b.HasIndex("WebsiteId", "IsPublished", "DisplayOrder")
+                        .HasDatabaseName("IX_ProjectWebsites_Website_Published_Order");
+
+                    b.ToTable("ProjectWebsites");
+                });
+
             modelBuilder.Entity("PortfolioAPI.Core.Entities.Skill", b =>
                 {
                     b.Property<int>("Id")
@@ -787,6 +835,67 @@ namespace PortfolioAPI.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("PortfolioAPI.Core.Entities.Website", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("BaseUrl")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("Order")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IsActive");
+
+                    b.HasIndex("Order");
+
+                    b.HasIndex("Slug")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Websites_Slug");
+
+                    b.ToTable("Websites");
+                });
+
             modelBuilder.Entity("PortfolioAPI.Core.Entities.ContactReply", b =>
                 {
                     b.HasOne("PortfolioAPI.Core.Entities.Contact", "Contact")
@@ -807,6 +916,25 @@ namespace PortfolioAPI.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Project");
+                });
+
+            modelBuilder.Entity("PortfolioAPI.Core.Entities.ProjectWebsite", b =>
+                {
+                    b.HasOne("PortfolioAPI.Core.Entities.Project", "Project")
+                        .WithMany("ProjectWebsites")
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("PortfolioAPI.Core.Entities.Website", "Website")
+                        .WithMany("ProjectWebsites")
+                        .HasForeignKey("WebsiteId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Project");
+
+                    b.Navigation("Website");
                 });
 
             modelBuilder.Entity("PortfolioAPI.Core.Entities.SkillProject", b =>
@@ -831,11 +959,18 @@ namespace PortfolioAPI.Infrastructure.Migrations
             modelBuilder.Entity("PortfolioAPI.Core.Entities.Project", b =>
                 {
                     b.Navigation("Images");
+
+                    b.Navigation("ProjectWebsites");
                 });
 
             modelBuilder.Entity("PortfolioAPI.Core.Entities.Skill", b =>
                 {
                     b.Navigation("SkillProjects");
+                });
+
+            modelBuilder.Entity("PortfolioAPI.Core.Entities.Website", b =>
+                {
+                    b.Navigation("ProjectWebsites");
                 });
 #pragma warning restore 612, 618
         }

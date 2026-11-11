@@ -1,4 +1,4 @@
-namespace PortfolioAPI.Core.Common
+﻿namespace PortfolioAPI.Core.Common
 {
     /// <summary>
     /// Lightweight result wrapper used by the service layer so operations can
@@ -30,5 +30,12 @@ namespace PortfolioAPI.Core.Common
         {
             return new Result<T> { Success = false, IsNotFound = true, Message = message };
         }
+
+        public static Result<T> Failure(string message)
+        {
+            return new Result<T> { Success = false, Message = message };
+        }
+
+        public static Result<T> Fail(string message) => Failure(message);
     }
 }

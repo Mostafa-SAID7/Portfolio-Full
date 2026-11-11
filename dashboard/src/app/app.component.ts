@@ -90,6 +90,11 @@ export class AppComponent {
       icon: this.trust('<svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M4 7.5a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-10Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>')
     },
     {
+      link: '/websites',
+      label: 'Websites',
+      icon: this.trust('<svg viewBox="0 0 24 24" fill="none" width="18" height="18"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="1.7"/><path d="M4 12h16M12 4c2.5 2.2 2.5 13.8 0 16-2.5-2.2-2.5-13.8 0-16Z" stroke="currentColor" stroke-width="1.7"/></svg>')
+    },
+    {
       link: '/messages',
       label: 'Messages',
       icon: this.trust('<svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v8a2.5 2.5 0 0 1-2.5 2.5H9l-4 3.5v-3.5A2.5 2.5 0 0 1 4 14.5v-8Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>')
@@ -125,6 +130,7 @@ export class AppComponent {
   private pageTitleFromUrl(url: string): string {
     const path = url.split('?')[0];
     if (path.startsWith('/projects')) return 'Projects';
+    if (path.startsWith('/websites')) return 'Websites';
     if (path.startsWith('/messages')) return 'Messages';
     if (path.startsWith('/content')) return 'Content';
     if (path.startsWith('/analytics')) return 'Analytics';

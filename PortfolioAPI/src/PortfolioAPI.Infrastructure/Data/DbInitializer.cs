@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -113,6 +113,15 @@ namespace PortfolioAPI.Infrastructure.Data
             {
                 // Sync failed - continue
             }
+
+            try
+            {
+                await EnsureWebsitesAsync(context);
+            }
+            catch (Exception)
+            {
+                // Ensure websites failed - continue
+            }
         }
 
         /// <summary>
@@ -191,6 +200,61 @@ namespace PortfolioAPI.Infrastructure.Data
         // around the parameter token, turning the comparison into a comparison
         // against the literal string '@p0' (always 0 rows, silently disabling
         // both checks and re-attempting destructive DDL on every startup).
+        private static async Task EnsureWebsitesAsync(PortfolioDbContext context)
+        {
+            if (!await TableExistsAsync(context, "Websites") || !await TableExistsAsync(context, "ProjectWebsites"))
+            {
+                return;
+            }
+
+            var defaultWebsites = new List<Website>
+            {
+                new() { Name = "Marketplace", Slug = "marketplace", Description = "E-Commerce & Digital Marketplace Frontend", BaseUrl = "https://portfolio-market.vercel.app/?lang=en", Order = 1, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new() { Name = "Fintech / Banking", Slug = "banking", Description = "Financial Technology & Modern Banking Solutions", BaseUrl = "https://ms-banking.vercel.app/", Order = 2, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new() { Name = "EduTech", Slug = "edutech", Description = "Educational Technology & Learning Management Platforms", BaseUrl = "https://m-portfoilio.vercel.app/", Order = 3, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new() { Name = "Real Estate", Slug = "real-estate", Description = "Property Listings, Brokerage & Real Estate Hub", BaseUrl = "https://ms-reall-estate.vercel.app/", Order = 4, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new() { Name = "Healthcare", Slug = "healthcare", Description = "Health, Medical Care & Clinic Management", BaseUrl = "https://ms-healthy-care.vercel.app/", Order = 5, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new() { Name = "Restaurants", Slug = "restaurants", Description = "Food, Dining & Restaurant Point of Sale Systems", BaseUrl = "https://m-s-restaurant.vercel.app/", Order = 6, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new() { Name = "Platforms", Slug = "platforms", Description = "SaaS Products, Dashboards & Multi-tenant Platforms", BaseUrl = "https://ms-frontend-three.vercel.app/", Order = 7, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new() { Name = "Entertainment / Booking", Slug = "entertainment", Description = "Events, Tickets & Leisure Booking Services", BaseUrl = "https://m-s-bookings.vercel.app/", Order = 8, IsActive = true, CreatedAt = DateTime.UtcNow },
+                new() { Name = "ASP.NET Projects", Slug = "asp-net", Description = "Enterprise .NET Core & Cloud Native Architecture", BaseUrl = "https://ms-asp-dev.vercel.app/", Order = 9, IsActive = true, CreatedAt = DateTime.UtcNow }
+            };
+
+            var existingWebsites = await context.Websites.ToListAsync();
+            var existingSlugs = existingWebsites.Select(w => w.Slug.ToLowerInvariant()).ToHashSet();
+
+            foreach (var def in defaultWebsites)
+            {
+                if (!existingSlugs.Contains(def.Slug.ToLowerInvariant()))
+                {
+                    context.Websites.Add(def);
+                }
+            }
+            await context.SaveChangesAsync();
+
+            var allWebsites = await context.Websites.ToListAsync();
+            var marketplace = allWebsites.FirstOrDefault(w => w.Slug.ToLowerInvariant() == "marketplace");
+
+            if (marketplace != null)
+            {
+                var projects = await context.Projects.Where(p => !p.IsDeleted).ToListAsync();
+                var assignedProjectIds = (await context.ProjectWebsites.Select(pw => pw.ProjectId).Distinct().ToListAsync()).ToHashSet();
+
+                foreach (var project in projects.Where(p => !assignedProjectIds.Contains(p.Id)))
+                {
+                    context.ProjectWebsites.Add(new ProjectWebsite
+                    {
+                        ProjectId = project.Id,
+                        WebsiteId = marketplace.Id,
+                        IsPublished = project.IsActive,
+                        DisplayOrder = project.Order,
+                        CreatedAt = DateTime.UtcNow
+                    });
+                }
+                await context.SaveChangesAsync();
+            }
+        }
+
         private static async Task<bool> TableExistsAsync(PortfolioDbContext context, string table)
         {
             try

@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using PortfolioAPI.Core.Entities;
 
 namespace PortfolioAPI.Infrastructure.Data
@@ -19,6 +19,8 @@ namespace PortfolioAPI.Infrastructure.Data
         public DbSet<Testimonial> Testimonials { get; set; } = null!;
         public DbSet<Credential> Credentials { get; set; } = null!;
         public DbSet<Category> Categories { get; set; } = null!;
+        public DbSet<Website> Websites { get; set; } = null!;
+        public DbSet<ProjectWebsite> ProjectWebsites { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

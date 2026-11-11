@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 using PortfolioAPI.Core.Entities;
 
@@ -59,5 +59,26 @@ namespace PortfolioAPI.Core.Interfaces
         /// Runs entirely in SQL — does NOT load all projects (fix for C1).
         /// </summary>
         Task<bool> SlugExistsAsync(string slug, int? excludeId = null);
+
+        /// <summary>
+        /// Retrieves active, published projects assigned to the given website slug.
+        /// Executed in SQL Server with optional category, technology, search and featured filters.
+        /// </summary>
+        Task<List<Project>> GetProjectsByWebsiteAsync(string websiteSlug, string? category = null, string? search = null, bool? featured = null);
+
+        /// <summary>
+        /// Retrieves a single active project by slug if it is published on the given website.
+        /// </summary>
+        Task<Project?> GetProjectByWebsiteAndSlugAsync(string websiteSlug, string projectSlug);
+
+        /// <summary>
+        /// Retrieves distinct categories used by published projects on the given website.
+        /// </summary>
+        Task<List<string>> GetCategoriesByWebsiteAsync(string websiteSlug);
+
+        /// <summary>
+        /// Loads a project by ID including its ProjectWebsites and Website navigation properties.
+        /// </summary>
+        Task<Project?> GetByIdWithWebsitesAsync(int id);
     }
 }

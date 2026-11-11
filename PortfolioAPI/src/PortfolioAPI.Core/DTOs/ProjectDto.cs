@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 namespace PortfolioAPI.Core.DTOs
@@ -49,6 +49,7 @@ namespace PortfolioAPI.Core.DTOs
         public List<ProjectMetricDto> MetricsEn { get; set; } = new();
         public List<ProjectMetricDto> MetricsAr { get; set; } = new();
         public string? Gradient { get; set; }
+        public List<ProjectWebsiteDto> Websites { get; set; } = new();
 
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }

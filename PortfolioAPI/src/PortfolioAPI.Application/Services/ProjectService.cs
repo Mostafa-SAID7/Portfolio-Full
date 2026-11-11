@@ -217,11 +217,26 @@ namespace PortfolioAPI.Application.Services
             project.Slug = await GenerateUniqueSlugAsync(project.TitleEn);
 
             var created = await _unitOfWork.Projects.AddAsync(project);
-            // A category typed in the dashboard becomes a managed category, so
-            // it can be renamed/reordered/hidden later and shows up as a filter
-            // chip on the public site.
             await _categoryService.EnsureCategoryAsync(project.CategoryEn);
             await _unitOfWork.SaveChangesAsync();
+
+            if (dto.WebsiteAssignments != null && dto.WebsiteAssignments.Any())
+            {
+                foreach (var assign in dto.WebsiteAssignments)
+                {
+                    await _unitOfWork.ProjectWebsites.AddAsync(new ProjectWebsite
+                    {
+                        ProjectId = created.Id,
+                        WebsiteId = assign.WebsiteId,
+                        IsPublished = assign.IsPublished,
+                        DisplayOrder = assign.DisplayOrder,
+                        CreatedAt = DateTime.UtcNow
+                    });
+                }
+                await _unitOfWork.SaveChangesAsync();
+            }
+
+
             return Result<ProjectDto>.Ok(EntityMappings.ToDto(created), "Project created.");
         }
 
@@ -308,12 +323,47 @@ namespace PortfolioAPI.Application.Services
             }
 
             await _unitOfWork.Projects.UpdateAsync(project);
-            // Only sync the category when it actually changed (fix for M1).
             if (!string.Equals(previousCategoryEn, project.CategoryEn, StringComparison.OrdinalIgnoreCase))
             {
                 await _categoryService.EnsureCategoryAsync(project.CategoryEn);
             }
+
+            if (dto.WebsiteAssignments != null)
+            {
+                var existingAssignments = (await _unitOfWork.ProjectWebsites.FindAsync(pw => pw.ProjectId == id)).ToList();
+                var newIds = dto.WebsiteAssignments.Select(a => a.WebsiteId).ToHashSet();
+
+                foreach (var existing in existingAssignments.Where(e => !newIds.Contains(e.WebsiteId)))
+                {
+                    await _unitOfWork.ProjectWebsites.DeleteAsync(existing);
+                }
+
+                foreach (var assign in dto.WebsiteAssignments)
+                {
+                    var existing = existingAssignments.FirstOrDefault(e => e.WebsiteId == assign.WebsiteId);
+                    if (existing != null)
+                    {
+                        existing.IsPublished = assign.IsPublished;
+                        existing.DisplayOrder = assign.DisplayOrder;
+                        existing.UpdatedAt = DateTime.UtcNow;
+                        await _unitOfWork.ProjectWebsites.UpdateAsync(existing);
+                    }
+                    else
+                    {
+                        await _unitOfWork.ProjectWebsites.AddAsync(new ProjectWebsite
+                        {
+                            ProjectId = id,
+                            WebsiteId = assign.WebsiteId,
+                            IsPublished = assign.IsPublished,
+                            DisplayOrder = assign.DisplayOrder,
+                            CreatedAt = DateTime.UtcNow
+                        });
+                    }
+                }
+            }
+
             await _unitOfWork.SaveChangesAsync();
+
             return Result<ProjectDto>.Ok(EntityMappings.ToDto(project), "Project updated.");
         }
 
@@ -343,6 +393,107 @@ namespace PortfolioAPI.Application.Services
             await _unitOfWork.Projects.UpdateAsync(project);
             await _unitOfWork.SaveChangesAsync();
             return Result<bool>.Ok(project.Featured);
+        }
+
+        public async Task<Result<IEnumerable<ProjectDto>>> GetProjectsByWebsiteAsync(string websiteSlug, string? category = null, string? search = null, bool? featured = null)
+        {
+            if (string.IsNullOrWhiteSpace(websiteSlug))
+            {
+                return Result<IEnumerable<ProjectDto>>.Fail("Website slug is required.");
+            }
+
+            var projects = await _unitOfWork.Projects.GetProjectsByWebsiteAsync(websiteSlug, category, search, featured);
+            return Result<IEnumerable<ProjectDto>>.Ok(projects.Select(EntityMappings.ToDto).ToList());
+        }
+
+        public async Task<Result<ProjectDto>> GetProjectByWebsiteAndSlugAsync(string websiteSlug, string projectSlug)
+        {
+            if (string.IsNullOrWhiteSpace(websiteSlug) || string.IsNullOrWhiteSpace(projectSlug))
+            {
+                return Result<ProjectDto>.Fail("Website slug and project slug are required.");
+            }
+
+            var project = await _unitOfWork.Projects.GetProjectByWebsiteAndSlugAsync(websiteSlug, projectSlug);
+            return project == null
+                ? Result<ProjectDto>.NotFound($"Project with slug '{projectSlug}' was not found on website '{websiteSlug}'.")
+                : Result<ProjectDto>.Ok(EntityMappings.ToDto(project));
+        }
+
+        public async Task<Result<IEnumerable<string>>> GetCategoriesByWebsiteAsync(string websiteSlug)
+        {
+            if (string.IsNullOrWhiteSpace(websiteSlug))
+            {
+                return Result<IEnumerable<string>>.Fail("Website slug is required.");
+            }
+
+            var categories = await _unitOfWork.Projects.GetCategoriesByWebsiteAsync(websiteSlug);
+            return Result<IEnumerable<string>>.Ok(categories);
+        }
+
+        public async Task<Result<IEnumerable<ProjectWebsiteDto>>> GetWebsiteAssignmentsAsync(int projectId)
+        {
+            var project = await _unitOfWork.Projects.GetByIdAsync(projectId);
+            if (project == null)
+            {
+                return Result<IEnumerable<ProjectWebsiteDto>>.NotFound($"Project with id {projectId} was not found.");
+            }
+
+            var assignments = await _unitOfWork.ProjectWebsites.FindAsync(pw => pw.ProjectId == projectId);
+            var websites = (await _unitOfWork.Websites.GetAllAsync()).ToDictionary(w => w.Id);
+
+            var result = assignments.Select(pw => new ProjectWebsiteDto
+            {
+                WebsiteId = pw.WebsiteId,
+                WebsiteSlug = websites.TryGetValue(pw.WebsiteId, out var w) ? w.Slug : string.Empty,
+                WebsiteName = websites.TryGetValue(pw.WebsiteId, out var w2) ? w2.Name : string.Empty,
+                IsPublished = pw.IsPublished,
+                DisplayOrder = pw.DisplayOrder
+            }).ToList();
+
+            return Result<IEnumerable<ProjectWebsiteDto>>.Ok(result);
+        }
+
+        public async Task<Result<IEnumerable<ProjectWebsiteDto>>> UpdateWebsiteAssignmentsAsync(int projectId, UpdateProjectWebsitesDto dto)
+        {
+            var project = await _unitOfWork.Projects.GetByIdAsync(projectId);
+            if (project == null)
+            {
+                return Result<IEnumerable<ProjectWebsiteDto>>.NotFound($"Project with id {projectId} was not found.");
+            }
+
+            var existingAssignments = (await _unitOfWork.ProjectWebsites.FindAsync(pw => pw.ProjectId == projectId)).ToList();
+            var newIds = (dto.Websites ?? new()).Select(a => a.WebsiteId).ToHashSet();
+
+            foreach (var existing in existingAssignments.Where(e => !newIds.Contains(e.WebsiteId)))
+            {
+                await _unitOfWork.ProjectWebsites.DeleteAsync(existing);
+            }
+
+            foreach (var assign in dto.Websites ?? new())
+            {
+                var existing = existingAssignments.FirstOrDefault(e => e.WebsiteId == assign.WebsiteId);
+                if (existing != null)
+                {
+                    existing.IsPublished = assign.IsPublished;
+                    existing.DisplayOrder = assign.DisplayOrder;
+                    existing.UpdatedAt = DateTime.UtcNow;
+                    await _unitOfWork.ProjectWebsites.UpdateAsync(existing);
+                }
+                else
+                {
+                    await _unitOfWork.ProjectWebsites.AddAsync(new ProjectWebsite
+                    {
+                        ProjectId = projectId,
+                        WebsiteId = assign.WebsiteId,
+                        IsPublished = assign.IsPublished,
+                        DisplayOrder = assign.DisplayOrder,
+                        CreatedAt = DateTime.UtcNow
+                    });
+                }
+            }
+
+            await _unitOfWork.SaveChangesAsync();
+            return await GetWebsiteAssignmentsAsync(projectId);
         }
 
         private static List<string> Sanitize(List<string>? technologies) =>

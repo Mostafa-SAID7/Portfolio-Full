@@ -7,6 +7,8 @@ import { EMPTY, Observable, Subject, Subscription, catchError, defer, finalize, 
 import { ProjectService } from '../../../core/services/project.service';
 import { CategoryService } from '../../../core/services/category.service';
 import { SkillService } from '../../../core/services/skill.service';
+import { WebsiteService } from '../../../core/services/website.service';
+import { ProjectWebsiteAssignmentPayload } from '../../../core/models/website.model';
 import { TagsInputComponent } from '../../../shared/tags-input.component';
 import { MetricEditorComponent, MetricRow } from './metric-editor.component';
 
@@ -68,6 +70,7 @@ export class ProjectFormComponent implements OnInit, OnDestroy {
   private readonly projectService = inject(ProjectService);
   private readonly categoryService = inject(CategoryService);
   private readonly skillService = inject(SkillService);
+  readonly websiteService = inject(WebsiteService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly stop$ = new Subject<void>();
@@ -116,6 +119,12 @@ export class ProjectFormComponent implements OnInit, OnDestroy {
   });
   readonly typeOptions = ['Team', 'Freelance', 'Self'];
   readonly statusOptions = ['In Progress', 'Completed', 'Deployed'];
+
+  /** Website assignments state: list of {websiteId, isPublished, displayOrder} */
+  readonly websiteAssignments = signal<ProjectWebsiteAssignmentPayload[]>([]);
+
+  /** All available websites loaded from the API */
+  readonly availableWebsites = computed(() => this.websiteService.websites());
 
   @ViewChild('coverInput') coverInput?: ElementRef<HTMLInputElement>;
 
@@ -167,7 +176,50 @@ export class ProjectFormComponent implements OnInit, OnDestroy {
 
   get isEditMode(): boolean { return this.editMode(); }
 
+  /** Returns true if the given websiteId is currently in the assignments list. */
+  isWebsiteAssigned(websiteId: number): boolean {
+    return this.websiteAssignments().some(a => a.websiteId === websiteId);
+  }
+
+  /** Gets the assignment for a given websiteId (or undefined). */
+  getAssignment(websiteId: number): ProjectWebsiteAssignmentPayload | undefined {
+    return this.websiteAssignments().find(a => a.websiteId === websiteId);
+  }
+
+  /** Toggles a website in/out of the assignments list. */
+  toggleWebsiteAssignment(websiteId: number, checked: boolean): void {
+    if (checked) {
+      if (!this.isWebsiteAssigned(websiteId)) {
+        this.websiteAssignments.update(list => [
+          ...list,
+          { websiteId, isPublished: true, displayOrder: 0 }
+        ]);
+      }
+    } else {
+      this.websiteAssignments.update(list => list.filter(a => a.websiteId !== websiteId));
+    }
+  }
+
+  /** Updates isPublished for a given website assignment. */
+  setWebsitePublished(websiteId: number, isPublished: boolean): void {
+    this.websiteAssignments.update(list =>
+      list.map(a => a.websiteId === websiteId ? { ...a, isPublished } : a)
+    );
+  }
+
+  /** Updates displayOrder for a given website assignment. */
+  setWebsiteOrder(websiteId: number, displayOrder: number): void {
+    this.websiteAssignments.update(list =>
+      list.map(a => a.websiteId === websiteId ? { ...a, displayOrder } : a)
+    );
+  }
+
   ngOnInit(): void {
+    // Load websites for the assignment panel.
+    if (this.websiteService.websites().length === 0) {
+      this.websiteService.loadWebsites().pipe(takeUntil(this.stop$)).subscribe({ error: () => undefined });
+    }
+
     this.route.paramMap.pipe(
       switchMap(params => {
         this.ready.set(false);
@@ -190,6 +242,7 @@ export class ProjectFormComponent implements OnInit, OnDestroy {
         this.errorMessage.set(null);
         this.serverErrors.set({});
         this.uploadError.set(null);
+        this.websiteAssignments.set([]);
         const idParam = params.get('id');
         const editing = idParam !== null || this.route.snapshot.url.some(segment => segment.path === 'edit');
         this.editMode.set(editing);
@@ -399,7 +452,8 @@ export class ProjectFormComponent implements OnInit, OnDestroy {
       badgesEn: splitList(value.badges), badgesAr: splitList(value.badgesAr),
       gradient: optional(value.gradient),
       metricsEn: completeMetricRows(this.metricRowsEn),
-      metricsAr: completeMetricRows(this.metricRowsAr)
+      metricsAr: completeMetricRows(this.metricRowsAr),
+      websiteAssignments: this.websiteAssignments()
     };
     this.saving.set(true);
     this.errorMessage.set(null);
@@ -478,6 +532,14 @@ export class ProjectFormComponent implements OnInit, OnDestroy {
     this.uploadedProvider = null;
     this.uploadedPublicId = null;
     this.slug.set(project.slug);
+    // Populate website assignments from the loaded project.
+    this.websiteAssignments.set(
+      (project.websites ?? []).map(w => ({
+        websiteId: w.websiteId,
+        isPublished: w.isPublished,
+        displayOrder: w.displayOrder
+      }))
+    );
     this.projectForm.patchValue({
       title: project.titleEn, titleAr: project.titleAr,
       description: project.descriptionEn, descriptionAr: project.descriptionAr,

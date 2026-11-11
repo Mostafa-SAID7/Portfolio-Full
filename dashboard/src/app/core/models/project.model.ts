@@ -1,3 +1,5 @@
+import { ProjectWebsiteAssignment, ProjectWebsiteAssignmentPayload } from './website.model';
+
 /** Mirrors PortfolioAPI.Core.DTOs.ProjectMetricDto. */
 export interface ProjectMetric {
   labelEn: string;
@@ -44,6 +46,8 @@ export interface Project {
   metricsEn: ProjectMetric[];
   metricsAr: ProjectMetric[];
   gradient: string | null;
+  /** Assigned frontend websites where this project appears. */
+  websites?: ProjectWebsiteAssignment[];
   createdAt: string;
   updatedAt: string | null;
 }
@@ -79,4 +83,6 @@ export interface ProjectPayload {
   metricsEn?: ProjectMetric[];
   metricsAr?: ProjectMetric[];
   gradient?: string | null;
+  /** Multi-website assignments */
+  websiteAssignments?: ProjectWebsiteAssignmentPayload[];
 }

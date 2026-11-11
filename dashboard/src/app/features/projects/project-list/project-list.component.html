@@ -5,7 +5,19 @@
       <h2 class="font-display text-3xl font-semibold tracking-[-0.05em] text-ink">Projects</h2>
       <p class="mt-2 text-sm text-soft">{{ projectCount() }} projects served by the Portfolio API.</p>
     </div>
-    <div class="flex items-center gap-3">
+    <div class="flex flex-wrap items-center gap-3">
+      <!-- Website filter dropdown -->
+      <select
+        class="input max-w-[180px] py-2.5 text-sm"
+        aria-label="Filter by website"
+        [value]="selectedWebsiteSlug()"
+        (change)="setWebsiteFilter($any($event.target).value)"
+      >
+        <option value="">All websites</option>
+        @for (website of websiteService.websites(); track website.id) {
+          <option [value]="website.slug">{{ website.name }}</option>
+        }
+      </select>
       <input
         type="search"
         [(ngModel)]="queryValue"
@@ -33,9 +45,9 @@
       <app-empty-state
         icon="search"
         title="No matching projects"
-        [description]="'No projects match \'' + queryValue + '\'. Try adjusting your search keywords.'"
-        actionLabel="Clear search"
-        (action)="setQuery('')"
+        [description]="'No projects match the current filters. Try adjusting your search or website filter.'"
+        actionLabel="Clear filters"
+        (action)="setQuery(''); setWebsiteFilter('')"
       ></app-empty-state>
     } @else {
       <app-empty-state
@@ -86,6 +98,13 @@
               @if (project.typeEn) { <span class="badge-muted">{{ project.typeEn }}</span> }
               @if (project.statusEn) { <span class="badge-muted">{{ project.statusEn }}</span> }
               @for (badge of project.badgesEn; track badge) { <span class="badge-muted">{{ badge }}</span> }
+              <!-- Website assignment chips -->
+              @for (w of (project.websites ?? []); track w.websiteId) {
+                <span class="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-semibold text-blue-600 dark:text-blue-400" [title]="w.isPublished ? 'Published on ' + w.websiteName : 'Draft on ' + w.websiteName">
+                  @if (!w.isPublished) { <span class="h-1.5 w-1.5 rounded-full bg-current opacity-50"></span> }
+                  {{ w.websiteName }}
+                </span>
+              }
             </div>
 
             <div class="mb-2 flex items-start justify-between gap-3">
@@ -139,4 +158,5 @@
           (pageChange)="setPage($event)"
     />
   }
+
 </div>

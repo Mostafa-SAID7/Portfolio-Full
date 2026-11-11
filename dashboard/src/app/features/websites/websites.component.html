@@ -1,0 +1,115 @@
+<div class="space-y-6">
+  <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+    <div>
+      <p class="eyebrow mb-2">Distribution</p>
+      <h2 class="font-display text-3xl font-semibold tracking-[-0.05em] text-ink">Websites</h2>
+      <p class="mt-2 text-sm text-soft">{{ websites().length }} registered frontend websites. Projects can be assigned to any combination.</p>
+    </div>
+    <a routerLink="/projects" class="btn-ghost shrink-0">← Back to projects</a>
+  </div>
+
+  @if (websiteService.loading()) {
+    <div class="card flex min-h-[200px] items-center justify-center">
+      <div class="spinner" role="status" aria-label="Loading websites"></div>
+    </div>
+  } @else if (websiteService.error()) {
+    <div role="alert" class="alert-error">{{ websiteService.error() }}</div>
+  } @else {
+    <div class="overflow-hidden rounded-2xl border border-line/10">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-line/10 bg-line/[0.03] text-left text-xs font-semibold uppercase tracking-wide text-muted">
+            <th class="px-5 py-3">Website</th>
+            <th class="hidden px-5 py-3 sm:table-cell">Slug / URL</th>
+            <th class="px-5 py-3 text-center">Projects</th>
+            <th class="px-5 py-3 text-center">Active</th>
+            <th class="px-5 py-3 text-center">Order</th>
+            <th class="px-5 py-3"></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-line/10">
+          @for (website of websites(); track website.id) {
+            <tr class="transition hover:bg-line/[0.03]">
+              @if (isEditing(website.id)) {
+                <!-- Inline edit row -->
+                <td colspan="6" class="px-5 py-4">
+                  <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    <div>
+                      <label class="field-label">Name</label>
+                      <input type="text" class="input" [value]="getDraft(website.id)?.name ?? ''" (input)="updateDraft(website.id, { name: $any($event.target).value })" maxlength="100" />
+                    </div>
+                    <div>
+                      <label class="field-label">Slug</label>
+                      <input type="text" class="input" [value]="getDraft(website.id)?.slug ?? ''" (input)="updateDraft(website.id, { slug: $any($event.target).value })" maxlength="100" />
+                    </div>
+                    <div>
+                      <label class="field-label">Base URL</label>
+                      <input type="url" class="input" [value]="getDraft(website.id)?.baseUrl ?? ''" (input)="updateDraft(website.id, { baseUrl: $any($event.target).value })" placeholder="https://..." maxlength="500" />
+                    </div>
+                    <div>
+                      <label class="field-label">Display order</label>
+                      <input type="number" class="input" min="0" step="1" [value]="getDraft(website.id)?.order ?? 0" (change)="updateDraft(website.id, { order: +$any($event.target).value })" />
+                    </div>
+                    <div class="flex items-end gap-3">
+                      <label class="flex cursor-pointer items-center gap-2 text-sm">
+                        <input type="checkbox" class="h-4 w-4 accent-[rgb(var(--accent))]" [checked]="getDraft(website.id)?.isActive ?? true" (change)="updateDraft(website.id, { isActive: $any($event.target).checked })" />
+                        Active
+                      </label>
+                    </div>
+                    <div class="flex items-end justify-end gap-2">
+                      <button type="button" class="btn-ghost" (click)="cancelEdit(website.id)">Cancel</button>
+                      <button type="button" class="btn-primary" (click)="saveEdit(website)">Save</button>
+                    </div>
+                  </div>
+                </td>
+              } @else {
+                <!-- Normal display row -->
+                <td class="px-5 py-4">
+                  <span class="font-semibold text-ink">{{ website.name }}</span>
+                </td>
+                <td class="hidden px-5 py-4 sm:table-cell">
+                  <span class="font-mono text-xs text-muted">{{ website.slug }}</span>
+                  @if (website.baseUrl) {
+                    <a [href]="website.baseUrl" target="_blank" rel="noopener" class="ml-2 text-xs text-accent-text hover:underline">↗</a>
+                  }
+                </td>
+                <td class="px-5 py-4 text-center">
+                  <span class="badge-muted">{{ website.assignedProjectsCount }}</span>
+                </td>
+                <td class="px-5 py-4 text-center">
+                  <button
+                    type="button"
+                    class="inline-flex h-6 w-11 items-center rounded-full border border-line/20 transition-colors"
+                    [class.bg-accent]="website.isActive"
+                    [class.bg-line]="!website.isActive"
+                    [attr.aria-pressed]="website.isActive"
+                    [attr.aria-label]="(website.isActive ? 'Deactivate' : 'Activate') + ' ' + website.name"
+                    [disabled]="toggling().has(website.id)"
+                    (click)="toggleActive(website)"
+                  >
+                    <span
+                      class="ml-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform"
+                      [class.translate-x-5]="website.isActive"
+                    ></span>
+                  </button>
+                </td>
+                <td class="px-5 py-4 text-center text-muted">{{ website.order }}</td>
+                <td class="px-5 py-4">
+                  <div class="flex justify-end gap-1">
+                    <button type="button" class="icon-btn" (click)="startEdit(website)" [attr.aria-label]="'Edit ' + website.name" title="Edit">
+                      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5m-1.414-9.414a2 2 0 1 1 2.828 2.828L11.828 15H9v-2.828l8.586-8.586Z"/></svg>
+                    </button>
+                    <button type="button" class="icon-btn hover:border-danger/40 hover:text-danger" (click)="remove(website)" [disabled]="deleting().has(website.id)" [attr.aria-label]="'Delete ' + website.name" title="Delete">
+                      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0 1 16.138 21H7.862a2 2 0 0 1-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v3M4 7h16"/></svg>
+                    </button>
+                  </div>
+                </td>
+              }
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>
+

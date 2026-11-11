@@ -23,6 +23,12 @@ export const routes: Routes = [
     loadChildren: () => import('./features/projects/projects.routes').then(m => m.PROJECT_ROUTES)
   },
   {
+    path: 'websites',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/websites/websites.component').then(m => m.WebsitesComponent)
+  },
+  {
     path: 'messages',
     canActivate: [authGuard],
     loadComponent: () => import('./features/messages/messages.component').then(m => m.MessagesComponent)
