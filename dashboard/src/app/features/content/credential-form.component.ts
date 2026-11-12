@@ -1,5 +1,6 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
+import { SelectFieldComponent, type SelectOptionValue } from '../../shared/select-field.component';
 import {
   CREDENTIAL_TAB_LABELS,
   CREDENTIAL_TABS,
@@ -70,7 +71,7 @@ export function toList(value: string): string[] {
 @Component({
   selector: 'app-credential-form',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, SelectFieldComponent],
   templateUrl: './credential-form.component.html'
 })
 export class CredentialFormComponent {
@@ -85,6 +86,7 @@ export class CredentialFormComponent {
 
   readonly tabs = CREDENTIAL_TABS;
   readonly tabLabels = CREDENTIAL_TAB_LABELS;
+  readonly tabOptions: SelectOptionValue[] = CREDENTIAL_TABS.map(tab => ({ value: tab, label: CREDENTIAL_TAB_LABELS[tab] }));
 
   validationError(): string | null {
     const d = this.draft;

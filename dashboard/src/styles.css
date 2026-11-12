@@ -186,7 +186,9 @@ a {
   .input[aria-invalid='true'] {
     @apply border-danger/60;
   }
+  select,
   select option {
+    color-scheme: dark;
     background-color: rgb(var(--raised));
     color: rgb(var(--ink));
   }
