@@ -93,11 +93,15 @@ portfolio/
 ### 2.4 Documentation (`docs/`)
 ```
 docs/
+├── API_SURFACE.md                         # Complete /api/v1/* endpoint specifications & error formats
 ├── API_VERSIONING.md                      # URL segment versioning (/api/v1/) and deprecation rules
+├── ARCHITECTURE.md                        # High-level architecture, edge proxying & layer responsibilities
 ├── BACK_STRUCTURE.md                      # Authoritative Clean Architecture backend guide
 ├── BRANCH_STRATEGY.md                     # Git branching model, conventional commits & release process
 ├── DASHBOARD_AUDIT.md                     # Frontend audit notes & refactoring decisions
 ├── DEPLOYMENT.md                          # MonsterASP.NET & Vercel deployment guide
 ├── FULL_STRUCTURE.md                      # Full monorepo structure reference (this file)
-└── STORAGE.md                             # Media storage architecture (Local disk & Cloudinary)
+├── QUICK_START.md                         # Local development quick start guide
+├── STORAGE.md                             # Media storage architecture (Local disk & Cloudinary)
+└── TESTING.md                             # Testing strategy, xUnit suites, Testcontainers & CI
 ```
