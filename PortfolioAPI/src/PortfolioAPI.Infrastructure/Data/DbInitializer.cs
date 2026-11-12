@@ -16,6 +16,8 @@ namespace PortfolioAPI.Infrastructure.Data
     {
         public static async Task InitializeAsync(PortfolioDbContext context, ILogger? logger = null)
         {
+            logger?.LogInformation("Starting database initialization and verification...");
+
             // Check if the database has any tables at all (fresh DB vs existing).
             // The COUNT column must be aliased (AS [Value]) — EF Core wraps this
             // query in a subquery whose first column has to be named, so a bare
@@ -24,8 +26,12 @@ namespace PortfolioAPI.Infrastructure.Data
                 .SqlQuery<int>($"SELECT COUNT(*) AS [Value] FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'")
                 .SingleAsync();
 
-                        // Apply pending migrations first (idempotent: MigrateAsync is a no-op when DB is up to date).
+            logger?.LogInformation("Database connected successfully. Existing base tables: {TableCount}.", tables);
+
+            // Apply pending migrations first (idempotent: MigrateAsync is a no-op when DB is up to date).
+            logger?.LogInformation("Applying pending database migrations (MigrateAsync)...");
             await context.Database.MigrateAsync();
+            logger?.LogInformation("Database migrations verified and applied.");
 
             // Existing database - ensure schema compatibility and seed reference data
             // Only seed reference data in non-production environments (issue #40)
@@ -34,7 +40,9 @@ namespace PortfolioAPI.Infrastructure.Data
 
             try
             {
+                logger?.LogInformation("Checking database schema compatibility...");
                 await EnsureSchemaCompatibilityAsync(context, logger);
+                logger?.LogInformation("Database schema compatibility check completed.");
             }
             catch (Exception ex)
             {
@@ -48,7 +56,9 @@ namespace PortfolioAPI.Infrastructure.Data
             {
                 try
                 {
+                    logger?.LogInformation("Seeding reference data (non-production environment)...");
                     await SeedReferenceDataAsync(context);
+                    logger?.LogInformation("Reference data seeding completed.");
                 }
                 catch (Exception ex)
                 {
@@ -56,6 +66,8 @@ namespace PortfolioAPI.Infrastructure.Data
                     logger?.LogWarning(ex, "Reference data seeding FAILED — continuing without seeding.");
                 }
             }
+
+            logger?.LogInformation("Database initialization finished successfully.");
         }
 
         private static async Task EnsureSchemaCompatibilityAsync(PortfolioDbContext context, ILogger? logger = null)
@@ -72,6 +84,7 @@ namespace PortfolioAPI.Infrastructure.Data
             {
                 if (!await TableExistsAsync(context, "SkillProject", logger))
                 {
+                    logger?.LogInformation("SkillProject join table not found; creating dbo.SkillProject table...");
                     await context.Database.ExecuteSqlRawAsync(@"
                         CREATE TABLE dbo.SkillProject (
                             SkillId int NOT NULL,
@@ -83,6 +96,7 @@ namespace PortfolioAPI.Infrastructure.Data
                                 REFERENCES dbo.Skills (Id) ON DELETE CASCADE
                         );
                     ");
+                    logger?.LogInformation("dbo.SkillProject table created successfully.");
                 }
             }
             catch (Exception ex)
@@ -94,7 +108,9 @@ namespace PortfolioAPI.Infrastructure.Data
             // already use so the dashboard can manage them immediately.
             try
             {
+                logger?.LogInformation("Synchronizing project categories...");
                 await SyncCategoriesAsync(context);
+                logger?.LogInformation("Project categories synchronization completed.");
             }
             catch (Exception ex)
             {
@@ -103,7 +119,9 @@ namespace PortfolioAPI.Infrastructure.Data
 
             try
             {
+                logger?.LogInformation("Ensuring default websites exist...");
                 await EnsureWebsitesAsync(context);
+                logger?.LogInformation("Default websites verification completed.");
             }
             catch (Exception ex)
             {

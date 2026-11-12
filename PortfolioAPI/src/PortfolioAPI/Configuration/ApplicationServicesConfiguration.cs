@@ -1,7 +1,7 @@
 ﻿using FluentValidation;
 using PortfolioAPI.Application.Services;
 using PortfolioAPI.Core.Interfaces;
-using PortfolioAPI.Core.Interfaces.Services;
+using PortfolioAPI.Application.Interfaces;
 using PortfolioAPI.Infrastructure.Emailing;
 using PortfolioAPI.Infrastructure.Services;
 

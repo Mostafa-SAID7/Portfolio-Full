@@ -26,6 +26,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\PortfolioAPI.Core\PortfolioAPI.Core.csproj" />
+    <ProjectReference Include="..\PortfolioAPI.Application\PortfolioAPI.Application.csproj" />
   </ItemGroup>
 
   <!-- HTML email templates ship as embedded resources so the publish output

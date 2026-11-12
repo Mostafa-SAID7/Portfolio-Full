@@ -1,7 +1,7 @@
 using FluentValidation;
 using PortfolioAPI.Core.Entities;
 using PortfolioAPI.Core.Interfaces;
-using PortfolioAPI.Core.Interfaces.Services;
+using PortfolioAPI.Application.Interfaces;
 
 namespace PortfolioAPI.Application.Services
 {

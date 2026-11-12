@@ -2,8 +2,8 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using PortfolioAPI.Core.DTOs;
-using PortfolioAPI.Core.Interfaces.Services;
+using PortfolioAPI.Application.DTOs;
+using PortfolioAPI.Application.Interfaces;
 
 namespace PortfolioAPI.Controllers
 {

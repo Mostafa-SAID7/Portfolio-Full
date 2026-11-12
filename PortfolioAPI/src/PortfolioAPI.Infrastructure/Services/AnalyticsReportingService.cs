@@ -6,9 +6,9 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using PortfolioAPI.Core.DTOs;
+using PortfolioAPI.Application.DTOs;
 using PortfolioAPI.Core.Exceptions;
-using PortfolioAPI.Core.Interfaces.Services;
+using PortfolioAPI.Application.Interfaces;
 
 namespace PortfolioAPI.Infrastructure.Services
 {

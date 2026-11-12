@@ -3,7 +3,7 @@ using System.Text;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using PortfolioAPI.Auth;
-using PortfolioAPI.Core.DTOs;
+using PortfolioAPI.Application.DTOs;
 
 namespace PortfolioAPI.Controllers
 {

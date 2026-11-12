@@ -1,9 +1,10 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.AspNetCore.RateLimiting;
-using PortfolioAPI.Core.DTOs;
+using PortfolioAPI.Application.DTOs;
+using PortfolioAPI.Application.Mappings;
 using PortfolioAPI.Core.Entities;
-using PortfolioAPI.Core.Interfaces.Services;
+using PortfolioAPI.Application.Interfaces;
 
 namespace PortfolioAPI.Controllers
 {
@@ -172,7 +173,7 @@ namespace PortfolioAPI.Controllers
             // Validation runs in ContactService — failures surface as
             // 400 { message, errors } from the exception middleware (issue #16).
             // Contact.From trims, null-guards and clamps IP/UA to column sizes.
-            var contact = Contact.From(
+            var contact = EntityMappings.ToEntity(
                 dto,
                 HttpContext.Connection.RemoteIpAddress?.ToString(),
                 Request.Headers.UserAgent.ToString());

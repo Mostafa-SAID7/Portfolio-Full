@@ -1,6 +1,6 @@
 import { ProjectWebsiteAssignment, ProjectWebsiteAssignmentPayload } from './website.model';
 
-/** Mirrors PortfolioAPI.Core.DTOs.ProjectMetricDto. */
+/** Mirrors PortfolioAPI.Application.DTOs.ProjectMetricDto. */
 export interface ProjectMetric {
   labelEn: string;
   labelAr: string;
@@ -8,7 +8,7 @@ export interface ProjectMetric {
 }
 
 /**
- * Mirrors PortfolioAPI.Core.DTOs.ProjectDto (api/Projects, api/public/projects).
+ * Mirrors PortfolioAPI.Application.DTOs.ProjectDto (api/Projects, api/public/projects).
  * The API is bilingual — En fields are the display values used by the English dashboard.
  */
 export interface Project {
@@ -52,7 +52,7 @@ export interface Project {
   updatedAt: string | null;
 }
 
-/** Payload accepted by POST/PUT api/Projects — mirrors PortfolioAPI.Core.DTOs.CreateProjectDto. */
+/** Payload accepted by POST/PUT api/Projects — mirrors PortfolioAPI.Application.DTOs.CreateProjectDto. */
 export interface ProjectPayload {
   titleEn: string;
   titleAr: string;

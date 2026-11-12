@@ -1,11 +1,11 @@
-/** Mirrors PortfolioAPI.Core.DTOs.AnalyticsRangeDto. */
+/** Mirrors PortfolioAPI.Application.DTOs.AnalyticsRangeDto. */
 export interface AnalyticsRange {
   startDate: string;
   endDate: string;
   days: number;
 }
 
-/** Mirrors PortfolioAPI.Core.DTOs.AnalyticsOverviewDto. */
+/** Mirrors PortfolioAPI.Application.DTOs.AnalyticsOverviewDto. */
 export interface AnalyticsOverview {
   range: AnalyticsRange;
   activeUsers: number;
@@ -21,7 +21,7 @@ export interface AnalyticsOverview {
   generatedAt: string;
 }
 
-/** Mirrors PortfolioAPI.Core.DTOs.AnalyticsTrendPointDto. */
+/** Mirrors PortfolioAPI.Application.DTOs.AnalyticsTrendPointDto. */
 export interface AnalyticsTrendPoint {
   date: string;
   users: number;
@@ -29,14 +29,14 @@ export interface AnalyticsTrendPoint {
   pageViews: number;
 }
 
-/** Mirrors PortfolioAPI.Core.DTOs.AnalyticsGeoRowDto. */
+/** Mirrors PortfolioAPI.Application.DTOs.AnalyticsGeoRowDto. */
 export interface AnalyticsGeoRow {
   country: string;
   users: number;
   share: number;
 }
 
-/** Mirrors PortfolioAPI.Core.DTOs.AnalyticsSourceRowDto. */
+/** Mirrors PortfolioAPI.Application.DTOs.AnalyticsSourceRowDto. */
 export interface AnalyticsSourceRow {
   source: string;
   medium: string;
@@ -44,7 +44,7 @@ export interface AnalyticsSourceRow {
   users: number;
 }
 
-/** Mirrors PortfolioAPI.Core.DTOs.AnalyticsPageRowDto. */
+/** Mirrors PortfolioAPI.Application.DTOs.AnalyticsPageRowDto. */
 export interface AnalyticsPageRow {
   path: string;
   title: string;
@@ -52,21 +52,21 @@ export interface AnalyticsPageRow {
   users: number;
 }
 
-/** Mirrors PortfolioAPI.Core.DTOs.AnalyticsDeviceRowDto. */
+/** Mirrors PortfolioAPI.Application.DTOs.AnalyticsDeviceRowDto. */
 export interface AnalyticsDeviceRow {
   category: string;
   users: number;
   share: number;
 }
 
-/** Mirrors PortfolioAPI.Core.DTOs.AnalyticsEventRowDto. */
+/** Mirrors PortfolioAPI.Application.DTOs.AnalyticsEventRowDto. */
 export interface AnalyticsEventRow {
   name: string;
   count: number;
   users: number;
 }
 
-/** Mirrors PortfolioAPI.Core.DTOs.AnalyticsReportDto. */
+/** Mirrors PortfolioAPI.Application.DTOs.AnalyticsReportDto. */
 export interface AnalyticsReport {
   overview: AnalyticsOverview;
   trend: AnalyticsTrendPoint[];

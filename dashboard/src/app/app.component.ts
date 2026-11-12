@@ -134,6 +134,7 @@ export class AppComponent {
     if (path.startsWith('/messages')) return 'Messages';
     if (path.startsWith('/content')) return 'Content';
     if (path.startsWith('/analytics')) return 'Analytics';
+    if (path.startsWith('/logs')) return 'System Logs';
     return 'Overview';
   }
 

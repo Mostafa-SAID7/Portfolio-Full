@@ -4,10 +4,11 @@ using System.Linq;
 using System.Threading.Tasks;
 using PortfolioAPI.Application.Exceptions;
 using PortfolioAPI.Core.Common;
-using PortfolioAPI.Core.DTOs;
+using PortfolioAPI.Application.DTOs;
+using PortfolioAPI.Application.Mappings;
 using PortfolioAPI.Core.Entities;
 using PortfolioAPI.Core.Interfaces;
-using PortfolioAPI.Core.Interfaces.Services;
+using PortfolioAPI.Application.Interfaces;
 
 namespace PortfolioAPI.Application.Services
 {

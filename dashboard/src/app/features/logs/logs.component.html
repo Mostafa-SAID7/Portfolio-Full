@@ -1,0 +1,116 @@
+<div class="logs-page">
+  <div class="page-header">
+    <div class="header-titles">
+      <h2>Server Production Logs</h2>
+      <p class="subtitle">Diagnostic event stream, exceptions, and live rolling log files</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-secondary" (click)="downloadLog()" [disabled]="!selectedFile">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+        </svg>
+        Download Log
+      </button>
+      <button class="btn btn-primary" (click)="fetchEntries()" [disabled]="loading()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" [class.spinning]="loading()">
+          <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+        </svg>
+        Refresh
+      </button>
+    </div>
+  </div>
+
+  <div class="path-card" *ngIf="info()">
+    <div class="path-info">
+      <span class="path-tag">SERVER LOG PATH:</span>
+      <code class="path-text">{{ info()?.currentLogFullPath || info()?.logDirectory }}</code>
+    </div>
+    <div class="path-meta">
+      <span class="meta-item">{{ info()?.totalFiles }} log files</span>
+      <span class="meta-item">{{ info()?.totalSizeFormatted }} total</span>
+      <button class="btn-copy" (click)="copyLogPath()" title="Copy Full Path">Copy Path</button>
+    </div>
+  </div>
+
+  <div class="toolbar-card">
+    <div class="filter-controls">
+      <select class="form-select select-file" [(ngModel)]="selectedFile" (change)="onFileChange()">
+        <option *ngFor="let file of info()?.files" [value]="file.name">
+          {{ file.name }} ({{ file.sizeFormatted }})
+        </option>
+      </select>
+
+      <div class="btn-group">
+        <button [class.active]="selectedLevel === 'ALL'" (click)="setLevel('ALL')">ALL</button>
+        <button [class.active]="selectedLevel === 'INFO'" (click)="setLevel('INFO')">INFO</button>
+        <button [class.active]="selectedLevel === 'WARN'" (click)="setLevel('WARN')">WARN</button>
+        <button [class.active]="selectedLevel === 'ERROR'" (click)="setLevel('ERROR')">ERROR</button>
+      </div>
+
+      <div class="search-wrap">
+        <input
+          type="text"
+          class="form-input search-input"
+          placeholder="Filter by keyword, exception, or SourceContext..."
+          [(ngModel)]="searchQuery"
+          (input)="onSearchChange()"
+        />
+      </div>
+
+      <select class="form-select select-limit" [(ngModel)]="selectedLimit" (change)="onLimitChange()">
+        <option [value]="100">100 entries</option>
+        <option [value]="250">250 entries</option>
+        <option [value]="500">500 entries</option>
+        <option [value]="1000">1000 entries</option>
+      </select>
+
+      <select class="form-select select-refresh" [(ngModel)]="autoRefreshRate" (change)="onAutoRefreshChange()">
+        <option [value]="0">Auto-refresh: Off</option>
+        <option [value]="5000">Every 5s</option>
+        <option [value]="15000">Every 15s</option>
+        <option [value]="30000">Every 30s</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="alert-error" *ngIf="error()">
+    {{ error() }}
+  </div>
+
+  <div class="table-container">
+    <table class="logs-table">
+      <thead>
+        <tr>
+          <th style="width: 170px;">Timestamp</th>
+          <th style="width: 80px;">Level</th>
+          <th style="width: 240px;">Source</th>
+          <th>Message & Details</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngIf="entries().length === 0 && !loading()">
+          <td colspan="4" class="empty-cell">No log entries found matching criteria.</td>
+        </tr>
+        <tr *ngFor="let entry of entries()">
+          <td class="time-col">{{ entry.timestamp }}</td>
+          <td>
+            <span class="badge" [ngClass]="getLevelClass(entry.level)">
+              {{ entry.levelCode || entry.level }}
+            </span>
+          </td>
+          <td class="src-col" [title]="entry.sourceContext || ''">{{ entry.sourceContext || '-' }}</td>
+          <td class="msg-col">
+            <div class="msg-text">{{ entry.message }}</div>
+            <pre class="exception-text" *ngIf="entry.exception">{{ entry.exception }}</pre>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="footer-status">
+    <span>Showing {{ filteredEntries() }} of {{ totalEntries() }} entries</span>
+    <span>Portfolio Clean Architecture Logging</span>
+  </div>
+</div>
+

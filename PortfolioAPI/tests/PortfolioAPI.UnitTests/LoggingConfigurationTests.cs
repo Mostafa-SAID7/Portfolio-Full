@@ -30,6 +30,22 @@ namespace PortfolioAPI.UnitTests
             var config = new ConfigurationBuilder().Build();
             var envMock = new Mock<IHostEnvironment>();
             envMock.Setup(e => e.EnvironmentName).Returns(Environments.Development);
+            envMock.Setup(e => e.ContentRootPath).Returns(Path.GetTempPath());
+
+            // Act & Assert
+            var act = () => LoggingConfiguration.ConfigureSerilog(loggerConfig, config, envMock.Object);
+            act.Should().NotThrow();
+        }
+
+        [Fact]
+        public void ConfigureSerilog_WhenContentRootPathIsNull_FallsBackGracefully()
+        {
+            // Arrange
+            var loggerConfig = new LoggerConfiguration();
+            var config = new ConfigurationBuilder().Build();
+            var envMock = new Mock<IHostEnvironment>();
+            envMock.Setup(e => e.EnvironmentName).Returns(Environments.Development);
+            envMock.Setup(e => e.ContentRootPath).Returns((string)null!);
 
             // Act & Assert
             var act = () => LoggingConfiguration.ConfigureSerilog(loggerConfig, config, envMock.Object);
@@ -69,4 +85,3 @@ namespace PortfolioAPI.UnitTests
         }
     }
 }
-

@@ -12,7 +12,7 @@
       "Override": {
         "Microsoft": "Warning",
         "Microsoft.AspNetCore": "Warning",
-        "Microsoft.EntityFrameworkCore.Database.Command": "Warning"
+        "Microsoft.EntityFrameworkCore.Database.Command": "Information"
       }
     },
     "Enrich": [ "FromLogContext" ]
@@ -21,10 +21,10 @@
     "LogLevel": {
       "Default": "Information",
       "Microsoft.AspNetCore": "Warning",
-      "Microsoft.EntityFrameworkCore.Database.Command": "Warning"
+      "Microsoft.EntityFrameworkCore.Database.Command": "Information"
     },
     "File": {
-      "Enabled": false,
+      "Enabled": true,
       "Path": "App_Data/logs"
     }
   },

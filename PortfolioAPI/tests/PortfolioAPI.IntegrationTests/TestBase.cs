@@ -12,7 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using PortfolioAPI.Core.Entities;
 using PortfolioAPI.Core.Interfaces;
-using PortfolioAPI.Core.Interfaces.Services;
+using PortfolioAPI.Application.Interfaces;
 using PortfolioAPI.Infrastructure.Data;
 using PortfolioAPI.Infrastructure.Repositories;
 using PortfolioAPI.Infrastructure.Services;

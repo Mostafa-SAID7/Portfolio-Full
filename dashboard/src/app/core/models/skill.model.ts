@@ -1,4 +1,4 @@
-/** Mirrors PortfolioAPI.Core.DTOs.SkillDto (api/Skills, api/public/skills) — camelCase JSON. */
+/** Mirrors PortfolioAPI.Application.DTOs.SkillDto (api/Skills, api/public/skills) — camelCase JSON. */
 export interface Skill {
   id: number;
   nameEn: string;
