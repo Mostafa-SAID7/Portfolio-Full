@@ -17,9 +17,9 @@
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="11.0.0" />
     <!-- The GA4 Data API client lives here: HttpClientFactory (outbound calls),
          Options (AnalyticsOptions) and logging. -->
-    <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.23" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.23" />
-    <PackageReference Include="Microsoft.Extensions.Options" Version="9.0.23" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="11.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="11.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="11.0.0" />
     <PackageReference Include="CloudinaryDotNet" Version="1.29.3" />
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
   </ItemGroup>
