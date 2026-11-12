@@ -48,18 +48,18 @@ export const apiErrorInterceptor: HttpInterceptorFn = (req, next) => {
   const toast = inject(ToastService);
 
   // Guard every request against an indefinite hang (e.g. a cold/slow backend or
-  // a dropped connection). 20 s is long enough for legitimate cold starts while
-  // still failing fast instead of spinning forever. TimeoutError is normalised
-  // into an HttpErrorResponse so downstream services see a uniform shape.
+  // a dropped connection). 30 s tolerates MonsterASP cold starts while still
+  // failing fast instead of spinning forever. TimeoutError is normalised into
+  // an HttpErrorResponse so downstream services see a uniform shape.
   return next(req).pipe(
-    timeout(20000),
+    timeout(30000),
     catchError((err: unknown) => {
       if (err instanceof TimeoutError) {
         const timeoutError = new HttpErrorResponse({
           url: req.url,
           status: 0,
           statusText: 'Timeout',
-          error: { message: 'Request timed out after 20 seconds.' }
+          error: { message: 'Request timed out after 30 seconds.' }
         });
         err = timeoutError;
       }
