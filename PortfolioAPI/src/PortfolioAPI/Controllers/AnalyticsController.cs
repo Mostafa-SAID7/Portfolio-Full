@@ -39,6 +39,15 @@ namespace PortfolioAPI.Controllers
             [FromQuery] string? end,
             CancellationToken cancellationToken)
         {
+            if (!_analytics.IsConfigured)
+            {
+                return Ok(new AnalyticsReportDto
+                {
+                    NotConfigured = true,
+                    GeneratedAt = DateTime.UtcNow
+                });
+            }
+
             var today = DateOnly.FromDateTime(DateTime.UtcNow);
             var (startDate, endDate) = ResolveRange(start, end, today);
 
@@ -47,10 +56,13 @@ namespace PortfolioAPI.Controllers
                 var report = await _analytics.GetReportAsync(startDate, endDate, cancellationToken);
                 return Ok(report);
             }
-            catch (AnalyticsNotConfiguredException ex)
+            catch (AnalyticsNotConfiguredException)
             {
-                // 501: the feature is understood but not configured for this deployment.
-                return StatusCode(StatusCodes.Status501NotImplemented, new { message = ex.Message });
+                return Ok(new AnalyticsReportDto
+                {
+                    NotConfigured = true,
+                    GeneratedAt = DateTime.UtcNow
+                });
             }
             catch (AnalyticsUnavailableException ex)
             {

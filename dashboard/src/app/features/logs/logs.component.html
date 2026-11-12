@@ -1,18 +1,20 @@
-<div class="logs-page">
-  <div class="page-header">
-    <div class="header-titles">
-      <h2>Server Production Logs</h2>
-      <p class="subtitle">Diagnostic event stream, exceptions, and live rolling log files</p>
+﻿<div class="space-y-6">
+  <!-- Page Header -->
+  <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+    <div>
+      <p class="eyebrow mb-2 text-accent-text">Diagnostics</p>
+      <h2 class="font-display text-3xl font-semibold tracking-[-0.05em] text-ink">Server Production Logs</h2>
+      <p class="mt-2 text-sm text-soft">Diagnostic event stream, exceptions, and live rolling log files</p>
     </div>
-    <div class="header-actions">
-      <button class="btn btn-secondary" (click)="downloadLog()" [disabled]="!selectedFile">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <div class="flex flex-wrap items-center gap-3">
+      <button type="button" class="btn-ghost" (click)="downloadLog()" [disabled]="!selectedFile">
+        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
         </svg>
         Download Log
       </button>
-      <button class="btn btn-primary" (click)="fetchEntries()" [disabled]="loading()">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" [class.spinning]="loading()">
+      <button type="button" class="btn-primary" (click)="fetchEntries()" [disabled]="loading()">
+        <svg class="h-4 w-4" [class.animate-spin]="loading()" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
           <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
         </svg>
         Refresh
@@ -20,51 +22,58 @@
     </div>
   </div>
 
-  <div class="path-card" *ngIf="info()">
-    <div class="path-info">
-      <span class="path-tag">SERVER LOG PATH:</span>
-      <code class="path-text">{{ info()?.currentLogFullPath || info()?.logDirectory }}</code>
-    </div>
-    <div class="path-meta">
-      <span class="meta-item">{{ info()?.totalFiles }} log files</span>
-      <span class="meta-item">{{ info()?.totalSizeFormatted }} total</span>
-      <button class="btn-copy" (click)="copyLogPath()" title="Copy Full Path">Copy Path</button>
+  <!-- Server log path card -->
+  <div class="card p-4 sm:p-5" *ngIf="info()">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="eyebrow text-accent-text">Server Log Path:</span>
+        <code class="rounded bg-line/[0.06] px-2 py-1 font-mono text-xs text-accent-text break-all">
+          {{ info()?.currentLogFullPath || info()?.logDirectory }}
+        </code>
+      </div>
+      <div class="flex items-center gap-3 text-xs text-muted">
+        <span>{{ info()?.totalFiles }} log files</span>
+        <span>•</span>
+        <span>{{ info()?.totalSizeFormatted }} total</span>
+        <button type="button" class="btn-ghost !py-1 !px-2.5 text-xs" (click)="copyLogPath()" title="Copy Full Path">Copy Path</button>
+      </div>
     </div>
   </div>
 
-  <div class="toolbar-card">
-    <div class="filter-controls">
-      <select class="form-select select-file" [(ngModel)]="selectedFile" (change)="onFileChange()">
+  <!-- Filters & Controls toolbar card -->
+  <div class="card p-4 sm:p-5">
+    <div class="flex flex-wrap items-center gap-3">
+      <select class="input max-w-[260px] !py-2 text-xs" [(ngModel)]="selectedFile" (change)="onFileChange()">
         <option *ngFor="let file of info()?.files" [value]="file.name">
           {{ file.name }} ({{ file.sizeFormatted }})
         </option>
       </select>
 
-      <div class="btn-group">
-        <button [class.active]="selectedLevel === 'ALL'" (click)="setLevel('ALL')">ALL</button>
-        <button [class.active]="selectedLevel === 'INFO'" (click)="setLevel('INFO')">INFO</button>
-        <button [class.active]="selectedLevel === 'WARN'" (click)="setLevel('WARN')">WARN</button>
-        <button [class.active]="selectedLevel === 'ERROR'" (click)="setLevel('ERROR')">ERROR</button>
+      <div class="flex rounded-xl border border-line/15 bg-line/[0.03] p-1">
+        <button type="button" class="segmented text-xs" [class.active]="selectedLevel === 'ALL'" (click)="setLevel('ALL')">ALL</button>
+        <button type="button" class="segmented text-xs" [class.active]="selectedLevel === 'INFO'" (click)="setLevel('INFO')">INFO</button>
+        <button type="button" class="segmented text-xs" [class.active]="selectedLevel === 'WARN'" (click)="setLevel('WARN')">WARN</button>
+        <button type="button" class="segmented text-xs" [class.active]="selectedLevel === 'ERROR'" (click)="setLevel('ERROR')">ERROR</button>
       </div>
 
-      <div class="search-wrap">
+      <div class="min-w-[220px] flex-1">
         <input
-          type="text"
-          class="form-input search-input"
+          type="search"
+          class="input !py-2 text-xs"
           placeholder="Filter by keyword, exception, or SourceContext..."
           [(ngModel)]="searchQuery"
           (input)="onSearchChange()"
         />
       </div>
 
-      <select class="form-select select-limit" [(ngModel)]="selectedLimit" (change)="onLimitChange()">
+      <select class="input w-36 !py-2 text-xs" [(ngModel)]="selectedLimit" (change)="onLimitChange()">
         <option [value]="100">100 entries</option>
         <option [value]="250">250 entries</option>
         <option [value]="500">500 entries</option>
         <option [value]="1000">1000 entries</option>
       </select>
 
-      <select class="form-select select-refresh" [(ngModel)]="autoRefreshRate" (change)="onAutoRefreshChange()">
+      <select class="input w-44 !py-2 text-xs" [(ngModel)]="autoRefreshRate" (change)="onAutoRefreshChange()">
         <option [value]="0">Auto-refresh: Off</option>
         <option [value]="5000">Every 5s</option>
         <option [value]="15000">Every 15s</option>
@@ -73,44 +82,52 @@
     </div>
   </div>
 
-  <div class="alert-error" *ngIf="error()">
+  <!-- Alert -->
+  <div class="alert-error" *ngIf="error()" role="alert">
     {{ error() }}
   </div>
 
-  <div class="table-container">
-    <table class="logs-table">
-      <thead>
-        <tr>
-          <th style="width: 170px;">Timestamp</th>
-          <th style="width: 80px;">Level</th>
-          <th style="width: 240px;">Source</th>
-          <th>Message & Details</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngIf="entries().length === 0 && !loading()">
-          <td colspan="4" class="empty-cell">No log entries found matching criteria.</td>
-        </tr>
-        <tr *ngFor="let entry of entries()">
-          <td class="time-col">{{ entry.timestamp }}</td>
-          <td>
-            <span class="badge" [ngClass]="getLevelClass(entry.level)">
-              {{ entry.levelCode || entry.level }}
-            </span>
-          </td>
-          <td class="src-col" [title]="entry.sourceContext || ''">{{ entry.sourceContext || '-' }}</td>
-          <td class="msg-col">
-            <div class="msg-text">{{ entry.message }}</div>
-            <pre class="exception-text" *ngIf="entry.exception">{{ entry.exception }}</pre>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+  <!-- Table Card -->
+  <div class="table-wrap">
+    <div class="overflow-x-auto">
+      <table class="table-custom font-mono text-xs">
+        <thead>
+          <tr>
+            <th class="w-[170px]">Timestamp</th>
+            <th class="w-[80px]">Level</th>
+            <th class="w-[240px]">Source</th>
+            <th>Message & Details</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-line/10">
+          <tr *ngIf="entries().length === 0 && !loading()">
+            <td colspan="4" class="px-6 py-12 text-center font-sans text-sm text-muted">
+              No log entries found matching criteria.
+            </td>
+          </tr>
+          <tr *ngFor="let entry of entries()" class="transition hover:bg-line/[0.03]">
+            <td class="whitespace-nowrap text-muted align-top">{{ entry.timestamp }}</td>
+            <td class="align-top">
+              <span class="badge" [ngClass]="getLevelClass(entry.level)">
+                {{ entry.levelCode || entry.level }}
+              </span>
+            </td>
+            <td class="max-w-[240px] truncate text-violet align-top" [title]="entry.sourceContext || ''">
+              {{ entry.sourceContext || '-' }}
+            </td>
+            <td class="text-ink align-top break-words font-sans text-xs">
+              <div class="leading-relaxed">{{ entry.message }}</div>
+              <pre *ngIf="entry.exception" class="mt-2 rounded-lg border-l-2 border-danger bg-danger/10 p-3 font-mono text-[11px] text-danger whitespace-pre-wrap break-all">{{ entry.exception }}</pre>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 
-  <div class="footer-status">
+  <!-- Footer status -->
+  <div class="flex items-center justify-between text-xs text-muted">
     <span>Showing {{ filteredEntries() }} of {{ totalEntries() }} entries</span>
     <span>Portfolio Clean Architecture Logging</span>
   </div>
 </div>
-

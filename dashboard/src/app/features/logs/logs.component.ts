@@ -8,8 +8,7 @@ import { LogFileInfo, LogInfoResponse, ParsedLogEntry } from '../../core/models/
   selector: 'app-logs',
   standalone: true,
   imports: [CommonModule, FormsModule],
-  templateUrl: './logs.component.html',
-  styleUrls: ['./logs.component.scss']
+  templateUrl: './logs.component.html'
 })
 export class LogsComponent implements OnInit, OnDestroy {
   private readonly logsService = inject(LogsService);

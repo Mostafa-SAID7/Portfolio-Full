@@ -56,6 +56,7 @@
                   [routerLinkActiveOptions]="{ exact: !!item.exact }"
                   class="nav-link"
                   [attr.aria-label]="item.label"
+                  [attr.title]="isDesktop() && sidebarCollapsed() ? item.label : null"
                   [attr.data-tip]="isDesktop() && sidebarCollapsed() ? item.label : null"
                   (click)="closeDrawer()"
                 >
@@ -69,7 +70,7 @@
             </nav>
 
             <p class="eyebrow nav-eyebrow px-3 pb-2 pt-8">Site</p>
-            <a [href]="portfolioUrl" target="_blank" rel="noopener" class="nav-link" [attr.data-tip]="isDesktop() && sidebarCollapsed() ? 'View portfolio' : null" (click)="closeDrawer()">
+            <a [href]="portfolioUrl" target="_blank" rel="noopener" class="nav-link" [attr.title]="isDesktop() && sidebarCollapsed() ? 'View portfolio' : null" [attr.data-tip]="isDesktop() && sidebarCollapsed() ? 'View portfolio' : null" (click)="closeDrawer()">
               <span class="flex h-[18px] w-[18px] shrink-0 items-center justify-center" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="1.7"/><path d="M4 12h16M12 4c2.5 2.2 2.5 13.8 0 16-2.5-2.2-2.5-13.8 0-16Z" stroke="currentColor" stroke-width="1.7"/></svg>
               </span>
@@ -82,7 +83,7 @@
           <div class="border-t border-line/10 p-4">
             @if (currentUser(); as user) {
               <div class="sidebar-footer flex items-center gap-3">
-                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet/20 text-sm font-bold text-violet" [attr.data-tip]="isDesktop() && sidebarCollapsed() ? user.name : null">
+                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet/20 text-sm font-bold text-violet" [attr.title]="isDesktop() && sidebarCollapsed() ? user.name : null" [attr.data-tip]="isDesktop() && sidebarCollapsed() ? user.name : null">
                   {{ initials() }}
                 </span>
                 <div class="nav-fineprint min-w-0 flex-1">
