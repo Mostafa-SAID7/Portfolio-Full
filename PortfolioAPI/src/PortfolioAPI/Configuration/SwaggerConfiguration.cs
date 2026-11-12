@@ -9,13 +9,12 @@ namespace PortfolioAPI.Configuration
     public static class SwaggerConfiguration
     {
         /// <summary>
-        /// Swagger UI (issue #3/#8): OFF by default outside Development; every
-        /// environment can still opt in explicitly with `Swagger__Enabled=true`
-        /// (the production config does so deliberately). Docs also advertise the
-        /// JWT bearer scheme while auth is enabled.
+        /// Swagger UI: enabled by default across all environments (including production)
+        /// so the interactive API documentation and test console are immediately available.
+        /// Can be opted out explicitly with `Swagger:Enabled=false` or `Swagger__Enabled=false`.
         /// </summary>
         public static bool IsEnabled(IConfiguration configuration, IWebHostEnvironment environment) =>
-            configuration.GetValue("Swagger:Enabled", environment.IsDevelopment());
+            configuration.GetValue("Swagger:Enabled", true);
 
         public static IServiceCollection AddSwaggerDocs(this IServiceCollection services)
         {
