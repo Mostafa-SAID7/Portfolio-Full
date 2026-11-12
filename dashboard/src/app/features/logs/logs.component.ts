@@ -1,13 +1,14 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, OnDestroy, inject, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, signal, computed } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LogsService } from '../../core/services/logs.service';
 import { LogFileInfo, LogInfoResponse, ParsedLogEntry } from '../../core/models/logs.model';
+import { SelectFieldComponent, SelectOptionValue } from '../../shared/select-field.component';
 
 @Component({
   selector: 'app-logs',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, SelectFieldComponent],
   templateUrl: './logs.component.html'
 })
 export class LogsComponent implements OnInit, OnDestroy {
@@ -23,8 +24,30 @@ export class LogsComponent implements OnInit, OnDestroy {
   selectedFile: string = '';
   selectedLevel: string = 'ALL';
   searchQuery: string = '';
-  selectedLimit: number = 250;
-  autoRefreshRate: number = 0;
+  selectedLimit: string = '250';
+  autoRefreshRate: string = '0';
+
+  readonly limitOptions: readonly SelectOptionValue[] = [
+    { value: '100', label: '100 entries' },
+    { value: '250', label: '250 entries' },
+    { value: '500', label: '500 entries' },
+    { value: '1000', label: '1000 entries' },
+  ];
+
+  readonly refreshOptions: readonly SelectOptionValue[] = [
+    { value: '0', label: 'Auto-refresh: Off' },
+    { value: '5000', label: 'Every 5s' },
+    { value: '15000', label: 'Every 15s' },
+    { value: '30000', label: 'Every 30s' },
+  ];
+
+  readonly fileOptions = computed<readonly SelectOptionValue[]>(() => {
+    const files = this.info()?.files ?? [];
+    return files.map(f => ({
+      value: f.name,
+      label: `${f.name} (${f.sizeFormatted})`
+    }));
+  });
 
   private refreshTimer: any = null;
   private searchDebounce: any = null;
@@ -64,7 +87,7 @@ export class LogsComponent implements OnInit, OnDestroy {
       this.selectedFile,
       this.selectedLevel,
       this.searchQuery,
-      this.selectedLimit
+      parseInt(this.selectedLimit, 10) || 250
     ).subscribe({
       next: (res) => {
         this.entries.set(res.entries || []);
@@ -91,20 +114,26 @@ export class LogsComponent implements OnInit, OnDestroy {
     }, 250);
   }
 
-  onFileChange(): void {
+  onFileChange(fileName: string): void {
+    this.selectedFile = fileName;
     this.fetchEntries();
   }
 
-  onLimitChange(): void {
+  onLimitChange(limit: string): void {
+    this.selectedLimit = limit;
     this.fetchEntries();
   }
 
-  onAutoRefreshChange(): void {
+  onAutoRefreshChange(rate?: string): void {
+    if (rate !== undefined) {
+      this.autoRefreshRate = rate;
+    }
     this.stopAutoRefresh();
-    if (this.autoRefreshRate > 0) {
+    const intervalMs = parseInt(this.autoRefreshRate, 10) || 0;
+    if (intervalMs > 0) {
       this.refreshTimer = setInterval(() => {
         this.fetchEntries();
-      }, this.autoRefreshRate);
+      }, intervalMs);
     }
   }
 
@@ -138,4 +167,3 @@ export class LogsComponent implements OnInit, OnDestroy {
     }
   }
 }
-

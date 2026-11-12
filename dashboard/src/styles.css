@@ -186,6 +186,10 @@ a {
   .input[aria-invalid='true'] {
     @apply border-danger/60;
   }
+  select option {
+    background-color: rgb(var(--raised));
+    color: rgb(var(--ink));
+  }
   .field-error {
     @apply mt-2 text-xs font-medium text-danger;
   }
