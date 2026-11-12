@@ -29,7 +29,7 @@ namespace PortfolioAPI.IntegrationTests
         public async Task GetAllProjects_ReturnsEmptyList_WhenNoProjectsExist()
         {
             // Act
-            var response = await GetAsync("api/projects");
+            var response = await GetAsync("api/v1/projects");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -46,7 +46,7 @@ namespace PortfolioAPI.IntegrationTests
             await _dbContext.SaveChangesAsync();
 
             // Act
-            var response = await GetAsync("api/projects");
+            var response = await GetAsync("api/v1/projects");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -71,7 +71,7 @@ namespace PortfolioAPI.IntegrationTests
             await _dbContext.SaveChangesAsync();
 
             // Act
-            var response = await GetAsync($"api/projects/{testProject.Id}");
+            var response = await GetAsync($"api/v1/projects/{testProject.Id}");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -86,7 +86,7 @@ namespace PortfolioAPI.IntegrationTests
         public async Task GetProjectById_ReturnsNotFound_WhenProjectDoesNotExist()
         {
             // Act
-            var response = await GetAsync("api/projects/999");
+            var response = await GetAsync("api/v1/projects/999");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.NotFound);
@@ -106,7 +106,7 @@ namespace PortfolioAPI.IntegrationTests
             await _dbContext.SaveChangesAsync();
 
             // Act
-            var response = await GetAsync("api/projects/featured");
+            var response = await GetAsync("api/v1/projects/featured");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -123,7 +123,7 @@ namespace PortfolioAPI.IntegrationTests
             var newProject = _projectFaker.Generate();
 
             // Act
-            var response = await PostAsync("api/projects", newProject);
+            var response = await PostAsync("api/v1/projects", newProject);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -149,7 +149,7 @@ namespace PortfolioAPI.IntegrationTests
             invalidProject.TitleEn = string.Empty;
 
             // Act
-            var response = await PostAsync("api/projects", invalidProject);
+            var response = await PostAsync("api/v1/projects", invalidProject);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -163,7 +163,7 @@ namespace PortfolioAPI.IntegrationTests
             invalidProject.TitleEn = new string('A', 101); // Max length is 100
 
             // Act
-            var response = await PostAsync("api/projects", invalidProject);
+            var response = await PostAsync("api/v1/projects", invalidProject);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -177,7 +177,7 @@ namespace PortfolioAPI.IntegrationTests
             invalidProject.DescriptionEn = string.Empty;
 
             // Act
-            var response = await PostAsync("api/projects", invalidProject);
+            var response = await PostAsync("api/v1/projects", invalidProject);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -191,7 +191,7 @@ namespace PortfolioAPI.IntegrationTests
             invalidProject.DescriptionEn = new string('A', 501); // Max length is 500
 
             // Act
-            var response = await PostAsync("api/projects", invalidProject);
+            var response = await PostAsync("api/v1/projects", invalidProject);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -205,7 +205,7 @@ namespace PortfolioAPI.IntegrationTests
             invalidProject.LiveUrl = "not-a-valid-url";
 
             // Act
-            var response = await PostAsync("api/projects", invalidProject);
+            var response = await PostAsync("api/v1/projects", invalidProject);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -219,7 +219,7 @@ namespace PortfolioAPI.IntegrationTests
             invalidProject.GithubUrl = "not-a-valid-url";
 
             // Act
-            var response = await PostAsync("api/projects", invalidProject);
+            var response = await PostAsync("api/v1/projects", invalidProject);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -237,7 +237,7 @@ namespace PortfolioAPI.IntegrationTests
             updatedProject.Id = existingProject.Id;
 
             // Act
-            var response = await PutAsync($"api/projects/{existingProject.Id}", updatedProject);
+            var response = await PutAsync($"api/v1/projects/{existingProject.Id}", updatedProject);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.NoContent);
@@ -262,7 +262,7 @@ namespace PortfolioAPI.IntegrationTests
             updatedProject.Id = existingProject.Id + 1; // Different ID
 
             // Act
-            var response = await PutAsync($"api/projects/{existingProject.Id}", updatedProject);
+            var response = await PutAsync($"api/v1/projects/{existingProject.Id}", updatedProject);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -276,7 +276,7 @@ namespace PortfolioAPI.IntegrationTests
             updatedProject.Id = 999;
 
             // Act
-            var response = await PutAsync("api/projects/999", updatedProject);
+            var response = await PutAsync("api/v1/projects/999", updatedProject);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.NotFound);
@@ -291,7 +291,7 @@ namespace PortfolioAPI.IntegrationTests
             await _dbContext.SaveChangesAsync();
 
             // Act
-            var response = await DeleteAsync($"api/projects/{existingProject.Id}");
+            var response = await DeleteAsync($"api/v1/projects/{existingProject.Id}");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.NoContent);
@@ -305,7 +305,7 @@ namespace PortfolioAPI.IntegrationTests
         public async Task DeleteProject_ReturnsNotFound_WhenProjectDoesNotExist()
         {
             // Act
-            var response = await DeleteAsync("api/projects/999");
+            var response = await DeleteAsync("api/v1/projects/999");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.NotFound);
@@ -316,12 +316,12 @@ namespace PortfolioAPI.IntegrationTests
         {
             // Create a project
             var newProject = _projectFaker.Generate();
-            var createResponse = await PostAsync("api/projects", newProject);
+            var createResponse = await PostAsync("api/v1/projects", newProject);
             createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
             var createdProject = await DeserializeResponseAsync<ProjectDto>(createResponse);
 
             // Get the project
-            var getResponse = await GetAsync($"api/projects/{createdProject!.Id}");
+            var getResponse = await GetAsync($"api/v1/projects/{createdProject!.Id}");
             getResponse.StatusCode.Should().Be(HttpStatusCode.OK);
             var retrievedProject = await DeserializeResponseAsync<ProjectDto>(getResponse);
             retrievedProject.Should().BeEquivalentTo(createdProject);
@@ -329,22 +329,22 @@ namespace PortfolioAPI.IntegrationTests
             // Update the project
             var updatedProject = _projectFaker.Generate();
             updatedProject.Id = createdProject.Id;
-            var updateResponse = await PutAsync($"api/projects/{createdProject.Id}", updatedProject);
+            var updateResponse = await PutAsync($"api/v1/projects/{createdProject.Id}", updatedProject);
             updateResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
             // Verify update
-            var verifyResponse = await GetAsync($"api/projects/{createdProject.Id}");
+            var verifyResponse = await GetAsync($"api/v1/projects/{createdProject.Id}");
             verifyResponse.StatusCode.Should().Be(HttpStatusCode.OK);
             var verifiedProject = await DeserializeResponseAsync<ProjectDto>(verifyResponse);
             verifiedProject!.TitleEn.Should().Be(updatedProject.TitleEn);
             verifiedProject.DescriptionEn.Should().Be(updatedProject.DescriptionEn);
 
             // Delete the project
-            var deleteResponse = await DeleteAsync($"api/projects/{createdProject.Id}");
+            var deleteResponse = await DeleteAsync($"api/v1/projects/{createdProject.Id}");
             deleteResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
             // Verify deletion
-            var finalResponse = await GetAsync($"api/projects/{createdProject.Id}");
+            var finalResponse = await GetAsync($"api/v1/projects/{createdProject.Id}");
             finalResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
         }
     }

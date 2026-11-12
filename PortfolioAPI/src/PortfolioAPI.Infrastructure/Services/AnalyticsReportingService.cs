@@ -210,7 +210,7 @@ namespace PortfolioAPI.Infrastructure.Services
             report.Overview.Previous = previous;
             report.Trend = trendRows.Select(r => new AnalyticsTrendPointDto
             {
-                Date = r.Dimensions.ElementAtOrDefault(0),
+                Date = r.Dimensions.ElementAtOrDefault(0) ?? string.Empty,
                 Users = Metric(r, 0),
                 Sessions = Metric(r, 1),
                 PageViews = Metric(r, 2)
@@ -218,22 +218,22 @@ namespace PortfolioAPI.Infrastructure.Services
             report.Countries = MapShares(countryRows, 0);
             report.Sources = sourceRows.Select(r => new AnalyticsSourceRowDto
             {
-                Source = r.Dimensions.ElementAtOrDefault(0),
-                Medium = r.Dimensions.ElementAtOrDefault(1),
+                Source = r.Dimensions.ElementAtOrDefault(0) ?? string.Empty,
+                Medium = r.Dimensions.ElementAtOrDefault(1) ?? string.Empty,
                 Sessions = Metric(r, 0),
                 Users = Metric(r, 1)
             }).ToList();
             report.Pages = pageRows.Select(r => new AnalyticsPageRowDto
             {
-                Path = r.Dimensions.ElementAtOrDefault(0),
-                Title = r.Dimensions.ElementAtOrDefault(1),
+                Path = r.Dimensions.ElementAtOrDefault(0) ?? string.Empty,
+                Title = r.Dimensions.ElementAtOrDefault(1) ?? string.Empty,
                 PageViews = Metric(r, 0),
                 Users = Metric(r, 1)
             }).ToList();
             report.Devices = MapDevices(deviceRows);
             report.Events = eventRows.Select(r => new AnalyticsEventRowDto
             {
-                Name = r.Dimensions.ElementAtOrDefault(0),
+                Name = r.Dimensions.ElementAtOrDefault(0) ?? string.Empty,
                 Count = Metric(r, 0),
                 Users = Metric(r, 1)
             }).ToList();
@@ -266,7 +266,7 @@ namespace PortfolioAPI.Infrastructure.Services
             return rows
                 .Select(r => new AnalyticsGeoRowDto
                 {
-                    Country = r.Dimensions.ElementAtOrDefault(0),
+                    Country = r.Dimensions.ElementAtOrDefault(0) ?? string.Empty,
                     Users = MetricAt(r.Metrics, metricIndex),
                     Share = total > 0 ? Math.Round(MetricAt(r.Metrics, metricIndex) * 100d / total, 1) : 0d
                 })
@@ -423,7 +423,7 @@ namespace PortfolioAPI.Infrastructure.Services
             return rows
                 .Select(r => new AnalyticsDeviceRowDto
                 {
-                    Category = r.Dimensions.ElementAtOrDefault(0),
+                    Category = r.Dimensions.ElementAtOrDefault(0) ?? string.Empty,
                     Users = MetricAt(r.Metrics, 0),
                     Share = total > 0 ? Math.Round(MetricAt(r.Metrics, 0) * 100d / total, 1) : 0d
                 })

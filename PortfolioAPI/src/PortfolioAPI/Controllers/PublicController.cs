@@ -11,12 +11,11 @@ namespace PortfolioAPI.Controllers
     /// <summary>
     /// Public, read-only endpoints consumed by the portfolio website
     /// (portfolio/ frontend). Only content that is active/published/visible
-    /// is ever returned here; the admin surface under /api/* keeps full access.
+    /// is ever returned here; the admin surface under /api/v1/* keeps full access.
     /// Responses are deterministic lists, ideal for the client's HTTP cache.
     /// </summary>
     [ApiController]
     [Route("api/v1/public")]
-    [Route("api/public")]
     public class PublicController : ControllerBase
     {
         private readonly IProjectService _projectService;

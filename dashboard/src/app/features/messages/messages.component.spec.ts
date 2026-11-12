@@ -42,7 +42,7 @@ describe('MessagesComponent reply composer', () => {
     await TestBed.configureTestingModule({
       imports: [MessagesComponent],
       providers: [
-        { provide: ContactService, useValue: { ...service, loading: signal(false), error: signal<string | null>(null), unreadCount: signal(1), loadMessages: jasmine.createSpy('loadMessages').and.returnValue(of([])), markAsRead: jasmine.createSpy('markAsRead').and.returnValue(of(undefined)), deleteMessage: jasmine.createSpy('deleteMessage').and.returnValue(of(undefined)) } },
+        { provide: ContactService, useValue: { ...service, totalCount: signal(3), loading: signal(false), error: signal<string | null>(null), unreadCount: signal(1), loadMessages: jasmine.createSpy('loadMessages').and.returnValue(of([])), markAsRead: jasmine.createSpy('markAsRead').and.returnValue(of(undefined)), deleteMessage: jasmine.createSpy('deleteMessage').and.returnValue(of(undefined)) } },
         { provide: ConfirmDialogService, useValue: { confirm: jasmine.createSpy('confirm').and.resolveTo(false) } },
         { provide: ToastService, useValue: { show: jasmine.createSpy('show') } },
         { provide: Router, useValue: router },

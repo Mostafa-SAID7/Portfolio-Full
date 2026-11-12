@@ -17,7 +17,6 @@ namespace PortfolioAPI.Controllers
     [Authorize]
     [ApiController]
     [Route("api/v1/[controller]")]
-    [Route("api/[controller]")]
     public class CategoriesController : ControllerBase
     {
         private readonly ICategoryService _categoryService;

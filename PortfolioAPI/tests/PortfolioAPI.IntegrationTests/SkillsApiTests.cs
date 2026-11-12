@@ -27,7 +27,7 @@ namespace PortfolioAPI.IntegrationTests
         public async Task GetAllSkills_ReturnsEmptyList_WhenNoSkillsExist()
         {
             // Act
-            var response = await GetAsync("api/skills");
+            var response = await GetAsync("api/v1/skills");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -44,7 +44,7 @@ namespace PortfolioAPI.IntegrationTests
             await _dbContext.SaveChangesAsync();
 
             // Act
-            var response = await GetAsync("api/skills");
+            var response = await GetAsync("api/v1/skills");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -69,7 +69,7 @@ namespace PortfolioAPI.IntegrationTests
             await _dbContext.SaveChangesAsync();
 
             // Act
-            var response = await GetAsync($"api/skills/{testSkill.Id}");
+            var response = await GetAsync($"api/v1/skills/{testSkill.Id}");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -85,7 +85,7 @@ namespace PortfolioAPI.IntegrationTests
         public async Task GetSkillById_ReturnsNotFound_WhenSkillDoesNotExist()
         {
             // Act
-            var response = await GetAsync("api/skills/999");
+            var response = await GetAsync("api/v1/skills/999");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.NotFound);
@@ -107,7 +107,7 @@ namespace PortfolioAPI.IntegrationTests
             await _dbContext.SaveChangesAsync();
 
             // Act
-            var response = await GetAsync($"api/skills/category/{category}");
+            var response = await GetAsync($"api/v1/skills/category/{category}");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -120,7 +120,7 @@ namespace PortfolioAPI.IntegrationTests
         public async Task GetSkillsByCategory_ReturnsEmptyList_WhenCategoryDoesNotExist()
         {
             // Act
-            var response = await GetAsync("api/skills/category/NonExistentCategory");
+            var response = await GetAsync("api/v1/skills/category/NonExistentCategory");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -142,7 +142,7 @@ namespace PortfolioAPI.IntegrationTests
             await _dbContext.SaveChangesAsync();
 
             // Act
-            var response = await GetAsync("api/skills/visible");
+            var response = await GetAsync("api/v1/skills/visible");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -159,7 +159,7 @@ namespace PortfolioAPI.IntegrationTests
             var newSkill = _skillFaker.Generate();
 
             // Act
-            var response = await PostAsync("api/skills", newSkill);
+            var response = await PostAsync("api/v1/skills", newSkill);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -187,7 +187,7 @@ namespace PortfolioAPI.IntegrationTests
             invalidSkill.NameEn = string.Empty;
 
             // Act
-            var response = await PostAsync("api/skills", invalidSkill);
+            var response = await PostAsync("api/v1/skills", invalidSkill);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -201,7 +201,7 @@ namespace PortfolioAPI.IntegrationTests
             invalidSkill.NameEn = new string('A', 51); // Max length is 50
 
             // Act
-            var response = await PostAsync("api/skills", invalidSkill);
+            var response = await PostAsync("api/v1/skills", invalidSkill);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -215,7 +215,7 @@ namespace PortfolioAPI.IntegrationTests
             invalidSkill.CategoryEn = new string('A', 101); // Max length is 100
 
             // Act
-            var response = await PostAsync("api/skills", invalidSkill);
+            var response = await PostAsync("api/v1/skills", invalidSkill);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -229,7 +229,7 @@ namespace PortfolioAPI.IntegrationTests
             invalidSkill.Proficiency = 0; // Below minimum of 1
 
             // Act
-            var response = await PostAsync("api/skills", invalidSkill);
+            var response = await PostAsync("api/v1/skills", invalidSkill);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -243,7 +243,7 @@ namespace PortfolioAPI.IntegrationTests
             invalidSkill.Proficiency = 101; // Above maximum of 100
 
             // Act
-            var response = await PostAsync("api/skills", invalidSkill);
+            var response = await PostAsync("api/v1/skills", invalidSkill);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -261,7 +261,7 @@ namespace PortfolioAPI.IntegrationTests
             updatedSkill.Id = existingSkill.Id;
 
             // Act
-            var response = await PutAsync($"api/skills/{existingSkill.Id}", updatedSkill);
+            var response = await PutAsync($"api/v1/skills/{existingSkill.Id}", updatedSkill);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.NoContent);
@@ -287,7 +287,7 @@ namespace PortfolioAPI.IntegrationTests
             updatedSkill.Id = existingSkill.Id + 1; // Different ID
 
             // Act
-            var response = await PutAsync($"api/skills/{existingSkill.Id}", updatedSkill);
+            var response = await PutAsync($"api/v1/skills/{existingSkill.Id}", updatedSkill);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -301,7 +301,7 @@ namespace PortfolioAPI.IntegrationTests
             updatedSkill.Id = 999;
 
             // Act
-            var response = await PutAsync("api/skills/999", updatedSkill);
+            var response = await PutAsync("api/v1/skills/999", updatedSkill);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.NotFound);
@@ -316,7 +316,7 @@ namespace PortfolioAPI.IntegrationTests
             await _dbContext.SaveChangesAsync();
 
             // Act
-            var response = await DeleteAsync($"api/skills/{existingSkill.Id}");
+            var response = await DeleteAsync($"api/v1/skills/{existingSkill.Id}");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.NoContent);
@@ -330,7 +330,7 @@ namespace PortfolioAPI.IntegrationTests
         public async Task DeleteSkill_ReturnsNotFound_WhenSkillDoesNotExist()
         {
             // Act
-            var response = await DeleteAsync("api/skills/999");
+            var response = await DeleteAsync("api/v1/skills/999");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.NotFound);
@@ -341,12 +341,12 @@ namespace PortfolioAPI.IntegrationTests
         {
             // Create a skill
             var newSkill = _skillFaker.Generate();
-            var createResponse = await PostAsync("api/skills", newSkill);
+            var createResponse = await PostAsync("api/v1/skills", newSkill);
             createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
             var createdSkill = await DeserializeResponseAsync<SkillDto>(createResponse);
 
             // Get the skill
-            var getResponse = await GetAsync($"api/skills/{createdSkill!.Id}");
+            var getResponse = await GetAsync($"api/v1/skills/{createdSkill!.Id}");
             getResponse.StatusCode.Should().Be(HttpStatusCode.OK);
             var retrievedSkill = await DeserializeResponseAsync<SkillDto>(getResponse);
             retrievedSkill.Should().BeEquivalentTo(createdSkill);
@@ -354,22 +354,22 @@ namespace PortfolioAPI.IntegrationTests
             // Update the skill
             var updatedSkill = _skillFaker.Generate();
             updatedSkill.Id = createdSkill.Id;
-            var updateResponse = await PutAsync($"api/skills/{createdSkill.Id}", updatedSkill);
+            var updateResponse = await PutAsync($"api/v1/skills/{createdSkill.Id}", updatedSkill);
             updateResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
             // Verify update
-            var verifyResponse = await GetAsync($"api/skills/{createdSkill.Id}");
+            var verifyResponse = await GetAsync($"api/v1/skills/{createdSkill.Id}");
             verifyResponse.StatusCode.Should().Be(HttpStatusCode.OK);
             var verifiedSkill = await DeserializeResponseAsync<SkillDto>(verifyResponse);
             verifiedSkill!.NameEn.Should().Be(updatedSkill.NameEn);
             verifiedSkill.CategoryEn.Should().Be(updatedSkill.CategoryEn);
 
             // Delete the skill
-            var deleteResponse = await DeleteAsync($"api/skills/{createdSkill.Id}");
+            var deleteResponse = await DeleteAsync($"api/v1/skills/{createdSkill.Id}");
             deleteResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
             // Verify deletion
-            var finalResponse = await GetAsync($"api/skills/{createdSkill.Id}");
+            var finalResponse = await GetAsync($"api/v1/skills/{createdSkill.Id}");
             finalResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
         }
 
@@ -380,12 +380,12 @@ namespace PortfolioAPI.IntegrationTests
             var skills = _skillFaker.Generate(10);
             foreach (var skill in skills)
             {
-                var response = await PostAsync("api/skills", skill);
+                var response = await PostAsync("api/v1/skills", skill);
                 response.StatusCode.Should().Be(HttpStatusCode.Created);
             }
 
             // Act - Get all skills
-            var getAllResponse = await GetAsync("api/skills");
+            var getAllResponse = await GetAsync("api/v1/skills");
             getAllResponse.StatusCode.Should().Be(HttpStatusCode.OK);
             var allSkills = await DeserializeResponseAsync<IEnumerable<SkillDto>>(getAllResponse);
 
@@ -407,12 +407,12 @@ namespace PortfolioAPI.IntegrationTests
                     IsActive = true
                 };
 
-                var updateResponse = await PutAsync($"api/skills/{skill.Id}", updatedSkill);
+                var updateResponse = await PutAsync($"api/v1/skills/{skill.Id}", updatedSkill);
                 updateResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
             }
 
             // Assert - Verify all skills are now visible
-            var visibleResponse = await GetAsync("api/skills/visible");
+            var visibleResponse = await GetAsync("api/v1/skills/visible");
             visibleResponse.StatusCode.Should().Be(HttpStatusCode.OK);
             var visibleSkills = await DeserializeResponseAsync<IEnumerable<SkillDto>>(visibleResponse);
             visibleSkills.Should().HaveCount(10);

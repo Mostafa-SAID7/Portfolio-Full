@@ -15,10 +15,8 @@ namespace PortfolioAPI.Endpoints
         {
             // Health endpoint: verifies process + database connectivity (used for
             // deployment checks and uptime monitors; 503 when the DB is unreachable).
-            // Served under the versioned path (canonical, issue #24) plus the legacy
-            // unversioned alias for existing monitors.
+            // Versioned only — the legacy unversioned alias was removed (issue #128).
             endpoints.MapGet("/api/v1/health", HealthAsync);
-            endpoints.MapGet("/api/health", HealthAsync); // deprecated alias (issue #24)
 
             // Version root: makes the Deprecation `Link` successor target resolve (it
             // used to point at /api/v1, which was a dead 404) and gives human consumers

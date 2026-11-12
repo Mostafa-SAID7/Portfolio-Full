@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
+using PortfolioAPI.Core.Common;
 using PortfolioAPI.Core.Entities;
 
 namespace PortfolioAPI.Core.Interfaces
@@ -16,6 +17,18 @@ namespace PortfolioAPI.Core.Interfaces
         Task<T?> GetByIdAsync(int id);
         Task<IEnumerable<T>> GetAllAsync();
         Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate);
+
+        /// <summary>
+        /// Server-side ordered pagination (issue #132): SQL COUNT(*) + a
+        /// Skip/Take page query with no-tracking — the full table is never
+        /// materialized. Pass a null predicate to page over everything.
+        /// </summary>
+        Task<PagedResult<T>> GetPagedAsync<TKey>(
+            Expression<Func<T, bool>>? predicate,
+            Expression<Func<T, TKey>> orderBy,
+            bool descending,
+            int page,
+            int pageSize);
 
         /// <summary>
         /// Server-side EXISTS — answers "does anything match?" without

@@ -204,7 +204,7 @@ export class AppComponent {
 
     // Keep the unread badge warm even before visiting /messages.
     if (this.isAuthenticated()) {
-      this.contactService.loadMessages().subscribe({ error: () => undefined });
+      this.contactService.loadUnreadCount().subscribe({ error: () => undefined });
     }
   }
 

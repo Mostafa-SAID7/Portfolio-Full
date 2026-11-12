@@ -24,11 +24,32 @@ describe('ContactService reply endpoints', () => {
     TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
     service = TestBed.inject(ContactService);
     controller = TestBed.inject(HttpTestingController);
+    // The inbox is server-paged now (issue #132) — the default page request.
     service.loadMessages({ force: true }).subscribe();
-    controller.expectOne(`${API_URL}/Contact`).flush([message]);
+    controller
+      .expectOne(`${API_URL}/Contact?page=1&pageSize=25&unread=false`)
+      .flush([message], { headers: { 'X-Total-Count': '42' } });
   });
 
   afterEach(() => controller.verify());
+
+  it('keeps the loaded page and the API total count', () => {
+    expect(service.messages()).toEqual([message]);
+    expect(service.totalCount()).toBe(42);
+  });
+
+  it('requests exactly one page with the active filter', () => {
+    service.loadMessages({ force: true, page: 2, pageSize: 8, unread: true }).subscribe();
+
+    const request = controller.expectOne(
+      `${API_URL}/Contact?page=2&pageSize=8&unread=true`
+    );
+    expect(request.request.method).toBe('GET');
+    request.flush([], { headers: { 'X-Total-Count': '3' } });
+
+    expect(service.totalCount()).toBe(3);
+    expect(service.messages()).toEqual([]);
+  });
 
   it('reads one thread’s history from the replies endpoint', async () => {
     const promise = firstValueFrom(service.getReplies(3));
@@ -60,5 +81,28 @@ describe('ContactService reply endpoints', () => {
     await expectAsync(promise).toBeRejected();
     expect(service.messages()[0].isRead).toBeFalse();
     expect(service.messages()[0].readAt).toBeNull();
+  });
+
+  it('refreshes the unread badge from the dedicated unread endpoint', async () => {
+    const promise = firstValueFrom(service.loadUnreadCount());
+
+    controller.expectOne(`${API_URL}/Contact/unread`).flush([message, { ...message, id: 4 }]);
+
+    expect(await promise).toBe(2);
+    expect(service.unreadCount()).toBe(2);
+  });
+
+  it('does not decrement the badge below zero when marking the page read', () => {
+    // The page already holds the message as unread — marking it read
+    // decrements the local badge counter exactly once.
+    service.loadUnreadCount().subscribe();
+    controller.expectOne(`${API_URL}/Contact/unread`).flush([message]);
+    expect(service.unreadCount()).toBe(1);
+
+    service.markAsRead(3).subscribe();
+    controller.expectOne(`${API_URL}/Contact/3/read`).flush({});
+
+    expect(service.unreadCount()).toBe(0);
+    expect(service.messages()[0].isRead).toBeTrue();
   });
 });

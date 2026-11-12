@@ -56,15 +56,18 @@ export class MessagesComponent implements OnInit {
     { value: 'unread' as const, label: 'Unread' }
   ];
 
-  readonly visibleMessages = computed(() => {
-    const messages = [...this.service.messages()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-    return this.filter() === 'unread' ? messages.filter(message => !message.isRead) : messages;
-  });
-  readonly currentPage = computed(() => Math.min(Math.max(1, this.page()), Math.max(1, Math.ceil(this.visibleMessages().length / PAGE_SIZE))));
-  readonly paginatedMessages = computed(() => {
-    const start = (this.currentPage() - 1) * PAGE_SIZE;
-    return this.visibleMessages().slice(start, start + PAGE_SIZE);
-  });
+  /**
+   * Server-side pagination (issue #132): the API orders and pages in SQL —
+   * `service.messages()` is the current page, `service.totalCount()` is the
+   * total for the active filter (its X-Total-Count header).
+   */
+  readonly messages = this.service.messages;
+  readonly totalCount = this.service.totalCount;
+
+  /** Header copy: the paged total belongs to the active filter. */
+  readonly headerTotal = computed(() =>
+    this.filter() === 'unread' ? `${this.totalCount()} unread` : `${this.totalCount()} messages`
+  );
 
   ngOnInit(): void {
     // Restore the view from the URL (?filter=unread&page=2&reply=5) so a reload
@@ -90,16 +93,46 @@ export class MessagesComponent implements OnInit {
   onPageChange(page: number): void {
     this.page.set(page);
     this.persistInUrl();
+    this.load();
   }
 
   load(): void {
-    this.service.loadMessages({ force: true }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({ error: () => undefined });
+    // The server does the ordering, the unread filter and the Skip/Take —
+    // the client asks for exactly one page (issue #132).
+    this.service
+      .loadMessages({
+        page: this.page(),
+        pageSize: PAGE_SIZE,
+        unread: this.filter() === 'unread',
+        force: true
+      })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => this.clampPageToLast(),
+        error: () => undefined
+      });
+  }
+
+  /**
+   * Deleting the last message of the last page can strand the view on an
+   * empty page — step back to the final page the total now allows.
+   */
+  private clampPageToLast(): void {
+    if (this.service.loading() || this.service.error()) return;
+    const last = Math.max(1, Math.ceil(this.totalCount() / PAGE_SIZE));
+    if (this.page() > last) {
+      this.page.set(last);
+      this.persistInUrl();
+      this.load();
+    }
   }
 
   selectFilter(value: 'all' | 'unread'): void {
+    if (this.filter() === value) return;
     this.filter.set(value);
     this.page.set(1);
     this.persistInUrl();
+    this.load();
   }
 
   markRead(message: ContactMessage): void {
@@ -108,7 +141,13 @@ export class MessagesComponent implements OnInit {
     this.service.markAsRead(message.id).pipe(
       takeUntilDestroyed(this.destroyRef),
       finalize(() => this.clearBusy(message.id))
-    ).subscribe({ error: err => this.toast.show(err?.error?.message ?? 'Failed to update the message.', 'error') });
+    ).subscribe({
+      next: () => {
+        // In the unread view the row leaves the page once it is read.
+        if (this.filter() === 'unread') this.load();
+      },
+      error: err => this.toast.show(err?.error?.message ?? 'Failed to update the message.', 'error')
+    });
   }
 
   /** Open (or, when already open, close) the composer for one message. */
@@ -161,6 +200,9 @@ export class MessagesComponent implements OnInit {
         this.replies.update(map => ({ ...map, [reply.contactId]: [reply, ...(map[reply.contactId] ?? [])] }));
         this.replyDraft.set('');
         this.replyDelivered.set(true);
+        // Replying marks the message read — in the unread view it leaves
+        // the list, so pull the fresh page (issue #132).
+        if (this.filter() === 'unread') this.load();
       },
       error: err => this.replyError.set(err?.error?.message ?? 'The reply could not be sent.')
     });
@@ -202,7 +244,14 @@ export class MessagesComponent implements OnInit {
     this.service.deleteMessage(message.id).pipe(
       takeUntilDestroyed(this.destroyRef),
       finalize(() => this.clearBusy(message.id))
-    ).subscribe({ error: err => this.toast.show(err?.error?.message ?? 'Failed to delete the message.', 'error') });
+    ).subscribe({
+      next: () => {
+        // Totals shifted on the server — pull the fresh page so the freed
+        // slot is filled and the paginator stays honest (issue #132).
+        this.load();
+      },
+      error: err => this.toast.show(err?.error?.message ?? 'Failed to delete the message.', 'error')
+    });
   }
 
   private clearBusy(id: number): void {
@@ -211,6 +260,5 @@ export class MessagesComponent implements OnInit {
       next.delete(id);
       return next;
     });
-    this.page.set(this.currentPage());
   }
 }

@@ -26,7 +26,7 @@ namespace PortfolioAPI.IntegrationTests
         public async Task GetAllContacts_ReturnsEmptyList_WhenNoContactsExist()
         {
             // Act
-            var response = await GetAsync("api/contact");
+            var response = await GetAsync("api/v1/contact");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -43,7 +43,7 @@ namespace PortfolioAPI.IntegrationTests
             await _dbContext.SaveChangesAsync();
 
             // Act
-            var response = await GetAsync("api/contact");
+            var response = await GetAsync("api/v1/contact");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -70,7 +70,7 @@ namespace PortfolioAPI.IntegrationTests
             await _dbContext.SaveChangesAsync();
 
             // Act
-            var response = await GetAsync($"api/contact/{testContact.Id}");
+            var response = await GetAsync($"api/v1/contact/{testContact.Id}");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -86,7 +86,7 @@ namespace PortfolioAPI.IntegrationTests
         public async Task GetContactById_ReturnsNotFound_WhenContactDoesNotExist()
         {
             // Act
-            var response = await GetAsync("api/contact/999");
+            var response = await GetAsync("api/v1/contact/999");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.NotFound);
@@ -106,7 +106,7 @@ namespace PortfolioAPI.IntegrationTests
             await _dbContext.SaveChangesAsync();
 
             // Act
-            var response = await GetAsync("api/contact/unread");
+            var response = await GetAsync("api/v1/contact/unread");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -117,13 +117,88 @@ namespace PortfolioAPI.IntegrationTests
         }
 
         [Fact]
+        public async Task GetAllContacts_Paginated_ReturnsRequestedPage_WithTotalCountHeader()
+        {
+            // Arrange — three messages with distinct timestamps; the endpoint
+            // must order newest-first in SQL and return only the page (issue #132).
+            var oldest = _contactFaker.Generate();
+            oldest.CreatedAt = DateTime.UtcNow.AddDays(-2);
+            var middle = _contactFaker.Generate();
+            middle.CreatedAt = DateTime.UtcNow.AddDays(-1);
+            var newest = _contactFaker.Generate();
+            newest.CreatedAt = DateTime.UtcNow;
+
+            await _dbContext.Contacts.AddRangeAsync(oldest, middle, newest);
+            await _dbContext.SaveChangesAsync();
+
+            // Act
+            var response = await GetAsync("api/v1/contact?page=1&pageSize=2");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            response.Headers.Should().ContainKey("X-Total-Count")
+                .WhoseValue.First().Should().Be("3");
+
+            var contacts = (await DeserializeResponseAsync<IEnumerable<ContactDto>>(response))!.ToList();
+            contacts.Should().HaveCount(2);
+            contacts.Select(c => c.Id).Should().ContainInOrder(newest.Id, middle.Id);
+        }
+
+        [Fact]
+        public async Task GetAllContacts_Paginated_SkipsToSecondPage()
+        {
+            // Arrange
+            var oldest = _contactFaker.Generate();
+            oldest.CreatedAt = DateTime.UtcNow.AddDays(-2);
+            var middle = _contactFaker.Generate();
+            middle.CreatedAt = DateTime.UtcNow.AddDays(-1);
+            var newest = _contactFaker.Generate();
+            newest.CreatedAt = DateTime.UtcNow;
+
+            await _dbContext.Contacts.AddRangeAsync(oldest, middle, newest);
+            await _dbContext.SaveChangesAsync();
+
+            // Act
+            var response = await GetAsync("api/v1/contact?page=2&pageSize=2");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            var contacts = (await DeserializeResponseAsync<IEnumerable<ContactDto>>(response))!.ToList();
+            contacts.Should().ContainSingle().Which.Id.Should().Be(oldest.Id);
+        }
+
+        [Fact]
+        public async Task GetAllContacts_Paginated_WithUnreadFilter_CountsOnlyUnread()
+        {
+            // Arrange — one unread among two rows; X-Total-Count is the
+            // filtered count so the dashboard paginator can page it.
+            var unread = _contactFaker.Generate();
+            unread.IsRead = false;
+            var read = _contactFaker.Generate();
+            read.IsRead = true;
+
+            await _dbContext.Contacts.AddRangeAsync(unread, read);
+            await _dbContext.SaveChangesAsync();
+
+            // Act
+            var response = await GetAsync("api/v1/contact?unread=true&page=1&pageSize=25");
+
+            // Assert
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            response.Headers.Should().ContainKey("X-Total-Count")
+                .WhoseValue.First().Should().Be("1");
+            var contacts = await DeserializeResponseAsync<IEnumerable<ContactDto>>(response);
+            contacts.Should().ContainSingle().Which.Id.Should().Be(unread.Id);
+        }
+
+        [Fact]
         public async Task CreateContact_ReturnsCreatedContact_WhenValidDataProvided()
         {
             // Arrange
             var newContact = _contactFaker.Generate();
 
             // Act
-            var response = await PostAsync("api/contact", newContact);
+            var response = await PostAsync("api/v1/contact", newContact);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -153,7 +228,7 @@ namespace PortfolioAPI.IntegrationTests
             var emailService = await GetServiceAsync<TestEmailService>();
 
             // Act
-            var response = await PostAsync("api/contact", newContact);
+            var response = await PostAsync("api/v1/contact", newContact);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.Created);
@@ -175,7 +250,7 @@ namespace PortfolioAPI.IntegrationTests
             invalidContact.Name = string.Empty;
 
             // Act
-            var response = await PostAsync("api/contact", invalidContact);
+            var response = await PostAsync("api/v1/contact", invalidContact);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -189,7 +264,7 @@ namespace PortfolioAPI.IntegrationTests
             invalidContact.Name = new string('A', 101); // Max length is 100
 
             // Act
-            var response = await PostAsync("api/contact", invalidContact);
+            var response = await PostAsync("api/v1/contact", invalidContact);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -203,7 +278,7 @@ namespace PortfolioAPI.IntegrationTests
             invalidContact.Email = string.Empty;
 
             // Act
-            var response = await PostAsync("api/contact", invalidContact);
+            var response = await PostAsync("api/v1/contact", invalidContact);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -217,7 +292,7 @@ namespace PortfolioAPI.IntegrationTests
             invalidContact.Email = "invalid-email";
 
             // Act
-            var response = await PostAsync("api/contact", invalidContact);
+            var response = await PostAsync("api/v1/contact", invalidContact);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -232,7 +307,7 @@ namespace PortfolioAPI.IntegrationTests
             invalidContact.Subject = new string('A', 201); // Max length is 200
 
             // Act
-            var response = await PostAsync("api/contact", invalidContact);
+            var response = await PostAsync("api/v1/contact", invalidContact);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -246,7 +321,7 @@ namespace PortfolioAPI.IntegrationTests
             invalidContact.Message = string.Empty;
 
             // Act
-            var response = await PostAsync("api/contact", invalidContact);
+            var response = await PostAsync("api/v1/contact", invalidContact);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -260,7 +335,7 @@ namespace PortfolioAPI.IntegrationTests
             invalidContact.Message = new string('A', 1001); // Max length is 1000
 
             // Act
-            var response = await PostAsync("api/contact", invalidContact);
+            var response = await PostAsync("api/v1/contact", invalidContact);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -276,7 +351,7 @@ namespace PortfolioAPI.IntegrationTests
             await _dbContext.SaveChangesAsync();
 
             // Act
-            var response = await PutAsync($"api/contact/{existingContact.Id}/read", new { });
+            var response = await PutAsync($"api/v1/contact/{existingContact.Id}/read", new { });
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.NoContent);
@@ -292,7 +367,7 @@ namespace PortfolioAPI.IntegrationTests
         public async Task MarkAsRead_ReturnsNotFound_WhenContactDoesNotExist()
         {
             // Act
-            var response = await PutAsync("api/contact/999/read", new { });
+            var response = await PutAsync("api/v1/contact/999/read", new { });
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.NotFound);
@@ -309,7 +384,7 @@ namespace PortfolioAPI.IntegrationTests
             await _dbContext.SaveChangesAsync();
 
             // Act
-            var response = await PostAsync($"api/contact/{existingContact.Id}/reply",
+            var response = await PostAsync($"api/v1/contact/{existingContact.Id}/reply",
                 new ReplyToContactDto { Body = "  Happy to help — here is my availability.  " });
 
             // Assert
@@ -337,7 +412,7 @@ namespace PortfolioAPI.IntegrationTests
             await _dbContext.Contacts.AddAsync(existingContact);
             await _dbContext.SaveChangesAsync();
 
-            var response = await PostAsync($"api/contact/{existingContact.Id}/reply",
+            var response = await PostAsync($"api/v1/contact/{existingContact.Id}/reply",
                 new ReplyToContactDto { Body = "   " });
 
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -347,7 +422,7 @@ namespace PortfolioAPI.IntegrationTests
         [Fact]
         public async Task Reply_ReturnsNotFound_WhenContactDoesNotExist()
         {
-            var response = await PostAsync("api/contact/999/reply", new ReplyToContactDto { Body = "Hello" });
+            var response = await PostAsync("api/v1/contact/999/reply", new ReplyToContactDto { Body = "Hello" });
 
             response.StatusCode.Should().Be(HttpStatusCode.NotFound);
         }
@@ -387,7 +462,7 @@ namespace PortfolioAPI.IntegrationTests
                 });
             await _dbContext.SaveChangesAsync();
 
-            var response = await GetAsync($"api/contact/{contact.Id}/replies");
+            var response = await GetAsync($"api/v1/contact/{contact.Id}/replies");
 
             response.StatusCode.Should().Be(HttpStatusCode.OK);
             var replies = await DeserializeResponseAsync<IEnumerable<ContactReplyDto>>(response);
@@ -405,7 +480,7 @@ namespace PortfolioAPI.IntegrationTests
             await _dbContext.SaveChangesAsync();
 
             // Act
-            var response = await DeleteAsync($"api/contact/{existingContact.Id}");
+            var response = await DeleteAsync($"api/v1/contact/{existingContact.Id}");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.NoContent);
@@ -419,7 +494,7 @@ namespace PortfolioAPI.IntegrationTests
         public async Task DeleteContact_ReturnsNotFound_WhenContactDoesNotExist()
         {
             // Act
-            var response = await DeleteAsync("api/contact/999");
+            var response = await DeleteAsync("api/v1/contact/999");
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.NotFound);
@@ -433,7 +508,7 @@ namespace PortfolioAPI.IntegrationTests
 
             // Create a contact
             var newContact = _contactFaker.Generate();
-            var createResponse = await PostAsync("api/contact", newContact);
+            var createResponse = await PostAsync("api/v1/contact", newContact);
             createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
             var createdContact = await DeserializeResponseAsync<ContactDto>(createResponse);
 
@@ -441,28 +516,28 @@ namespace PortfolioAPI.IntegrationTests
             emailService.SentEmails.Should().HaveCount(1);
 
             // Get the contact
-            var getResponse = await GetAsync($"api/contact/{createdContact!.Id}");
+            var getResponse = await GetAsync($"api/v1/contact/{createdContact!.Id}");
             getResponse.StatusCode.Should().Be(HttpStatusCode.OK);
             var retrievedContact = await DeserializeResponseAsync<ContactDto>(getResponse);
             retrievedContact.Should().BeEquivalentTo(createdContact);
 
             // Mark as read
-            var markReadResponse = await PutAsync($"api/contact/{createdContact.Id}/read", new { });
+            var markReadResponse = await PutAsync($"api/v1/contact/{createdContact.Id}/read", new { });
             markReadResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
             // Verify marked as read
-            var verifyReadResponse = await GetAsync($"api/contact/{createdContact.Id}");
+            var verifyReadResponse = await GetAsync($"api/v1/contact/{createdContact.Id}");
             verifyReadResponse.StatusCode.Should().Be(HttpStatusCode.OK);
             var verifiedContact = await DeserializeResponseAsync<ContactDto>(verifyReadResponse);
             verifiedContact!.IsRead.Should().BeTrue();
             verifiedContact.ReadAt.Should().NotBeNull();
 
             // Delete the contact
-            var deleteResponse = await DeleteAsync($"api/contact/{createdContact.Id}");
+            var deleteResponse = await DeleteAsync($"api/v1/contact/{createdContact.Id}");
             deleteResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
             // Verify deletion
-            var finalResponse = await GetAsync($"api/contact/{createdContact.Id}");
+            var finalResponse = await GetAsync($"api/v1/contact/{createdContact.Id}");
             finalResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
         }
 
@@ -476,12 +551,12 @@ namespace PortfolioAPI.IntegrationTests
             // Act - Submit multiple contacts
             foreach (var contact in contacts)
             {
-                var response = await PostAsync("api/contact", contact);
+                var response = await PostAsync("api/v1/contact", contact);
                 response.StatusCode.Should().Be(HttpStatusCode.Created);
             }
 
             // Assert - Verify all contacts were created and emails sent
-            var getAllResponse = await GetAsync("api/contact");
+            var getAllResponse = await GetAsync("api/v1/contact");
             getAllResponse.StatusCode.Should().Be(HttpStatusCode.OK);
             var allContacts = await DeserializeResponseAsync<IEnumerable<ContactDto>>(getAllResponse);
             allContacts.Should().HaveCount(10);
@@ -509,18 +584,18 @@ namespace PortfolioAPI.IntegrationTests
             // Act - Mark first 3 as read
             for (int i = 0; i < 3; i++)
             {
-                var response = await PutAsync($"api/contact/{contacts[i].Id}/read", new { });
+                var response = await PutAsync($"api/v1/contact/{contacts[i].Id}/read", new { });
                 response.StatusCode.Should().Be(HttpStatusCode.NoContent);
             }
 
             // Assert - Verify unread count
-            var unreadResponse = await GetAsync("api/contact/unread");
+            var unreadResponse = await GetAsync("api/v1/contact/unread");
             unreadResponse.StatusCode.Should().Be(HttpStatusCode.OK);
             var unreadContacts = await DeserializeResponseAsync<IEnumerable<ContactDto>>(unreadResponse);
             unreadContacts.Should().HaveCount(2);
 
             // Assert - Verify all contacts status
-            var allResponse = await GetAsync("api/contact");
+            var allResponse = await GetAsync("api/v1/contact");
             allResponse.StatusCode.Should().Be(HttpStatusCode.OK);
             var allContacts = await DeserializeResponseAsync<IEnumerable<ContactDto>>(allResponse);
             allContacts.Should().HaveCount(5);

@@ -109,7 +109,7 @@ export class DashboardComponent implements OnInit {
     {
       label: 'Unread messages',
       value: this.contactService.loading() ? '…' : this.contactService.error() ? '—' : this.unreadCount(),
-      hint: this.contactService.error() ? 'Unavailable' : `${this.messages().length} total`,
+      hint: this.contactService.error() ? 'Unavailable' : `${this.contactService.totalCount()} total`,
       icon: this.trust('<svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v8a2.5 2.5 0 0 1-2.5 2.5H9l-4 3.5v-3.5A2.5 2.5 0 0 1 4 14.5v-8Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>')
     }
   ]);
@@ -151,7 +151,10 @@ export class DashboardComponent implements OnInit {
   }
 
   private loadMessages(force: boolean): void {
+    // Page 1 (newest first) feeds the "recent messages" panel; the unread
+    // badge/stat comes from the dedicated count endpoint (issue #132).
     this.contactService.loadMessages({ force }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({ error: () => undefined });
+    this.contactService.loadUnreadCount({ force }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({ error: () => undefined });
   }
 
   reload(forceMessages = true): void {

@@ -12,9 +12,11 @@ namespace PortfolioAPI.Controllers
     [Authorize]
     [ApiController]
     [Route("api/v1/[controller]")]
-    [Route("api/[controller]")]
     public class ContactController : ControllerBase
     {
+        private const int DefaultPageSize = 25;
+        private const int MaxPageSize = 100;
+
         private readonly IContactService _contactService;
 
         public ContactController(IContactService contactService)
@@ -22,11 +24,30 @@ namespace PortfolioAPI.Controllers
             _contactService = contactService;
         }
 
+        /// <summary>
+        /// Paged inbox, newest first (issue #132). The database does the
+        /// ordering and Skip/Take — the response body holds only the current
+        /// page; X-Total-Count / X-Page / X-Page-Size carry the pagination
+        /// metadata for the dashboard's paginator.
+        /// </summary>
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<ContactDto>>> GetAllContacts()
+        public async Task<ActionResult<IEnumerable<ContactDto>>> GetAllContacts(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = DefaultPageSize,
+            [FromQuery] bool? unread = null)
         {
-            var contacts = await _contactService.GetAllContactsAsync();
-            return Ok(contacts.OrderByDescending(c => c.CreatedAt).Select(EntityMappings.ToDto));
+            // Defensive clamps keep abusive or buggy queries from paging
+            // outside the table or requesting unbounded pages.
+            var safePage = Math.Max(1, page);
+            var safePageSize = Math.Clamp(pageSize, 1, MaxPageSize);
+
+            var result = await _contactService.GetPagedContactsAsync(safePage, safePageSize, unread);
+
+            Response.Headers["X-Total-Count"] = result.TotalCount.ToString();
+            Response.Headers["X-Page"] = result.Page.ToString();
+            Response.Headers["X-Page-Size"] = result.PageSize.ToString();
+
+            return Ok(result.Items.Select(EntityMappings.ToDto));
         }
 
         [HttpGet("{id}")]

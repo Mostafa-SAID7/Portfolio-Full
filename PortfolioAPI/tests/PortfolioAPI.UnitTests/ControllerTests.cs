@@ -468,28 +468,9 @@ namespace PortfolioAPI.UnitTests
 
         #region ContactController Tests
 
-        [Fact]
-        public async Task ContactController_GetAllContacts_ShouldReturnOkResult()
-        {
-            // Arrange
-            var mockService = new Mock<IContactService>();
-            var contacts = new List<Contact>
-            {
-                new Contact { Id = 1, Name = "John Doe", Email = "john@example.com" },
-                new Contact { Id = 2, Name = "Jane Smith", Email = "jane@example.com" }
-            };
-            mockService.Setup(s => s.GetAllContactsAsync()).ReturnsAsync(contacts);
-            var controller = new ContactController(mockService.Object);
-
-            // Act
-            var result = await controller.GetAllContacts();
-
-            // Assert
-            var okResult = result.Result.Should().BeOfType<OkObjectResult>().Subject;
-            var returnValue = okResult.Value.Should().BeAssignableTo<IEnumerable<ContactDto>>().Subject;
-            returnValue.Should().HaveCount(2);
-            mockService.Verify(s => s.GetAllContactsAsync(), Times.Once);
-        }
+        // GetAllContacts is server-paged now (issue #132): its unit tests live
+        // in ContactControllerTests.cs, which covers the pagination headers,
+        // the clamps and the unread filter.
 
         [Fact]
         public async Task ContactController_GetContactById_ShouldReturnOkResult_WhenContactExists()

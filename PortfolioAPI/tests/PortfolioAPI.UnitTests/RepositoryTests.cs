@@ -346,5 +346,78 @@ namespace PortfolioAPI.UnitTests
             // Assert
             result.Should().BeFalse();
         }
+
+        [Fact]
+        public async Task GetPagedAsync_ShouldReturnOrderedPage_WithFilteredTotalCount()
+        {
+            // Arrange — page 1 of 2, newest first (issue #132).
+            var older = new Project { Id = 1, TitleEn = "Older", CreatedAt = DateTime.UtcNow.AddDays(-2) };
+            var middle = new Project { Id = 2, TitleEn = "Middle", CreatedAt = DateTime.UtcNow.AddDays(-1) };
+            var newest = new Project { Id = 3, TitleEn = "Newest", CreatedAt = DateTime.UtcNow };
+            await _context.Projects.AddRangeAsync(older, middle, newest);
+            await _context.SaveChangesAsync();
+
+            // Act
+            var result = await _repository.GetPagedAsync(
+                predicate: null,
+                orderBy: p => p.CreatedAt,
+                descending: true,
+                page: 1,
+                pageSize: 2);
+
+            // Assert
+            result.TotalCount.Should().Be(3);
+            result.Page.Should().Be(1);
+            result.PageSize.Should().Be(2);
+            result.TotalPages.Should().Be(2);
+            result.Items.Should().HaveCount(2);
+            result.Items.Select(p => p.Id).Should().Equal(3, 2); // newest first
+        }
+
+        [Fact]
+        public async Task GetPagedAsync_ShouldSkipToRequestedPage()
+        {
+            // Arrange — page 2 of 2 leaves only the oldest row.
+            var older = new Project { Id = 1, TitleEn = "Older", CreatedAt = DateTime.UtcNow.AddDays(-2) };
+            var middle = new Project { Id = 2, TitleEn = "Middle", CreatedAt = DateTime.UtcNow.AddDays(-1) };
+            var newest = new Project { Id = 3, TitleEn = "Newest", CreatedAt = DateTime.UtcNow };
+            await _context.Projects.AddRangeAsync(older, middle, newest);
+            await _context.SaveChangesAsync();
+
+            // Act
+            var result = await _repository.GetPagedAsync(
+                predicate: null,
+                orderBy: p => p.CreatedAt,
+                descending: true,
+                page: 2,
+                pageSize: 2);
+
+            // Assert
+            result.TotalCount.Should().Be(3);
+            result.Items.Should().HaveCount(1);
+            result.Items.Single().Id.Should().Be(older.Id);
+        }
+
+        [Fact]
+        public async Task GetPagedAsync_WithPredicate_ShouldCountAndPageOnlyMatches()
+        {
+            // Arrange — only featured rows belong in the count and the page.
+            var featured = new Project { Id = 1, TitleEn = "Featured", Featured = true, CreatedAt = DateTime.UtcNow.AddDays(-1) };
+            var notFeatured = new Project { Id = 2, TitleEn = "Regular", Featured = false, CreatedAt = DateTime.UtcNow };
+            await _context.Projects.AddRangeAsync(featured, notFeatured);
+            await _context.SaveChangesAsync();
+
+            // Act
+            var result = await _repository.GetPagedAsync(
+                predicate: p => p.Featured,
+                orderBy: p => p.CreatedAt,
+                descending: true,
+                page: 1,
+                pageSize: 25);
+
+            // Assert
+            result.TotalCount.Should().Be(1);
+            result.Items.Should().ContainSingle().Which.Id.Should().Be(featured.Id);
+        }
     }
 }

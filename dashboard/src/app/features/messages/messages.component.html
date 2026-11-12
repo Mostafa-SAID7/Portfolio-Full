@@ -4,7 +4,7 @@
       <p class="eyebrow mb-2">Contact form</p>
       <h2 class="font-display text-3xl font-semibold tracking-[-0.05em] text-ink">Messages</h2>
       <p class="mt-2 text-sm text-soft">
-        {{ service.messages().length }} messages — {{ service.unreadCount() }} unread
+        {{ headerTotal() }} — {{ service.unreadCount() }} unread
       </p>
     </div>
     <div class="flex items-center gap-2">
@@ -33,7 +33,7 @@
       retryLabel="Retry loading"
       (retry)="load()"
     ></app-error-state>
-  } @else if (visibleMessages().length === 0) {
+  } @else if (service.messages().length === 0) {
     <app-empty-state
       icon="message"
       [title]="filter() === 'unread' ? 'All caught up' : 'No messages yet'"
@@ -41,7 +41,7 @@
     ></app-empty-state>
   } @else {
     <div class="space-y-3">
-      @for (message of paginatedMessages(); track message.id) {
+      @for (message of service.messages(); track message.id) {
         <article class="card-raised p-5">
           <div class="flex flex-col gap-4 sm:flex-row sm:items-start">
             <div class="flex min-w-0 flex-1 items-start gap-3">
@@ -141,9 +141,9 @@
     </div>
 
     <app-paginator
-      [totalItems]="visibleMessages().length"
+      [totalItems]="totalCount()"
       [pageSize]="pageSize"
-      [page]="currentPage()"
+      [page]="page()"
       (pageChange)="onPageChange($event)"
     />
   }

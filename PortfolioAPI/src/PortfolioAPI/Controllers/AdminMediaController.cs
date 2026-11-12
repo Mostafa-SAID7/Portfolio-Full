@@ -17,7 +17,6 @@ namespace PortfolioAPI.Controllers
     [Authorize]
     [ApiController]
     [Route("api/v1/admin/media")]
-    [Route("api/admin/media")]
     public class AdminMediaController : ControllerBase
     {
         private readonly IMediaMigrationService _migration;

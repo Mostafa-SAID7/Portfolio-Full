@@ -1,6 +1,8 @@
+using System.Linq.Expressions;
 using FluentValidation;
 using Microsoft.Extensions.Logging;
 using PortfolioAPI.Application.Exceptions;
+using PortfolioAPI.Core.Common;
 using PortfolioAPI.Core.Entities;
 using PortfolioAPI.Core.Interfaces;
 using PortfolioAPI.Application.Interfaces;
@@ -42,6 +44,18 @@ namespace PortfolioAPI.Application.Services
         public async Task<IEnumerable<Contact>> GetUnreadContactsAsync()
         {
             return await UnitOfWork.Contacts.FindAsync(c => !c.IsRead);
+        }
+
+        public async Task<PagedResult<Contact>> GetPagedContactsAsync(int page, int pageSize, bool? unread = null)
+        {
+            // Newest first, executed in SQL: COUNT(*) + Skip/Take with no
+            // tracking — the O(n) full-table load is gone (issue #132).
+            return await UnitOfWork.Contacts.GetPagedAsync(
+                predicate: unread == true ? (Expression<Func<Contact, bool>>)(c => !c.IsRead) : null,
+                orderBy: c => c.CreatedAt,
+                descending: true,
+                page: page,
+                pageSize: pageSize);
         }
 
         public async Task<Contact> CreateContactAsync(Contact contact)

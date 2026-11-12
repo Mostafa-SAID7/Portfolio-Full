@@ -1,6 +1,6 @@
 # API versioning & route conventions
 
-Status: implemented (GitHub issue #24).
+Status: implemented (GitHub issue #24; unversioned aliases removed per issue #128).
 
 ## Strategy
 
@@ -31,26 +31,22 @@ Conventions:
 
 | Surface | Versioned? | Notes |
 | --- | --- | --- |
-| All JSON controllers (admin + public + auth + health) | ✅ `/api/v1/...` | legacy unversioned aliases kept as deprecated |
-| `POST /api/public/contact` (public contact form) | ✅ `/api/v1/public/contact` | same rate-limit policy on both paths |
-| `GET /api/health` | ✅ `/api/v1/health` | legacy alias kept (ops tooling); deprecation header applies |
+| All JSON controllers (admin + public + auth + health) | ✅ `/api/v1/...` | the only path — unversioned aliases removed (issue #128) |
+| `POST /api/v1/public/contact` (public contact form) | ✅ `/api/v1/public/contact` | rate-limited; the former `POST /api/public/contact` alias is gone |
+| `GET /api/v1/health` | ✅ `/api/v1/health` | the only health path (ops tooling) |
 | `GET /api/files/{name}` (uploaded images) | ❌ intentionally | immutable asset URLs stored in content data; versioning file names has no compatibility value |
 
-## Backward compatibility (transition period)
+## Unversioned aliases — removed
 
-Every JSON endpoint responds on **both** paths:
+The former `[Route("api/[controller]")]` aliases no longer exist (issue
+#128): every endpoint now answers **only** on `/api/v1/...`. The aliases
+doubled the attack surface, broke future versioning and bloated Swagger, and
+both official frontends had already migrated.
 
-- `/api/v1/...` — canonical, no deprecation headers.
-- `/api/...` (unversioned) — **deprecated alias**, flagged with
-  `Deprecation: true` on the response and hidden from Swagger.
-
-Both frontends already call only `/api/v1/...` (dashboard: `API_URL` in
-`dashboard/src/app/core/api.config.ts`; portfolio: the fetch in
-`portfolio/src/lib/content.ts`). The Vercel rewrites (`"/api/:path*"` in both
-`vercel.json` files) forward the versioned paths unchanged, so no
-infrastructure edit is required.
-
-Swagger UI (`/swagger`) documents **v1 routes only**.
+- `/api/v1/...` — the only supported path (no deprecation headers).
+- `/api/...` (unversioned) — **404**. Update any external caller to `/api/v1/...`.
+- Static file serving (`/api/files/...`) is unaffected (not part of the
+  controller namespace).
 
 ## Deprecation policy (for future changes)
 
@@ -62,9 +58,8 @@ Swagger UI (`/swagger`) documents **v1 routes only**.
 3. **v1 lifetime**: once v2 ships, v1 keeps working for **at least 6 months**
    with `Deprecation: true` on v1 responses. Removal is announced at least
    30 days ahead in a GitHub issue and tracked to closure.
-4. **Unversioned aliases** (the transition mechanism above) follow the same
-   rule: they are deprecated now and will be removed no sooner than the
-   announced window; clients must migrate to `/api/v1/...`.
+4. **Unversioned aliases** are gone (issue #128). If a legacy `/api/...`
+   caller is ever discovered, point it at `/api/v1/...` — no alias returns.
 5. Version segments appear only in URLs — never in headers, payloads or
    media types (keeps proxies, caches and logs simple).
 
@@ -75,4 +70,4 @@ Swagger UI (`/swagger`) documents **v1 routes only**.
 | Dashboard | `API_URL = '/api/v1'` (`core/api.config.ts`) | ✅ done |
 | Portfolio | `` fetch(`${apiOrigin()}/api/v1/public/...`) `` (`lib/content.ts`) | ✅ done |
 | Portfolio cache rules | `isApiRoute()` folds `/api/v1` (`lib/cache-headers.ts`) | ✅ done |
-| Health probes / curl | use `/api/v1/health` going forward | legacy still answers |
+| Health probes / curl | use `/api/v1/health` | ✅ only path (aliases removed) |
