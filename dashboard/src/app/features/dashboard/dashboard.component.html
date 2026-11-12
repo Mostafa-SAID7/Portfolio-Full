@@ -98,6 +98,7 @@
       </div>
     </section>
 
+    @defer (on viewport) {
     <!-- Messages + projects -->
     <section class="grid gap-5 xl:grid-cols-[1fr_1fr]">
       <div class="card overflow-hidden">
@@ -185,4 +186,7 @@
         }
       </div>
     </section>
+    } @placeholder {
+      <div class="card h-40 animate-pulse"></div>
+    }
 </div>
