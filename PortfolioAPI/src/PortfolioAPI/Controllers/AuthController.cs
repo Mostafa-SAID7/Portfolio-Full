@@ -104,10 +104,11 @@ namespace PortfolioAPI.Controllers
             if (!userOk || !passwordOk)
             {
                 // Audit trail for brute-force forensics. Never log the submitted
-                // password or the configured one — only the attempt and source.
+                // password or the configured one — only the sanitized attempt and source.
+                var sanitizedUsername = SanitizeForLog(dto?.Username);
                 _logger.LogWarning(
                     "Login failed for username {AttemptedUsername} from {RemoteIp}.",
-                    string.IsNullOrWhiteSpace(dto?.Username) ? "(empty)" : dto!.Username, remoteIp);
+                    sanitizedUsername, remoteIp);
                 return Unauthorized(new { message = "Invalid username or password." });
             }
 
@@ -132,6 +133,16 @@ namespace PortfolioAPI.Controllers
                     email = email ?? string.Empty
                 }
             });
+        }
+
+        /// <summary>
+        /// Sanitizes untrusted user inputs before writing to logs, preventing CRLF log injection.
+        /// </summary>
+        private static string SanitizeForLog(string? input)
+        {
+            if (string.IsNullOrWhiteSpace(input)) return "(empty)";
+            var sanitized = input.Replace("\r", string.Empty).Replace("\n", string.Empty).Trim();
+            return sanitized.Length > 100 ? sanitized[..100] : (string.IsNullOrWhiteSpace(sanitized) ? "(empty)" : sanitized);
         }
 
         /// <summary>

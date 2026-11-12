@@ -325,8 +325,8 @@ namespace PortfolioAPI.Infrastructure.Services
             using var response = await client.SendAsync(request, cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
-                var body = await response.Content.ReadAsStringAsync(cancellationToken);
-                _logger.LogError("GA4 report failed with {Status}: {Body}", (int)response.StatusCode, body);
+                _logger.LogError("GA4 report failed. Provider={Provider}, StatusCode={StatusCode}, Operation={Operation}",
+                    "GoogleAnalytics4", (int)response.StatusCode, "RunReport");
                 throw new AnalyticsUnavailableException(
                     $"GA4 returned {(int)response.StatusCode}. The property may be missing or the service account may lack access.");
             }
@@ -359,8 +359,8 @@ namespace PortfolioAPI.Infrastructure.Services
             using var response = await client.PostAsync(TokenEndpoint, new FormUrlEncodedContent(body), cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
-                var text = await response.Content.ReadAsStringAsync(cancellationToken);
-                _logger.LogError("Google token exchange failed: {Body}", text);
+                _logger.LogError("GA4 service account token exchange failed. Provider={Provider}, StatusCode={StatusCode}",
+                    "GoogleAnalytics4", (int)response.StatusCode);
                 throw new AnalyticsUnavailableException("The GA4 service account could not be authenticated.");
             }
 
