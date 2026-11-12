@@ -8,7 +8,7 @@
 
   <ItemGroup>
     <PackageReference Include="FluentValidation.AspNetCore" Version="11.3.1" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.22" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.23" />
   </ItemGroup>
 
   <ItemGroup>
