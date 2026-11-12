@@ -1,4 +1,4 @@
-import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
@@ -14,6 +14,7 @@ type RangePreset = 7 | 28 | 90;
 @Component({
   selector: 'app-analytics',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, FormsModule, EmptyStateComponent, ErrorStateComponent, DatePickerComponent],
   templateUrl: './analytics.component.html'
 })

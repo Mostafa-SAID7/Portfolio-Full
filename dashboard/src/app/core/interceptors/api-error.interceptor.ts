@@ -1,6 +1,6 @@
 import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { catchError, throwError } from 'rxjs';
+import { TimeoutError, catchError, throwError, timeout } from 'rxjs';
 import { AuthService } from '../services/auth.service';
 import { ToastService } from '../../shared/toast.component';
 
@@ -47,8 +47,22 @@ export const apiErrorInterceptor: HttpInterceptorFn = (req, next) => {
   const auth = inject(AuthService);
   const toast = inject(ToastService);
 
+  // Guard every request against an indefinite hang (e.g. a cold/slow backend or
+  // a dropped connection). 20 s is long enough for legitimate cold starts while
+  // still failing fast instead of spinning forever. TimeoutError is normalised
+  // into an HttpErrorResponse so downstream services see a uniform shape.
   return next(req).pipe(
+    timeout(20000),
     catchError((err: unknown) => {
+      if (err instanceof TimeoutError) {
+        const timeoutError = new HttpErrorResponse({
+          url: req.url,
+          status: 0,
+          statusText: 'Timeout',
+          error: { message: 'Request timed out after 20 seconds.' }
+        });
+        err = timeoutError;
+      }
       if (!(err instanceof HttpErrorResponse)) return throwError(() => err);
       const error = normalizeApiError(err);
       const isLoginAttempt = req.url.split('?')[0].endsWith('/auth/login');
