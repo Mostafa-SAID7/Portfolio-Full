@@ -2,7 +2,7 @@ import {
   ApplicationConfig,
   ErrorHandler,
   provideBrowserGlobalErrorListeners,
-  provideZoneChangeDetection
+  provideZonelessChangeDetection
 } from '@angular/core';
 import { provideRouter, withViewTransitions } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
@@ -18,7 +18,7 @@ export const appConfig: ApplicationConfig = {
     provideBrowserGlobalErrorListeners(),
     // Catch-all boundary for unexpected framework/renderer crashes.
     { provide: ErrorHandler, useClass: AppErrorHandler },
-    provideZoneChangeDetection({ eventCoalescing: true }),
+    provideZonelessChangeDetection(),
     provideRouter(routes, withViewTransitions()),
     // authInterceptor attaches the JWT first; apiErrorInterceptor then
     // normalizes failures and handles 401/403 globally (issues #12/#20).
