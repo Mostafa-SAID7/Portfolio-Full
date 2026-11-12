@@ -108,6 +108,11 @@ export class AppComponent {
       link: '/content',
       label: 'Content',
       icon: this.trust('<svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M6 4.75h8.5L18 8.25v11H6v-14.5Z" stroke="currentColor" stroke-width="1.7"/><path d="M14 4.75v3.5h4M9 12h6M9 15.5h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>')
+    },
+    {
+      link: '/logs',
+      label: 'Logs',
+      icon: this.trust('<svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M4 4h16v16H4V4Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M8 9h8M8 12h8M8 15h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>')
     }
   ];
 
