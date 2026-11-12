@@ -7,25 +7,20 @@ using ValidationException = PortfolioAPI.Application.Exceptions.ValidationExcept
 namespace PortfolioAPI.Pipelines
 {
     /// <summary>
-    /// Central exception handling — extracted from Program.cs.
+    /// Central exception handling middleware.
+    /// Provides consistent JSON error responses and authoritative, structured exception logging
+    /// without duplicate records, leaking stack traces, or misclassifying client errors as system failures.
     /// </summary>
     public static class ErrorHandlingPipeline
     {
-        /// <summary>
-        /// Error handling at the TOP so faults anywhere below — CORS, static
-        /// uploads, Swagger, controllers — get the shared JSON shape instead of a
-        /// blank 500. Known domain exceptions get a proper status + a REAL
-        /// message (the dashboards render `message` verbatim); everything else
-        /// stays a generic 500 so production never leaks stack traces. Before
-        /// this mapping, a missing entity or a FluentValidation failure from any
-        /// service surfaced as a 500 "An unexpected error occurred..." —
-        /// validation messages were silently lost.
-        /// </summary>
         public static IApplicationBuilder UseApiErrorHandling(this IApplicationBuilder app)
         {
             app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
             {
                 var exception = context.Features.Get<IExceptionHandlerFeature>()?.Error;
+                var logger = context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("PortfolioAPI.ExceptionHandler");
+                var method = context.Request.Method;
+                var path = context.Request.Path.Value ?? string.Empty;
 
                 int status;
                 string message;
@@ -36,41 +31,54 @@ namespace PortfolioAPI.Pipelines
                     case NotFoundException notFound:
                         status = StatusCodes.Status404NotFound;
                         message = notFound.Message;
+                        logger.LogInformation("Resource not found for {Method} {Path}: {Message}", method, path, message);
                         break;
+
                     case ValidationException validation:
                         status = StatusCodes.Status400BadRequest;
                         message = validation.Message;
                         errors = validation.Errors;
+                        logger.LogWarning("Validation failed for {Method} {Path}: {Message}. Errors: {@ValidationErrors}", method, path, message, errors);
                         break;
-                    // Outbound mail is an upstream dependency: an unconfigured or
-                    // failing SMTP must read as "could not be sent", never as a
-                    // generic 500 and never as a saved reply.
+
                     case EmailDeliveryException delivery:
                         status = StatusCodes.Status503ServiceUnavailable;
                         message = delivery.Message;
+                        logger.LogWarning("External email delivery failure for {Method} {Path}: {Message}", method, path, message);
                         break;
-                    // GA4 is an optional, external dependency: a missing setup is
-                    // "not implemented" (the dashboard shows the setup hint) and a
-                    // failing report is "unavailable" (it shows the last refresh).
+
                     case AnalyticsNotConfiguredException analyticsNotConfigured:
                         status = StatusCodes.Status501NotImplemented;
                         message = analyticsNotConfigured.Message;
+                        logger.LogInformation("Analytics requested but not configured on this host for {Method} {Path}", method, path);
                         break;
+
                     case AnalyticsUnavailableException analyticsUnavailable:
                         status = StatusCodes.Status503ServiceUnavailable;
                         message = analyticsUnavailable.Message;
+                        logger.LogWarning("Analytics service unavailable for {Method} {Path}: {Message}", method, path, message);
                         break;
-                    // Unique indexes (Skills.Name) reject duplicates at the
-                    // database level — surface them as a clear 409 instead of a generic 500.
-                    case DbUpdateException { InnerException: Microsoft.Data.SqlClient.SqlException { Number: 2601 or 2627 } }:
+
+                    case DbUpdateException { InnerException: Microsoft.Data.SqlClient.SqlException { Number: 2601 or 2627 } } dbConflict:
                         status = StatusCodes.Status409Conflict;
                         message = "That name is already taken — choose a different one.";
+                        logger.LogWarning(dbConflict, "Database unique constraint conflict for {Method} {Path}", method, path);
                         break;
+
+                    case DbUpdateException dbUpdateEx:
+                        status = StatusCodes.Status500InternalServerError;
+                        message = "A database error occurred while updating the entity.";
+                        logger.LogError(dbUpdateEx, "Database update operation failed for {Method} {Path}", method, path);
+                        break;
+
+                    case OperationCanceledException:
+                        logger.LogInformation("Request was cancelled by client for {Method} {Path}", method, path);
+                        return;
+
                     default:
-                        var logger = context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("PortfolioAPI.ExceptionHandler");
-                        logger.LogError(exception, "Unhandled exception for {Method} {Path}", context.Request.Method, context.Request.Path);
                         status = StatusCodes.Status500InternalServerError;
                         message = "An unexpected error occurred while processing the request.";
+                        logger.LogError(exception, "Unhandled server error processing {Method} {Path}", method, path);
                         break;
                 }
 

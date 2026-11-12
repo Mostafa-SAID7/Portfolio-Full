@@ -6,9 +6,10 @@ using Microsoft.AspNetCore.ResponseCompression;
 namespace PortfolioAPI.Configuration
 {
     /// <summary>
-    /// HTTP host defaults: controllers, logging, the Kestrel body limit, output
+    /// HTTP host defaults: controllers, Kestrel body limit, output
     /// caching for public content and response compression — extracted from
     /// Program.cs so each concern stays reviewable on its own.
+    /// Logging provider registration is handled centrally by LoggingConfiguration.
     /// </summary>
     public static class ApiDefaultsConfiguration
     {
@@ -20,9 +21,6 @@ namespace PortfolioAPI.Configuration
         {
             // Add controllers
             services.AddControllers();
-
-            // Add logging
-            services.AddLogging();
 
             return services;
         }

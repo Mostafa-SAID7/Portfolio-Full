@@ -24,7 +24,8 @@ namespace PortfolioAPI.Infrastructure.Data
                 .SqlQuery<int>($"SELECT COUNT(*) AS [Value] FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'")
                 .SingleAsync();
 
-            // Apply pending migrations first (idempotent: MigrateAsync is a no-op when DB is up to date).`r`n            await context.Database.MigrateAsync();
+                        // Apply pending migrations first (idempotent: MigrateAsync is a no-op when DB is up to date).
+            await context.Database.MigrateAsync();
 
             // Existing database - ensure schema compatibility and seed reference data
             // Only seed reference data in non-production environments (issue #40)
@@ -33,7 +34,7 @@ namespace PortfolioAPI.Infrastructure.Data
 
             try
             {
-                await EnsureSchemaCompatibilityAsync(context);
+                await EnsureSchemaCompatibilityAsync(context, logger);
             }
             catch (Exception ex)
             {
@@ -57,7 +58,7 @@ namespace PortfolioAPI.Infrastructure.Data
             }
         }
 
-        private static async Task EnsureSchemaCompatibilityAsync(PortfolioDbContext context)
+        private static async Task EnsureSchemaCompatibilityAsync(PortfolioDbContext context, ILogger? logger = null)
         {
             // NOTE: there is deliberately no legacy "[Category] column" step
             // anymore. MakeProjectsBilingual renamed that column and the
@@ -69,7 +70,7 @@ namespace PortfolioAPI.Infrastructure.Data
             // If it's missing, create it.
             try
             {
-                if (!await TableExistsAsync(context, "SkillProject"))
+                if (!await TableExistsAsync(context, "SkillProject", logger))
                 {
                     await context.Database.ExecuteSqlRawAsync(@"
                         CREATE TABLE dbo.SkillProject (
@@ -84,9 +85,9 @@ namespace PortfolioAPI.Infrastructure.Data
                     ");
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Table might already exist or permissions insufficient - continue
+                logger?.LogWarning(ex, "Verifying or creating SkillProject table encountered an issue — continuing.");
             }
 
             // Sync categories from projects - registers every category the projects
@@ -95,18 +96,18 @@ namespace PortfolioAPI.Infrastructure.Data
             {
                 await SyncCategoriesAsync(context);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Sync failed - continue
+                logger?.LogWarning(ex, "Syncing project categories encountered an issue — continuing.");
             }
 
             try
             {
                 await EnsureWebsitesAsync(context);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Ensure websites failed - continue
+                logger?.LogWarning(ex, "Ensuring default websites encountered an issue — continuing.");
             }
         }
 
@@ -241,7 +242,7 @@ namespace PortfolioAPI.Infrastructure.Data
             }
         }
 
-        private static async Task<bool> TableExistsAsync(PortfolioDbContext context, string table)
+        private static async Task<bool> TableExistsAsync(PortfolioDbContext context, string table, ILogger? logger = null)
         {
             try
             {
@@ -250,9 +251,9 @@ namespace PortfolioAPI.Infrastructure.Data
                     .SingleAsync();
                 return count > 0;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Assume table exists if we can't check
+                logger?.LogWarning(ex, "Could not check existence for table {TableName} — assuming table exists.", table);
                 return true;
             }
         }
