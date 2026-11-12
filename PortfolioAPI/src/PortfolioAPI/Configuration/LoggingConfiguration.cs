@@ -93,25 +93,34 @@ namespace PortfolioAPI.Configuration
             var fileLoggingEnabled = configuration.GetValue("Logging:File:Enabled", true);
             if (fileLoggingEnabled)
             {
-                var configuredPath = configuration["Logging:File:Path"];
-                var baseDirectory = string.IsNullOrWhiteSpace(environment.ContentRootPath)
-                    ? AppContext.BaseDirectory
-                    : environment.ContentRootPath;
+                try
+                {
+                    var configuredPath = configuration["Logging:File:Path"];
+                    var baseDirectory = string.IsNullOrWhiteSpace(environment.ContentRootPath)
+                        ? AppContext.BaseDirectory
+                        : environment.ContentRootPath;
 
-                var logDirectory = string.IsNullOrWhiteSpace(configuredPath)
-                    ? Path.Combine(baseDirectory, "App_Data", "logs")
-                    : (Path.IsPathRooted(configuredPath) ? configuredPath : Path.Combine(baseDirectory, configuredPath));
+                    var logDirectory = string.IsNullOrWhiteSpace(configuredPath)
+                        ? Path.Combine(baseDirectory, "App_Data", "logs")
+                        : (Path.IsPathRooted(configuredPath) ? configuredPath : Path.Combine(baseDirectory, configuredPath));
 
-                Directory.CreateDirectory(logDirectory);
-                var logFilePath = Path.Combine(logDirectory, "portfolio-.log");
+                    Directory.CreateDirectory(logDirectory);
+                    var logFilePath = Path.Combine(logDirectory, "portfolio-.log");
 
-                loggerConfig.WriteTo.File(
-                    path: logFilePath,
-                    rollingInterval: RollingInterval.Day,
-                    retainedFileCountLimit: 14,
-                    fileSizeLimitBytes: 10 * 1024 * 1024, // 10 MB per file
-                    rollOnFileSizeLimit: true,
-                    outputTemplate: OutputTemplate);
+                    loggerConfig.WriteTo.File(
+                        path: logFilePath,
+                        rollingInterval: RollingInterval.Day,
+                        retainedFileCountLimit: 14,
+                        fileSizeLimitBytes: 10 * 1024 * 1024, // 10 MB per file
+                        rollOnFileSizeLimit: true,
+                        outputTemplate: OutputTemplate);
+                }
+                catch (Exception ex)
+                {
+                    // File sink initialization failure (e.g. restricted IIS AppPool directory permissions)
+                    // must NEVER crash the entire Web API host during startup (prevents 500.30).
+                    Console.Error.WriteLine($"[Serilog Warning] Failed to initialize file logger sink: {ex.Message}");
+                }
             }
         }
     }
