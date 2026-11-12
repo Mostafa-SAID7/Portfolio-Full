@@ -1,95 +1,55 @@
-# Accessibility
+# Accessibility Statement & Guidelines
 
-<!--
-Include a brief statement describing why accessibility matters to your
-project, who should be able to use and contribute to it, and what this
-document covers, such as your accessibility commitments, contributor
-expectations, and issue-reporting process.
+We are dedicated to ensuring digital accessibility for all users, including people with visual, auditory, motor, or cognitive disabilities.
 
-Write for people who may read this after encountering a barrier. Use plain
-language and describe user experiences rather than relying on legal
-language, technical jargon, or standards codes.
--->
+---
 
-## Priorities
+## 1. Conformance Standards
 
-<!--
-Describe the outcomes the project prioritizes and how it works toward them.
-If you name a WCAG level as an accessibility target, make clear that it is
-an aspirational goal rather than a verified conformance claim. Only claim
-conformance after an evaluation, and identify the evaluated scope, date,
-method, and evaluator. Also describe the areas you prioritize, such as
-keyboard, screen reader, content, or language support.
--->
+This project aims to conform to the **Web Content Accessibility Guidelines (WCAG) 2.1 Level AA** standards across both user-facing applications:
+- The **Public Portfolio Site** (`portfolio/` — React 19 / TanStack Start).
+- The **Admin Dashboard** (`dashboard/` — Angular 20 Standalone Components).
 
-## Contributor expectations
+---
 
-<!--
-Describe the accessibility guardrails that apply to contributions,
-including relevant testing, documentation, and continuous integration
-checks. Name specific tools only when the project uses them, and explain
-what evidence contributors should include with user-facing changes.
--->
+## 2. Core Accessibility Implementations
 
-## Reporting accessibility issues
+### Semantic HTML & ARIA Landmarks
+- Valid landmark roles (`<header>`, `<main>`, `<nav>`, `<aside>`, `<footer>`) ensure clear screen-reader navigation.
+- Buttons, inputs, modals, and tab lists include appropriate `aria-label`, `aria-expanded`, `aria-controls`, and `aria-selected` attributes.
+- Interactive custom elements use appropriate `role` attributes and ARIA states.
 
-<!--
-Provide a direct, accessible way to report a barrier or request help.
-Invite useful context such as the affected task, URL, observed behavior,
-browser, operating system, and assistive technology. Make screenshots or
-recordings optional and do not require disability disclosure.
--->
+### Keyboard Navigation & Focus Management
+- All interactive elements (links, buttons, form controls, dropdown menus, pagination buttons) are fully accessible via keyboard (`Tab`, `Shift+Tab`, `Enter`, `Space`, `Escape`, arrow keys).
+- Visible focus rings (`focus-visible:ring-2`, `outline-offset-2`) are maintained across all light and dark themes.
+- Modals, confirm dialogs, and slide-out mobile drawers trap focus while open and return focus to the triggering element upon close (`Escape` key supported).
 
-### Severity
+### Color Contrast & Themes
+- Dark and light theme semantic color tokens adhere to a minimum contrast ratio of **4.5:1** for regular body text and **3:1** for large text and UI components.
+- State indicators (e.g. read/unread message badges, error states, form validations) do not rely on color alone; icons and descriptive text accompany every state change.
 
-<!--
-If your project uses severity levels, define them and give practical
-examples based on how strongly a barrier affects a user's ability to
-complete a task. Keep labels consistent with your issue template and
-resolution targets if those processes exist. Maintainers can assign or
-confirm severity during triage; reporters do not need to.
--->
+### Reduced Motion & Responsive Layouts
+- CSS and animation libraries support the `prefers-reduced-motion: reduce` media query to disable non-essential animations.
+- Clean responsive layout scaling from mobile viewports (320px) up to 4K displays without content clipping or horizontal overflow.
 
-### How we respond
+---
 
-<!--
-Explain what reporters can expect after submitting an accessibility issue,
-including acknowledgement, status updates, workarounds, expected timelines,
-and opportunities to verify a fix. Use commitments your project can
-consistently uphold.
--->
+## 3. Contributor Accessibility Checklist
 
-## Ownership and maintenance
+When contributing UI features or components to `portfolio/` or `dashboard/`:
 
-<!--
-Identify the team, role, or maintainer responsible for accessibility and
-describe their responsibilities to the project. Include the review cadence
-and how ownership transfers when responsibilities change.
--->
+1. [ ] Ensure all form fields have associated `<label>` elements or accessible `aria-label` tags.
+2. [ ] Test keyboard navigation through the entire user flow without using a mouse.
+3. [ ] Verify contrast ratios using automated audits (e.g. Chrome DevTools / Lighthouse / Axe).
+4. [ ] Provide descriptive `alt` attributes for meaningful imagery; use `alt=""` for purely decorative illustrations.
+5. [ ] Avoid autofocusing elements unexpectedly when users navigate between routes.
 
-## Supported environments
+---
 
-<!--
-List the platforms, devices, browsers, input methods, and assistive
-technologies the project supports or has tested. Include versions where
-useful, note partial support, and avoid implying support for combinations
-that have not been evaluated.
--->
+## 4. Reporting Accessibility Barriers
 
-## Known limitations
+If you experience any accessibility barriers while using the Portfolio or Dashboard:
 
-<!--
-Describe known barriers in terms of the affected user experience, such as
-"videos do not have captions," rather than standards codes. Include
-available workarounds or equivalent access and link to tracked issues. If
-no limitations are currently documented, describe what has been tested
-instead of claiming that no barriers exist.
--->
-
-## Feedback and improvements
-
-<!--
-Explain how users and contributors can suggest improvements to this
-statement or the project's accessibility practices. Direct active
-accessibility barriers to the reporting process above.
--->
+- Open an issue on GitHub using our [Issue Template](.github/ISSUE_TEMPLATE/bug_report.md) with the label `accessibility`.
+- Specify the affected URL or component, the assistive technology used (e.g. NVDA, VoiceOver, JAWS), and the observed barrier.
+- We prioritize accessibility defects and aim to resolve them promptly.

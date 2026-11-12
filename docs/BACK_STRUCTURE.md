@@ -1,137 +1,246 @@
-> ⚠️ **Historical planning snapshot** — a pre-implementation design document kept for reference.
-> The actual backend layout has diverged (see `docs/FULL_STRUCTURE.md`'s banner and the root
-> `README.md`), and the **blog feature mentioned here was removed** from the backend entirely.
+# Backend Architecture & Directory Structure Reference
 
+An authoritative engineering reference documenting the Clean Architecture implementation of the **PortfolioAPI** backend.
+
+---
+
+## 1. Architectural Layers & Separation of Concerns
+
+```
 PortfolioAPI/
 ├── src/
-│   ├── PortfolioAPI/                      # Main API Project
-│   │   ├── Controllers/
-│   │   │   ├── ProjectsController.cs
-│   │   │   ├── SkillsController.cs
-│   │   │   ├── ExperienceController.cs
-│   │   │   ├── ContactController.cs
-│   │   │   ├── TestimonialsController.cs
-│   │   │   └── BlogController.cs
-│   │   ├── Program.cs
-│   │   ├── appsettings.json
-│   │   └── appsettings.Development.json
-│   │
-│   ├── PortfolioAPI.Core/                 # Domain Layer
-│   │   ├── Entities/
-│   │   │   ├── BaseEntity.cs
-│   │   │   ├── Project.cs
-│   │   │   ├── Skill.cs
-│   │   │   ├── Experience.cs
-│   │   │   ├── Contact.cs
-│   │   │   ├── Testimonial.cs
-│   │   │   └── BlogPost.cs
-│   │   ├── Interfaces/
-│   │   │   ├── IRepository.cs
-│   │   │   ├── IUnitOfWork.cs
-│   │   │   └── Services/
-│   │   │       ├── IProjectService.cs
-│   │   │       ├── ISkillService.cs
-│   │   │       └── IContactService.cs
-│   │   ├── DTOs/
-│   │   │   ├── ProjectDto.cs
-│   │   │   ├── SkillDto.cs
-│   │   │   ├── ContactDto.cs
-│   │   │   └── ResponseDto.cs
-│   │   └── Specifications/
-│   │       └── BaseSpecification.cs
-│   │
-│   ├── PortfolioAPI.Infrastructure/       # Data Access Layer
-│   │   ├── Data/
-│   │   │   ├── PortfolioDbContext.cs
-│   │   │   ├── DbInitializer.cs
-│   │   │   └── Configurations/
-│   │   │       ├── ProjectConfiguration.cs
-│   │   │       └── SkillConfiguration.cs
-│   │   ├── Repositories/
-│   │   │   ├── Repository.cs
-│   │   │   └── UnitOfWork.cs
-│   │   ├── Services/
-│   │   │   ├── EmailService.cs
-│   │   │   ├── FileStorageService.cs
-│   │   │   └── CacheService.cs
-│   │   └── Migrations/
-│   │
-│   └── PortfolioAPI.Application/          # Business Logic Layer
-│       ├── Services/
-│       │   ├── ProjectService.cs
-│       │   ├── SkillService.cs
-│       │   ├── ExperienceService.cs
-│       │   └── ContactService.cs
-│       ├── Mappings/
-│       │   └── AutoMapperProfile.cs
-│       ├── Validators/
-│       │   ├── ProjectValidator.cs
-│       │   └── ContactValidator.cs
-│       └── Exceptions/
-│           ├── NotFoundException.cs
-│           └── ValidationException.cs
-│
+│   ├── PortfolioAPI/               # Presentation & Web API Host
+│   ├── PortfolioAPI.Core/          # Domain Layer (Pure Domain)
+│   ├── PortfolioAPI.Application/   # Use Cases & Application Logic
+│   └── PortfolioAPI.Infrastructure/# Data Persistence & External Adapters
 └── tests/
-    ├── PortfolioAPI.UnitTests/
-    └── PortfolioAPI.IntegrationTests/
+    ├── PortfolioAPI.UnitTests/     # Unit test suite (xUnit, Moq, FluentAssertions)
+    └── PortfolioAPI.IntegrationTests/ # Integration tests (MsSql Testcontainers)
+```
 
-    Key Backend Implementation Patterns
-1. Clean Architecture with Repository Pattern
-2. CQRS for complex operations
-3. Result Pattern for error handling
-4. Specification Pattern for queries
-5. Unit of Work for transactions
-6. Dependency Injection properly configured
-7. API Versioning
-8. Rate Limiting
-9. Response Caching
-10. Global Error Handling
-11. Structured Logging with Serilog
-12. Email Service with MailKit
-13. File Upload with validation
-14. CORS properly configured
+### Layer Dependency Rules
 
-🎯 Key Frontend Features
-1. Lazy Loading for all feature modules
-2. RxJS best practices (takeUntilDestroyed)
-3. Signals for state management
-4. Standalone components (Angular 19)
-5. OnPush change detection strategy
-6. Intersection Observer for animations
-7. Progressive image loading
-8. SEO optimization with Meta service
-9. Dark/Light theme toggle
-10. Smooth scroll animations
-11. Form validation with reactive forms
-12. Error boundary implementation
-13. Loading states & skeletons
-14. Optimistic UI updates
+```
+PortfolioAPI (Host)
+  ├── references ──> PortfolioAPI.Application
+  ├── references ──> PortfolioAPI.Infrastructure
+  └── references ──> PortfolioAPI.Core
 
-🚀 Modern Design Patterns
-Design Style Suggestions:
+PortfolioAPI.Infrastructure
+  ├── references ──> PortfolioAPI.Application
+  └── references ──> PortfolioAPI.Core
 
-Bento Grid Layout - Modern card-based layouts
-Glassmorphism - Frosted glass effects
-Neumorphism (subtle) - Soft shadows
-Gradient Accents - Vibrant color transitions
-Micro-interactions - Hover effects, button feedback
-Parallax Scrolling - Depth and dimension
-3D Card Tilts - Interactive project cards
-Animated Gradients - Moving background effects
-Reveal Animations - Scroll-triggered animations
-Dark Mode First - Modern dark aesthetics
+PortfolioAPI.Application
+  └── references ──> PortfolioAPI.Core
 
+PortfolioAPI.Core
+  └── (Zero project references — completely independent)
+```
 
-📦 Ready to Implement?
-Reply with "GENERATE BACKEND" for complete backend code files, or "GENERATE FRONTEND" for complete Angular components and services. I'll create production-ready, fully commented code with best practices!
-Or specify which part you want first:
+---
 
-Backend (API + Infrastructure)
-Frontend (Components + Services)
-SCSS Theme System
-shadcn/ui Integration
-Complete Docker setup
-add live chat 
-add real notification
-dark mode
-multi lang for ar,en 
+## 2. Comprehensive Directory Tree
+
+```
+PortfolioAPI/src/
+├── PortfolioAPI/
+│   ├── Auth/
+│   │   ├── ITokenService.cs
+│   │   └── TokenService.cs
+│   ├── Commands/
+│   │   └── MediaMigrationCommand.cs
+│   ├── Configuration/
+│   │   ├── AnalyticsConfiguration.cs
+│   │   ├── ApiDefaultsConfiguration.cs
+│   │   ├── ApplicationServicesConfiguration.cs
+│   │   ├── CorsConfiguration.cs
+│   │   ├── DatabaseConfiguration.cs
+│   │   ├── JwtAuthenticationConfiguration.cs
+│   │   ├── LoggingConfiguration.cs
+│   │   ├── ProxyConfiguration.cs
+│   │   ├── RateLimitingConfiguration.cs
+│   │   ├── StorageConfiguration.cs
+│   │   └── SwaggerConfiguration.cs
+│   ├── Controllers/
+│   │   ├── AnalyticsController.cs
+│   │   ├── AuthController.cs
+│   │   ├── CategoriesController.cs
+│   │   ├── ContactController.cs
+│   │   ├── CredentialsController.cs
+│   │   ├── ExperienceController.cs
+│   │   ├── LogsController.cs               # Production HTML log browser & API
+│   │   ├── ProjectsController.cs
+│   │   ├── PublicController.cs             # Public portfolio endpoints
+│   │   ├── SkillsController.cs
+│   │   ├── TestimonialsController.cs
+│   │   ├── UploadController.cs
+│   │   └── WebsitesController.cs
+│   ├── Endpoints/
+│   │   └── InfoEndpoints.cs
+│   ├── Pipelines/
+│   │   ├── CorrelationPipeline.cs
+│   │   ├── ErrorHandlingPipeline.cs
+│   │   ├── HeadersPipeline.cs
+│   │   └── UploadsPipeline.cs
+│   ├── Program.cs
+│   ├── appsettings.json
+│   └── web.config
+│
+├── PortfolioAPI.Core/
+│   ├── Common/
+│   │   ├── Error.cs
+│   │   └── Result.cs
+│   ├── Entities/
+│   │   ├── BaseEntity.cs
+│   │   ├── Category.cs
+│   │   ├── Contact.cs
+│   │   ├── ContactReply.cs
+│   │   ├── Credential.cs
+│   │   ├── Experience.cs
+│   │   ├── Project.cs
+│   │   ├── ProjectCategory.cs
+│   │   ├── ProjectWebsite.cs
+│   │   ├── Skill.cs
+│   │   ├── Testimonial.cs
+│   │   └── Website.cs
+│   ├── Exceptions/
+│   │   ├── EmailDeliveryException.cs
+│   │   └── StorageExceptions.cs
+│   └── Interfaces/
+│       ├── IEmailService.cs
+│       ├── IFileStorageService.cs
+│       ├── IProjectRepository.cs
+│       ├── IRepository.cs
+│       ├── IUnitOfWork.cs
+│       └── MediaContracts.cs
+│
+├── PortfolioAPI.Application/
+│   ├── DTOs/                               # 1 class per file (Single Responsibility)
+│   │   ├── Analytics/
+│   │   │   ├── AnalyticsDeviceBreakdownDto.cs
+│   │   │   ├── AnalyticsGeoBreakdownDto.cs
+│   │   │   ├── AnalyticsOverviewDto.cs
+│   │   │   ├── AnalyticsPageMetricDto.cs
+│   │   │   └── AnalyticsTimeSeriesPointDto.cs
+│   │   ├── Categories/
+│   │   │   ├── CategoryDto.cs
+│   │   │   ├── CreateCategoryDto.cs
+│   │   │   └── UpdateCategoryDto.cs
+│   │   ├── Contacts/
+│   │   │   ├── ContactDto.cs
+│   │   │   ├── ContactReplyDto.cs
+│   │   │   ├── CreateContactDto.cs
+│   │   │   └── ReplyToContactDto.cs
+│   │   ├── Credentials/
+│   │   │   ├── CredentialDto.cs
+│   │   │   ├── CreateCredentialDto.cs
+│   │   │   └── UpdateCredentialDto.cs
+│   │   ├── Experiences/
+│   │   │   ├── ExperienceDto.cs
+│   │   │   ├── CreateExperienceDto.cs
+│   │   │   └── UpdateExperienceDto.cs
+│   │   ├── Projects/
+│   │   │   ├── ProjectDto.cs
+│   │   │   ├── ProjectDetailDto.cs
+│   │   │   ├── CreateProjectDto.cs
+│   │   │   └── UpdateProjectDto.cs
+│   │   ├── Skills/
+│   │   │   ├── SkillDto.cs
+│   │   │   ├── CreateSkillDto.cs
+│   │   │   └── UpdateSkillDto.cs
+│   │   ├── Testimonials/
+│   │   │   ├── TestimonialDto.cs
+│   │   │   ├── CreateTestimonialDto.cs
+│   │   │   └── UpdateTestimonialDto.cs
+│   │   └── Websites/
+│   │       ├── WebsiteDto.cs
+│   │       ├── CreateWebsiteDto.cs
+│   │       └── UpdateWebsiteDto.cs
+│   ├── Exceptions/
+│   │   ├── NotFoundException.cs
+│   │   └── ValidationException.cs
+│   ├── Interfaces/
+│   │   ├── IAnalyticsReportingService.cs
+│   │   ├── ICategoryService.cs
+│   │   ├── IContactService.cs
+│   │   ├── ICredentialService.cs
+│   │   ├── IExperienceService.cs
+│   │   ├── IProjectService.cs
+│   │   ├── ISkillService.cs
+│   │   ├── ITestimonialService.cs
+│   │   └── IWebsiteService.cs
+│   ├── Mappings/                           # Clean partial mappings per aggregate
+│   │   ├── EntityMappings.cs
+│   │   ├── CategoryMappings.cs
+│   │   ├── ContactMappings.cs
+│   │   ├── CredentialMappings.cs
+│   │   ├── ExperienceMappings.cs
+│   │   ├── ProjectMappings.cs
+│   │   ├── SkillMappings.cs
+│   │   ├── TestimonialMappings.cs
+│   │   └── WebsiteMappings.cs
+│   ├── Services/
+│   │   ├── CrudService.cs
+│   │   ├── CategoryService.cs
+│   │   ├── ContactService.cs
+│   │   ├── CredentialService.cs
+│   │   ├── ExperienceService.cs
+│   │   ├── ProjectService.cs
+│   │   ├── SkillService.cs
+│   │   ├── TestimonialService.cs
+│   │   └── WebsiteService.cs
+│   └── Validators/
+│       ├── CategoryValidator.cs
+│       ├── ContactReplyValidator.cs
+│       ├── ContactValidator.cs
+│       ├── CredentialValidator.cs
+│       ├── ExperienceValidator.cs
+│       ├── ProjectValidator.cs
+│       ├── SkillValidator.cs
+│       ├── TestimonialValidator.cs
+│       └── WebsiteValidator.cs
+│
+└── PortfolioAPI.Infrastructure/
+    ├── Data/
+    │   ├── Configurations/                 # EF Core entity type configurations
+    │   │   ├── CategoryConfiguration.cs
+    │   │   ├── ContactConfiguration.cs
+    │   │   ├── CredentialConfiguration.cs
+    │   │   ├── ExperienceConfiguration.cs
+    │   │   ├── ProjectCategoryConfiguration.cs
+    │   │   ├── ProjectConfiguration.cs
+    │   │   ├── ProjectWebsiteConfiguration.cs
+    │   │   ├── SkillConfiguration.cs
+    │   │   ├── TestimonialConfiguration.cs
+    │   │   └── WebsiteConfiguration.cs
+    │   ├── DbInitializer.cs
+    │   └── PortfolioDbContext.cs
+    ├── Emailing/
+    │   ├── EmailService.cs
+    │   ├── EmailSettingsOptions.cs
+    │   └── Templates/
+    ├── Migrations/                         # Incremental EF Core migrations
+    ├── Repositories/
+    │   ├── ProjectRepository.cs
+    │   ├── Repository.cs
+    │   └── UnitOfWork.cs
+    ├── Services/
+    │   └── AnalyticsReportingService.cs    # Google Analytics 4 API client
+    └── Storage/
+        ├── CloudinaryStorageService.cs
+        ├── FileStorageOptions.cs
+        ├── ImageValidator.cs
+        └── LocalFileStorageService.cs
+```
+
+---
+
+## 3. Key Design Patterns
+
+1. **Clean Architecture**: Strong inward dependency flow protecting Core business entities from framework changes.
+2. **Single Responsibility Principle (SRP)**: Each DTO and validator is isolated in its own file under a domain feature folder.
+3. **Partial Class Mappings**: Pure C# static mapping extensions without heavy reflection or runtime overhead (replaces runtime AutoMapper).
+4. **Repository & Unit of Work**: Encapsulates EF Core operations behind `IRepository<T>` and `IUnitOfWork` for transactional consistency.
+5. **FluentValidation**: Explicit validation rules executed automatically inside application service pipelines.
+6. **Result Pattern**: Uniform typed error handling (`Result<T>`) alongside domain exception handling.
+7. **Serilog Enterprise Logging**: JSON and human-readable structured logs with correlation identifiers and dedicated live browser UI.

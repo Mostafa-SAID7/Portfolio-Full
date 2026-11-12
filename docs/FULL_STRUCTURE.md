@@ -1,256 +1,103 @@
-> ⚠️ **Historical planning snapshot** — a pre-implementation design document kept for reference.
-> The actual repository layout has diverged (see the root `README.md`), and the **blog feature
-> mentioned here was removed** from the backend and dashboard. Do not treat this as current
-> documentation.
+# Full Repository Architecture & Structure Reference
 
-portfolio-client/
-├── src/
-│   ├── app/
-│   │   ├── core/                          # Singleton services & guards
-│   │   │   ├── services/
-│   │   │   │   ├── api.service.ts
-│   │   │   │   ├── http-client.service.ts
-│   │   │   │   ├── loading.service.ts
-│   │   │   │   ├── toast.service.ts
-│   │   │   │   └── seo.service.ts
-│   │   │   ├── interceptors/
-│   │   │   │   ├── auth.interceptor.ts
-│   │   │   │   ├── error.interceptor.ts
-│   │   │   │   └── loading.interceptor.ts
-│   │   │   ├── guards/
-│   │   │   │   └── auth.guard.ts
-│   │   │   └── models/
-│   │   │       ├── project.model.ts
-│   │   │       ├── skill.model.ts
-│   │   │       ├── experience.model.ts
-│   │   │       └── api-response.model.ts
-│   │   │
-│   │   ├── shared/                        # Shared components & modules
-│   │   │   ├── components/
-│   │   │   │   ├── ui/                    # shadcn/ui components
-│   │   │   │   │   ├── button/
-│   │   │   │   │   ├── card/
-│   │   │   │   │   ├── dialog/
-│   │   │   │   │   ├── input/
-│   │   │   │   │   ├── toast/
-│   │   │   │   │   └── ...
-│   │   │   │   ├── header/
-│   │   │   │   ├── footer/
-│   │   │   │   ├── loader/
-│   │   │   │   └── scroll-to-top/
-│   │   │   ├── directives/
-│   │   │   │   ├── lazy-load.directive.ts
-│   │   │   │   ├── intersection-observer.directive.ts
-│   │   │   │   └── parallax.directive.ts
-│   │   │   ├── pipes/
-│   │   │   │   ├── safe-html.pipe.ts
-│   │   │   │   └── truncate.pipe.ts
-│   │   │   └── utils/
-│   │   │       ├── animations.ts
-│   │   │       └── validators.ts
-│   │   │
-│   │   ├── features/                      # Feature modules
-│   │   │   ├── home/
-│   │   │   │   ├── home.component.ts
-│   │   │   │   ├── home.component.html
-│   │   │   │   ├── home.component.scss
-│   │   │   │   └── components/
-│   │   │   │       ├── hero/
-│   │   │   │       ├── about-preview/
-│   │   │   │       └── featured-projects/
-│   │   │   │
-│   │   │   ├── projects/
-│   │   │   │   ├── projects.component.ts
-│   │   │   │   ├── project-list/
-│   │   │   │   ├── project-detail/
-│   │   │   │   ├── project-filter/
-│   │   │   │   └── services/
-│   │   │   │       └── projects.service.ts
-│   │   │   │
-│   │   │   ├── about/
-│   │   │   │   ├── about.component.ts
-│   │   │   │   └── components/
-│   │   │   │       ├── skills-section/
-│   │   │   │       ├── experience-timeline/
-│   │   │   │       └── testimonials/
-│   │   │   │
-│   │   │   ├── contact/
-│   │   │   │   ├── contact.component.ts
-│   │   │   │   ├── contact-form/
-│   │   │   │   └── services/
-│   │   │   │       └── contact.service.ts
-│   │   │   │
-│   │   │   └── blog/
-│   │   │       ├── blog-list/
-│   │   │       ├── blog-detail/
-│   │   │       └── services/
-│   │   │           └── blog.service.ts
-│   │   │
-│   │   ├── layout/
-│   │   │   ├── main-layout/
-│   │   │   └── admin-layout/
-│   │   │
-│   │   ├── app.component.ts
-│   │   ├── app.component.scss
-│   │   ├── app.config.ts
-│   │   └── app.routes.ts
-│   │
-│   ├── assets/
-│   │   ├── images/
-│   │   ├── fonts/
-│   │   └── icons/
-│   │
-│   ├── styles/
-│   │   ├── _variables.scss              # Colors, spacing, etc.
-│   │   ├── _mixins.scss                 # Reusable SCSS mixins
-│   │   ├── _typography.scss             # Font styles
-│   │   ├── _animations.scss             # Keyframes & transitions
-│   │   ├── _utilities.scss              # Helper classes
-│   │   ├── _themes.scss                 # Dark/Light themes
-│   │   └── styles.scss                  # Main stylesheet
-│   │
-│   ├── environments/
-│   │   ├── environment.ts
-│   │   └── environment.development.ts
-│   │
-│   ├── index.html
-│   └── main.ts
-│
-├── .editorconfig
-├── .eslintrc.json
-├── .prettierrc
-├── angular.json
-├── package.json
-├── tailwind.config.js                   # For shadcn/ui
-├── tsconfig.json
-└── README.md
+An authoritative snapshot of the entire **Portfolio Full-Stack** monorepo ecosystem.
 
+---
+
+## 1. High-Level Monorepo Architecture
+
+```
+Portfolio-Full/
+├── PortfolioAPI/       # ASP.NET Core 9 Clean Architecture REST API
+├── dashboard/          # Angular 20 Standalone Admin Dashboard
+├── portfolio/          # React 19 / TanStack Start Public SSR Website
+├── docs/               # Engineering documentation & architecture specifications
+└── .github/            # GitHub Actions CI workflows & issue/PR templates
+```
+
+---
+
+## 2. Directory Structure Breakdown
+
+### 2.1 Backend (`PortfolioAPI/`)
+*For in-depth backend design, see [docs/BACK_STRUCTURE.md](BACK_STRUCTURE.md).*
+
+```
 PortfolioAPI/
 ├── src/
-│   ├── PortfolioAPI/                      # Main API Project
-│   │   ├── Controllers/
-│   │   │   ├── ProjectsController.cs
-│   │   │   ├── SkillsController.cs
-│   │   │   ├── ExperienceController.cs
-│   │   │   ├── ContactController.cs
-│   │   │   ├── TestimonialsController.cs
-│   │   │   └── BlogController.cs
-│   │   ├── Program.cs
-│   │   ├── appsettings.json
-│   │   └── appsettings.Development.json
-│   │
-│   ├── PortfolioAPI.Core/                 # Domain Layer
-│   │   ├── Entities/
-│   │   │   ├── BaseEntity.cs
-│   │   │   ├── Project.cs
-│   │   │   ├── Skill.cs
-│   │   │   ├── Experience.cs
-│   │   │   ├── Contact.cs
-│   │   │   ├── Testimonial.cs
-│   │   │   └── BlogPost.cs
-│   │   ├── Interfaces/
-│   │   │   ├── IRepository.cs
-│   │   │   ├── IUnitOfWork.cs
-│   │   │   └── Services/
-│   │   │       ├── IProjectService.cs
-│   │   │       ├── ISkillService.cs
-│   │   │       └── IContactService.cs
-│   │   ├── DTOs/
-│   │   │   ├── ProjectDto.cs
-│   │   │   ├── SkillDto.cs
-│   │   │   ├── ContactDto.cs
-│   │   │   └── ResponseDto.cs
-│   │   └── Specifications/
-│   │       └── BaseSpecification.cs
-│   │
-│   ├── PortfolioAPI.Infrastructure/       # Data Access Layer
-│   │   ├── Data/
-│   │   │   ├── PortfolioDbContext.cs
-│   │   │   ├── DbInitializer.cs
-│   │   │   └── Configurations/
-│   │   │       ├── ProjectConfiguration.cs
-│   │   │       └── SkillConfiguration.cs
-│   │   ├── Repositories/
-│   │   │   ├── Repository.cs
-│   │   │   └── UnitOfWork.cs
-│   │   ├── Services/
-│   │   │   ├── EmailService.cs
-│   │   │   ├── FileStorageService.cs
-│   │   │   └── CacheService.cs
-│   │   └── Migrations/
-│   │
-│   └── PortfolioAPI.Application/          # Business Logic Layer
-│       ├── Services/
-│       │   ├── ProjectService.cs
-│       │   ├── SkillService.cs
-│       │   ├── ExperienceService.cs
-│       │   └── ContactService.cs
-│       ├── Mappings/
-│       │   └── AutoMapperProfile.cs
-│       ├── Validators/
-│       │   ├── ProjectValidator.cs
-│       │   └── ContactValidator.cs
-│       └── Exceptions/
-│           ├── NotFoundException.cs
-│           └── ValidationException.cs
-│
+│   ├── PortfolioAPI/               # Web API Host (Controllers, Middlewares, Configurations, Program.cs)
+│   ├── PortfolioAPI.Core/          # Pure Domain Entities, Contracts & Value Objects
+│   ├── PortfolioAPI.Application/   # Feature DTOs, Mappings, Services & FluentValidators
+│   └── PortfolioAPI.Infrastructure/# EF Core DbContext, Repositories, SMTP, Cloudinary, GA4 Client
 └── tests/
-    ├── PortfolioAPI.UnitTests/
-    └── PortfolioAPI.IntegrationTests/
+    ├── PortfolioAPI.UnitTests/     # 246+ Unit tests (xUnit, Moq, FluentAssertions)
+    └── PortfolioAPI.IntegrationTests/ # Integration tests (MsSql Testcontainers)
+```
 
-    Key Backend Implementation Patterns
-1. Clean Architecture with Repository Pattern
-2. CQRS for complex operations
-3. Result Pattern for error handling
-4. Specification Pattern for queries
-5. Unit of Work for transactions
-6. Dependency Injection properly configured
-7. API Versioning
-8. Rate Limiting
-9. Response Caching
-10. Global Error Handling
-11. Structured Logging with Serilog
-12. Email Service with MailKit
-13. File Upload with validation
-14. CORS properly configured
+### 2.2 Admin Dashboard (`dashboard/`)
+*Angular 20 administrative panel communicating with `PortfolioAPI` via JWT bearer tokens.*
 
-🎯 Key Frontend Features
-1. Lazy Loading for all feature modules
-2. RxJS best practices (takeUntilDestroyed)
-3. Signals for state management
-4. Standalone components (Angular 19)
-5. OnPush change detection strategy
-6. Intersection Observer for animations
-7. Progressive image loading
-8. SEO optimization with Meta service
-9. Dark/Light theme toggle
-10. Smooth scroll animations
-11. Form validation with reactive forms
-12. Error boundary implementation
-13. Loading states & skeletons
-14. Optimistic UI updates
+```
+dashboard/
+├── src/
+│   ├── app/
+│   │   ├── core/                          # Singleton services, models, interceptors & guards
+│   │   │   ├── api.config.ts              # API URL resolution & configuration
+│   │   │   ├── guards/                    # AuthGuard & login redirection
+│   │   │   ├── interceptors/              # Auth & ApiError interceptors
+│   │   │   ├── models/                    # TypeScript interfaces for API models
+│   │   │   └── services/                  # Signal-based domain services (Projects, Contacts, Logs, etc.)
+│   │   ├── features/                      # Standalone feature modules (lazy-loaded routes)
+│   │   │   ├── analytics/                 # GA4 metrics, charts & device breakdowns
+│   │   │   ├── auth/                      # JWT login screen
+│   │   │   ├── categories/                # Category management
+│   │   │   ├── contacts/                  # Inquiries inbox & reply threads
+│   │   │   ├── credentials/               # Certifications & career credentials
+│   │   │   ├── dashboard/                 # System health overview & summary metrics
+│   │   │   ├── experiences/               # Career timeline management
+│   │   │   ├── logs/                      # Production log browser, search & download
+│   │   │   ├── projects/                  # Project CRUD & image uploads
+│   │   │   ├── skills/                    # Technical skills catalog
+│   │   │   ├── testimonials/              # Client recommendations
+│   │   │   └── websites/                  # Multi-site frontend registry
+│   │   ├── shared/                        # Shared UI components (Paginator, Dialogs, Inputs)
+│   │   ├── app.component.ts               # Layout shell: sidebar, navigation, drawer
+│   │   └── app.routes.ts                  # Declarative route configuration
+│   ├── styles.css                         # Tailwind CSS semantic custom properties & theme tokens
+│   └── index.html
+├── proxy.conf.json                        # Local dev proxy forwarding /api -> :5039
+├── tailwind.config.js
+└── package.json
+```
 
-🚀 Modern Design Patterns
-Design Style Suggestions:
+### 2.3 Public Portfolio Site (`portfolio/`)
+*Public-facing platform engineered with React 19, TanStack Start, TanStack Router, and Nitro SSR.*
 
-Bento Grid Layout - Modern card-based layouts
-Glassmorphism - Frosted glass effects
-Neumorphism (subtle) - Soft shadows
-Gradient Accents - Vibrant color transitions
-Micro-interactions - Hover effects, button feedback
-Parallax Scrolling - Depth and dimension
-3D Card Tilts - Interactive project cards
-Animated Gradients - Moving background effects
-Reveal Animations - Scroll-triggered animations
-Dark Mode First - Modern dark aesthetics
+```
+portfolio/
+├── src/
+│   ├── routes/                            # File-based TanStack Router routes
+│   │   ├── index.tsx                      # Landing page (Hero, Featured Projects, Skills)
+│   │   ├── about.tsx                      # Professional bio & experience summary
+│   │   ├── projects/                      # Project catalog & detail case studies
+│   │   ├── skills.tsx                     # Skill matrices & tech stacks
+│   │   ├── experience.tsx                 # Career history timeline
+│   │   └── contact.tsx                    # Interactive inquiry submission form
+│   ├── components/                        # Radix UI & Tailwind presentation components
+│   ├── lib/                               # API client, origin resolution & SSR cache helpers
+│   └── data/                              # Types, Arabic translation maps & presentation metadata
+├── vercel.json                            # Server-side /api rewrite rules to backend
+└── package.json
+```
 
-
-📦 Ready to Implement?
-Reply with "GENERATE BACKEND" for complete backend code files, or "GENERATE FRONTEND" for complete Angular components and services. I'll create production-ready, fully commented code with best practices!
-Or specify which part you want first:
-
-Backend (API + Infrastructure)
-Frontend (Components + Services)
-SCSS Theme System
-shadcn/ui Integration
-Complete Docker setup
+### 2.4 Documentation (`docs/`)
+```
+docs/
+├── API_VERSIONING.md                      # URL segment versioning (/api/v1/) and deprecation rules
+├── BACK_STRUCTURE.md                      # Authoritative Clean Architecture backend guide
+├── BRANCH_STRATEGY.md                     # Git branching model, conventional commits & release process
+├── DASHBOARD_AUDIT.md                     # Frontend audit notes & refactoring decisions
+├── DEPLOYMENT.md                          # MonsterASP.NET & Vercel deployment guide
+├── FULL_STRUCTURE.md                      # Full monorepo structure reference (this file)
+└── STORAGE.md                             # Media storage architecture (Local disk & Cloudinary)
+```
