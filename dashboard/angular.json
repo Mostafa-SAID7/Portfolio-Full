@@ -28,6 +28,11 @@
                 "input": "public",
                 "output": "/"
               },
+              {
+                "glob": "*",
+                "input": "public/fonts",
+                "output": "/fonts/"
+              },
               "src/manifest.json"
             ],
             "styles": ["src/styles.css"],
