@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Hosting;
 using PortfolioAPI.Core.Interfaces;
 using PortfolioAPI.Infrastructure.Services;
+using Serilog;
 
 namespace PortfolioAPI.Configuration
 {
@@ -80,7 +81,7 @@ namespace PortfolioAPI.Configuration
                     // local disk storage and log a warning so the operator sees it.
                     // See: "HTTP Error 500.30 - ASP.NET Core app failed to start".
                     storageProvider = MediaProvider.Local;
-                    Console.WriteLine("WARNING: Cloudinary configuration is incomplete; falling back to local storage.");
+                    Log.Warning("Cloudinary configuration is incomplete; falling back to local storage.");
                 }
                 else
                 {

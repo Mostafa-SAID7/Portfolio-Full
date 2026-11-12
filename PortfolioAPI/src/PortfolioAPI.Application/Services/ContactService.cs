@@ -47,6 +47,7 @@ namespace PortfolioAPI.Application.Services
         public async Task<Contact> CreateContactAsync(Contact contact)
         {
             var created = await CreateValidatedAsync(contact);
+            _logger.LogInformation("Contact submission {ContactId} received from {Email} and persisted successfully.", created.Id, created.Email);
 
             // Best-effort admin notification (matches the integration tests'
             // expectation). Email problems — unconfigured SMTP, provider
@@ -113,6 +114,8 @@ namespace PortfolioAPI.Application.Services
             contact.MarkRead();
             await UnitOfWork.Contacts.UpdateAsync(contact);
             await UnitOfWork.SaveChangesAsync();
+
+            _logger.LogInformation("Reply to contact {ContactId} delivered and persisted successfully.", id);
 
             return reply;
         }
