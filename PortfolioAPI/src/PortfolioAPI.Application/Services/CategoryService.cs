@@ -2,7 +2,7 @@ using FluentValidation;
 using PortfolioAPI.Application.Exceptions;
 using PortfolioAPI.Core.Entities;
 using PortfolioAPI.Core.Interfaces;
-using PortfolioAPI.Core.Interfaces.Services;
+using PortfolioAPI.Application.Interfaces;
 using ValidationException = PortfolioAPI.Application.Exceptions.ValidationException;
 
 namespace PortfolioAPI.Application.Services
@@ -124,7 +124,7 @@ namespace PortfolioAPI.Application.Services
             }
         }
 
-        public async Task PatchCategoryAsync(int id, PortfolioAPI.Core.DTOs.UpdateCategoryPatchDto patch)
+        public async Task PatchCategoryAsync(int id, PortfolioAPI.Application.DTOs.UpdateCategoryPatchDto patch)
         {
             var existing = await GetRequiredAsync(id);
             var nameEn = patch.NameEn?.Trim() ?? existing.NameEn;

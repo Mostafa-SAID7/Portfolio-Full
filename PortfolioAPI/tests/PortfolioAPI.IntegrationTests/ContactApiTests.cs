@@ -2,7 +2,7 @@ using System.Net;
 using Bogus;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using PortfolioAPI.Core.DTOs;
+using PortfolioAPI.Application.DTOs;
 using PortfolioAPI.Core.Entities;
 using Xunit;
 

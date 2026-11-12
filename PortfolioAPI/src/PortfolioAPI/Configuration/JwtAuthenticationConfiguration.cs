@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using PortfolioAPI.Auth;
-using PortfolioAPI.Core.Interfaces.Services;
+using PortfolioAPI.Application.Interfaces;
 
 namespace PortfolioAPI.Configuration
 {
@@ -43,6 +43,15 @@ namespace PortfolioAPI.Configuration
                     // can show a real reason (pairs with issue #20).
                     options.Events = new JwtBearerEvents
                     {
+                        OnMessageReceived = context =>
+                        {
+                            var accessToken = context.Request.Query["access_token"].ToString();
+                            if (!string.IsNullOrEmpty(accessToken))
+                            {
+                                context.Token = accessToken;
+                            }
+                            return Task.CompletedTask;
+                        },
                         OnChallenge = async context =>
                         {
                             context.HandleResponse();

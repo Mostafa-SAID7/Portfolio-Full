@@ -8,10 +8,10 @@ using Moq;
 using PortfolioAPI.Application.Exceptions;
 using PortfolioAPI.Controllers;
 using PortfolioAPI.Core.Common;
-using PortfolioAPI.Core.DTOs;
+using PortfolioAPI.Application.DTOs;
 using PortfolioAPI.Core.Entities;
 using PortfolioAPI.Core.Interfaces;
-using PortfolioAPI.Core.Interfaces.Services;
+using PortfolioAPI.Application.Interfaces;
 using PortfolioAPI.Infrastructure.Services;
 using Xunit;
 

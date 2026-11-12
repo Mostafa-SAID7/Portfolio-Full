@@ -1,4 +1,4 @@
-/** Mirrors PortfolioAPI.Core.DTOs.ExperienceDto (api/Experience, api/public/experience). */
+/** Mirrors PortfolioAPI.Application.DTOs.ExperienceDto (api/Experience, api/public/experience). */
 export interface Experience {
   id: number;
   companyEn: string;

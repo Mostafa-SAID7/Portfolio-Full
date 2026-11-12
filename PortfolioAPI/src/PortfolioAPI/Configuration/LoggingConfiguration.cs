@@ -58,13 +58,6 @@ namespace PortfolioAPI.Configuration
             ArgumentNullException.ThrowIfNull(configuration);
             ArgumentNullException.ThrowIfNull(environment);
 
-            // Read base overrides and settings from IConfiguration (Serilog: section if present)
-            loggerConfig
-                .ReadFrom.Configuration(configuration)
-                .Enrich.FromLogContext()
-                .Enrich.WithProperty("Application", "PortfolioAPI")
-                .Enrich.WithProperty("Environment", environment.EnvironmentName);
-
             // Establish safe default log levels per category to prevent log flooding
             var defaultLevel = environment.IsDevelopment() ? LogEventLevel.Debug : LogEventLevel.Information;
             loggerConfig
@@ -73,8 +66,15 @@ namespace PortfolioAPI.Configuration
                 .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
                 .MinimumLevel.Override("Microsoft.AspNetCore.Hosting.Diagnostics", LogEventLevel.Information)
                 .MinimumLevel.Override("Microsoft.AspNetCore.Routing", LogEventLevel.Warning)
-                .MinimumLevel.Override("Microsoft.EntityFrameworkCore.Database.Command", LogEventLevel.Warning)
+                .MinimumLevel.Override("Microsoft.EntityFrameworkCore.Database.Command", LogEventLevel.Information)
                 .MinimumLevel.Override("System.Net.Http.HttpClient", LogEventLevel.Warning);
+
+            // Read base overrides and settings from IConfiguration (Serilog: section if present)
+            loggerConfig
+                .ReadFrom.Configuration(configuration)
+                .Enrich.FromLogContext()
+                .Enrich.WithProperty("Application", "PortfolioAPI")
+                .Enrich.WithProperty("Environment", environment.EnvironmentName);
 
             // Console sink configuration
             var useJsonConsole = configuration.GetValue("Logging:Console:Json", false) ||
@@ -89,14 +89,18 @@ namespace PortfolioAPI.Configuration
                 loggerConfig.WriteTo.Console(outputTemplate: OutputTemplate);
             }
 
-            // Rolling file sink configuration (opt-in or production diagnostics)
-            var fileLoggingEnabled = configuration.GetValue("Logging:File:Enabled", false);
+            // Rolling file sink configuration (defaults to true so App_Data/logs is created and populated)
+            var fileLoggingEnabled = configuration.GetValue("Logging:File:Enabled", true);
             if (fileLoggingEnabled)
             {
                 var configuredPath = configuration["Logging:File:Path"];
+                var baseDirectory = string.IsNullOrWhiteSpace(environment.ContentRootPath)
+                    ? AppContext.BaseDirectory
+                    : environment.ContentRootPath;
+
                 var logDirectory = string.IsNullOrWhiteSpace(configuredPath)
-                    ? Path.Combine(environment.ContentRootPath, "App_Data", "logs")
-                    : (Path.IsPathRooted(configuredPath) ? configuredPath : Path.Combine(environment.ContentRootPath, configuredPath));
+                    ? Path.Combine(baseDirectory, "App_Data", "logs")
+                    : (Path.IsPathRooted(configuredPath) ? configuredPath : Path.Combine(baseDirectory, configuredPath));
 
                 Directory.CreateDirectory(logDirectory);
                 var logFilePath = Path.Combine(logDirectory, "portfolio-.log");
@@ -112,4 +116,3 @@ namespace PortfolioAPI.Configuration
         }
     }
 }
-

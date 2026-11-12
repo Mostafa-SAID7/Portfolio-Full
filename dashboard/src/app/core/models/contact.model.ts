@@ -1,4 +1,4 @@
-/** Mirrors PortfolioAPI.Core.DTOs.ContactDto (api/Contact inbox). */
+/** Mirrors PortfolioAPI.Application.DTOs.ContactDto (api/Contact inbox). */
 export interface ContactMessage {
   id: number;
   name: string;
@@ -13,7 +13,7 @@ export interface ContactMessage {
   updatedAt: string | null;
 }
 
-/** Mirrors PortfolioAPI.Core.DTOs.ContactReplyDto (api/Contact/{id}/replies). */
+/** Mirrors PortfolioAPI.Application.DTOs.ContactReplyDto (api/Contact/{id}/replies). */
 export interface ContactReply {
   id: number;
   contactId: number;

@@ -1,5 +1,6 @@
 using FluentAssertions;
-using PortfolioAPI.Core.DTOs;
+using PortfolioAPI.Application.DTOs;
+using PortfolioAPI.Application.Mappings;
 using PortfolioAPI.Core.Entities;
 using System;
 using System.Collections.Generic;

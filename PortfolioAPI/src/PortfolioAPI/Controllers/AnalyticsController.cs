@@ -1,9 +1,9 @@
 using System.Globalization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using PortfolioAPI.Core.DTOs;
+using PortfolioAPI.Application.DTOs;
 using PortfolioAPI.Core.Exceptions;
-using PortfolioAPI.Core.Interfaces.Services;
+using PortfolioAPI.Application.Interfaces;
 
 namespace PortfolioAPI.Controllers
 {

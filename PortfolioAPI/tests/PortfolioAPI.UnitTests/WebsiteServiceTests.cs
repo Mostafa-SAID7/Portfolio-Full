@@ -5,10 +5,10 @@ using Moq;
 using ValidationException = PortfolioAPI.Application.Exceptions.ValidationException;
 using PortfolioAPI.Application.Services;
 using PortfolioAPI.Core.Common;
-using PortfolioAPI.Core.DTOs;
+using PortfolioAPI.Application.DTOs;
 using PortfolioAPI.Core.Entities;
 using PortfolioAPI.Core.Interfaces;
-using PortfolioAPI.Core.Interfaces.Services;
+using PortfolioAPI.Application.Interfaces;
 using Xunit;
 
 namespace PortfolioAPI.UnitTests
