@@ -1,171 +1,158 @@
 # Branch Strategy & Workflow Guide
 
-## Branch Structure
+An engineering guide to Git workflows, branch lifecycle, conventions, and release management for the Portfolio Full-Stack ecosystem.
+
+---
+
+## 1. Branch Taxonomy
 
 ### Permanent Branches
 
-| Branch | Purpose | Protected |
-|--------|---------|-----------|
-| `main` | Production-ready code, deployed to MonsterASP/Vercel | ✅ Yes |
-| `develop` | Integration branch for features, staging environment | ✅ Yes |
+| Branch | Environment | Purpose | Protection |
+| :--- | :--- | :--- | :--- |
+| `main` | Production (`runasp.net` & Vercel) | Production-ready, validated code. Every merge triggers CI and production deployment readiness. | Protected (PR review, CI checks pass, no direct pushes) |
+| `develop` | Staging / Pre-release | Active integration branch for completed feature branches. | Protected (PR review, CI checks pass) |
 
-### Temporary Branches (short-lived)
+### Ephemeral Branches (Short-Lived)
 
-| Prefix | Purpose | Example | Base Branch |
-| -------- | --------- | --------- | ------------- |
-| `feat/` | New features | `feat/bilingual-skills` | `develop` |
-| `fix/` | Bug fixes | `fix/500-startup-crash` | `develop` |
-| `bug/` | Critical bug fixes | `bug/arabic-encoding` | `develop` |
-| `release/` | Release preparation | `release/v1.2.0` | `develop` |
-| `hotfix/` | Production hotfixes | `hotfix/startup-timeout` | `main` |
-| `chore/` | Maintenance tasks | `chore/update-dependencies` | `develop` |
-| `docs/` | Documentation updates | `docs/api-endpoints` | `develop` |
+Ephemeral branches should branch off `develop` (or `main` for hotfixes), stay small, and merge back promptly via Pull Requests.
 
-## Workflow
+| Prefix | Base Branch | Target Branch | Purpose | Example |
+| :--- | :--- | :--- | :--- | :--- |
+| `feat/` | `develop` | `develop` | New features & enhancements | `feat/logs-viewer-ui`, `feat/hangfire-jobs` |
+| `fix/` | `develop` | `develop` | Bug fixes & stability improvements | `fix/db-connection-resilience` |
+| `refactor/` | `develop` | `develop` | Code restructuring without behavior changes | `refactor/split-dtos-and-mappings` |
+| `perf/` | `develop` | `develop` | Performance optimizations | `perf/output-cache-tuning` |
+| `docs/` | `develop` | `develop` | Documentation additions or updates | `docs/modernize-architecture-guides` |
+| `release/` | `develop` | `main` & `develop` | Version bump, release changelog, final staging tests | `release/v2.1.0` |
+| `hotfix/` | `main` | `main` & `develop` | Critical production issues requiring immediate patch | `hotfix/smtp-auth-timeout` |
 
-### 1. Feature Development
+---
+
+## 2. Core Workflows
+
+### Feature & Refactor Workflow
 
 ```bash
+# 1. Start from up-to-date develop
 git checkout develop
 git pull origin develop
 git checkout -b feat/your-feature-name
-# ... make changes ...
-git commit -m "feat(scope): description"
+
+# 2. Develop & test locally
+dotnet test PortfolioAPI/tests/PortfolioAPI.UnitTests
+cmd /c "npm run build" # In dashboard/
+
+# 3. Commit using Conventional Commits
+git commit -m "feat(api): implement background jobs with Hangfire"
+
+# 4. Push and open PR
 git push -u origin feat/your-feature-name
-# Create PR to develop
+# Open Pull Request targeting `develop`
 ```
 
-### 2. Bug Fixes
+### Hotfix Workflow (Emergency Production Patch)
 
 ```bash
-git checkout develop
-git pull origin develop
-git checkout -b fix/bug-description
-# ... make changes ...
-git commit -m "fix(scope): description"
-git push -u origin fix/bug-description
-# Create PR to develop
-```
-
-### 3. Release Preparation
-
-```bash
-git checkout develop
-git pull origin develop
-git checkout -b release/v1.x.x
-# ... version bump, changelog, final testing ...
-git commit -m "chore(release): prepare v1.x.x"
-git push -u origin release/v1.x.x
-# Create PR to main
-# After merge, tag the release
-git tag -a v1.x.x -m "Release v1.x.x"
-git push origin v1.x.x
-```
-
-### 4. Hotfixes (Production)
-
-```bash
+# 1. Branch from current production release
 git checkout main
 git pull origin main
-git checkout -b hotfix/critical-issue
-# ... make fix ...
-git commit -m "fix(scope): critical fix description"
-git push -u origin hotfix/critical-issue
-# Create PR to main AND develop
-# After merge, tag the release
+git checkout -b hotfix/critical-fix-name
+
+# 2. Implement fix, write regression test, verify
+dotnet test PortfolioAPI/tests/PortfolioAPI.UnitTests
+
+# 3. Commit and push
+git commit -m "fix(auth): fix token validation header extraction"
+git push -u origin hotfix/critical-fix-name
+
+# 4. PR into main (fast-track)
+# 5. After merge to main, back-merge or cherry-pick into develop:
+git checkout develop
+git pull origin develop
+git merge main
+git push origin develop
 ```
 
-## Commit Message Convention
+### Release Workflow
 
-Follow [Conventional Commits](https://www.conventionalcommits.org/):
+```bash
+# 1. Cut release branch from develop
+git checkout develop
+git pull origin develop
+git checkout -b release/v2.1.0
 
-```
-<type>(<scope>): <description>
+# 2. Bump versions and finalize release notes
+git commit -m "chore(release): prepare v2.1.0"
+git push -u origin release/v2.1.0
 
-[optional body]
+# 3. PR into main -> Merge when CI passes
+# 4. Tag the commit on main
+git checkout main
+git pull origin main
+git tag -a v2.1.0 -m "Release v2.1.0"
+git push origin v2.1.0
 
-[optional footer]
-```
-
-### Types
-
-- `feat` — New feature
-- `fix` — Bug fix
-- `docs` — Documentation
-- `style` — Formatting (no code change)
-- `refactor` — Code refactoring
-- `test` — Adding/updating tests
-- `chore` — Maintenance tasks
-- `perf` — Performance improvements
-- `ci` — CI/CD changes
-
-### Scopes
-
-- `api` — Backend API
-- `dashboard` — Angular dashboard
-- `portfolio` — React portfolio
-- `db` — Database/migrations
-- `auth` — Authentication
-- `ui` — UI components
-
-### Examples
-
-```
-feat(api): add bilingual skill fields
-fix(db): resolve EF Core version mismatch
-chore(release): prepare v1.2.0
-docs(api): update endpoint documentation
-test(skills): add unit tests for skill service
+# 5. Sync back to develop
+git checkout develop
+git pull origin develop
+git merge main
+git push origin develop
 ```
 
-## Branch Protection Rules
+---
 
-### main
+## 3. Commit Message Standards
 
-- Require PR reviews (1+)
-- Require status checks to pass
-- No direct pushes
-- Require up-to-date branches
+This repository follows [Conventional Commits v1.0.0](https://www.conventionalcommits.org/).
 
-### develop
+### Format
 
-- Require PR reviews (1+)
-- Require status checks to pass
-- No direct pushes
+```text
+<type>(<scope>): <summary>
 
-## Release Process
+[optional detailed body explaining *why*, not just *what*]
 
-1. Create `release/vX.Y.Z` from `develop`
-2. Update version numbers in project files
-3. Update CHANGELOG.md
-4. Run full test suite
-5. Create PR to `main`
-6. After merge, tag release: `git tag -a vX.Y.Z -m "Release vX.Y.Z"`
-7. Deploy to MonsterASP/Vercel
-8. Merge `release/vX.Y.Z` back to `develop`
+[optional footer(s): Resolves #123, Breaking Changes]
+```
 
-## Hotfix Process
+### Standard Types
 
-1. Create `hotfix/issue-description` from `main`
-2. Fix the issue
-3. Create PR to `main` (fast-track review)
-4. After merge, tag: `git tag -a vX.Y.Z -m "Hotfix vX.Y.Z"`
-5. Deploy immediately
-6. Merge `hotfix/` branch to `develop`
+- `feat`: A new user-facing feature or API capability.
+- `fix`: A bug fix or patch.
+- `refactor`: Structural code reorganization without functional changes.
+- `perf`: Performance optimization (memory, database, queries, bundles).
+- `test`: Adding or correcting tests.
+- `docs`: Documentation changes only.
+- `chore`: Build tooling, dependencies, repo hygiene.
+- `ci`: GitHub Actions workflow configuration.
 
-## Current Branch Status
+### Common Scopes
 
-| Branch | Status | Last Commit |
-| -------- | -------- | ------------- |
-| `main` | Production | 07450cf (all fixes) |
-| `develop` | Integration | 07450cf (all fixes) |
-| `origin/cleanup/api-only-static-data` | Stale | — |
-| `origin/v0/fix-tanstack-security-update` | Stale | — |
+`api`, `application`, `core`, `infrastructure`, `dashboard`, `portfolio`, `db`, `auth`, `storage`, `email`, `analytics`, `logs`
 
-## Cleanup Recommendations
+### Concrete Examples
 
-The following remote branches are stale and can be deleted:
+```text
+feat(logs): add interactive production log browser and download endpoint
+refactor(application): split monolithic entity mappings into partial classes
+fix(email): handle STARTTLS timeout gracefully with circuit breaker
+docs(readme): modernize architecture diagram and quickstart guide
+test(contacts): add test coverage for reply delivery and background jobs
+```
 
-- `origin/cleanup/api-only-static-data`
-- `origin/v0/fix-tanstack-security-update`
-EOF
+---
+
+## 4. Quality Gates & PR Verification
+
+Every pull request must pass the automated CI pipeline before merge approval:
+
+1. **Backend CI**:
+   - `dotnet build Portfolio.sln -c Release` (0 errors)
+   - `dotnet test PortfolioAPI/tests/PortfolioAPI.UnitTests/` (all unit tests green)
+2. **Dashboard CI**:
+   - `npm ci`
+   - `npm run build` (production Angular compilation without bundle budget breach)
+3. **Portfolio CI**:
+   - `npm ci`
+   - `npm run build` (Vercel nitro / TanStack Start SSR output generation)

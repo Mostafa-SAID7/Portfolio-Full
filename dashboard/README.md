@@ -1,55 +1,68 @@
 # Portfolio Admin — Dashboard
 
-Angular admin dashboard for the **Portfolio API** (`PortfolioAPI/`). Every screen
-reads and writes real backend data — no mocks, no local fixtures — behind the
-API's JWT-protected admin endpoints.
+A modern administrative control center built with **Angular 20**, **TypeScript**, and **Tailwind CSS**. Designed with Angular Signals and standalone components, it provides direct management across all Portfolio API resources with zero mock data.
 
-## Screens
+---
 
-| Route        | What it does                                                                  |
-| ------------ | ----------------------------------------------------------------------------- |
-| `/dashboard` | Overview: live stats (projects, skills, unread messages), portfolio-health checklist, latest messages & projects |
-| `/projects`  | Full CRUD for `api/v1/Projects` (list, search, create, edit, delete, featured flag) |
-| `/messages`  | Inbox for `api/v1/Contact`: read/unread filter, mark-as-read, delete              |
-| `/content`   | `api/v1/Skills` (add, show/hide, delete), `api/v1/Experience` (list, delete) |
-| `/auth/login`| JWT sign-in against the API (see below)                                     |
+## 1. Feature Screens & Routes
 
-## Running it
+| Route | Feature | Description |
+| :--- | :--- | :--- |
+| `/dashboard` | **Overview** | System health checklist, quick counts (projects, skills, unread messages), and recent inquiry feeds. |
+| `/projects` | **Projects** | Project CRUD: bilingual titles/descriptions, cover image upload, tags, category filters, and website assignments. |
+| `/skills` | **Skills** | Technical skills management: proficiency sliders (0–100%), icon selection, category groupings, and bilingual descriptions. |
+| `/experiences` | **Experiences** | Career history timeline: role, company, date range, current role flag, and technology tags. |
+| `/credentials` | **Credentials** | Academic degrees, professional certifications, and awards ordered chronologically. |
+| `/testimonials` | **Testimonials** | Client endorsements, author titles, avatars, and recommendation quotes. |
+| `/categories` | **Categories** | Project category taxonomies used for public portfolio filter chips. |
+| `/websites` | **Websites** | Multi-website registry enabling a single backend to drive multiple distinct client frontends. |
+| `/contacts` | **Inbox** | Visitor inquiry management: unread filtering, thread detail, mark-as-read, and in-app visitor reply dispatch. |
+| `/analytics` | **Analytics** | Google Analytics 4 dashboard: active users, session graphs, geographical traffic, and device breakdowns. |
+| `/logs` | **Logs Viewer** | Production log telemetry browser: level filtering (VERBOSE to FATAL), live query search, file stats, and raw log download. |
+| `/auth/login` | **Authentication** | Secure JWT sign-in interface communicating with `POST /api/v1/auth/login`. |
 
+---
+
+## 2. Local Development
+
+### Prerequisites
+- Node.js `20.x` or `22.x`
+- Running backend API instance at `http://localhost:5039`
+
+### Setup and Start
 ```bash
-# 1. Start the API (listens on http://localhost:5039)
-cd ../PortfolioAPI/src/PortfolioAPI
-dotnet run
+# 1. Install dependencies
+npm ci
 
-# 2. Start the dashboard (proxy.conf.json forwards /api -> :5039)
-cd ../../dashboard
-npm install
-npm start        # http://localhost:4200
+# 2. Launch development server
+npm run dev # or npm start
 ```
 
-The dev server proxies `/api` to the API (see `proxy.conf.json`), so no CORS setup is
-needed. In production, serve the API behind the same domain (or set an absolute
-`API_URL` in `src/app/core/api.config.ts`).
+The application will serve on `http://localhost:4200`.
 
-## Architecture notes
+> [!NOTE]
+> `proxy.conf.json` forwards `/api` requests directly to `http://localhost:5039`, avoiding CORS complications during local development.
 
-- **State** — one signal-based service per API resource (`ProjectService`, `SkillService`,
-  `ExperienceService`, `ContactService`) with loading/error signals and
-  optimistic local updates after mutations. Updates use **PUT** with the full entity,
-  matching the backend controllers.
-- **Design system** — semantic tokens in `tailwind.config.js` backed by CSS variables in
-  `src/styles.css` (dark theme by default, working light theme via `html.light`). All text
-  pairings are WCAG-AA checked; small body text is at least 4.5:1.
-- **Layout** — `AppComponent` renders a fixed, full-height sidebar (independent scroll,
-  pinned footer) on desktop and an off-canvas drawer with scrim on mobile (hamburger,
-  Escape and route changes close it). The header is sticky.
-- **Auth** — JWT sign-in against the API: `POST /api/v1/auth/login` with the
-  `Auth:Username` / `Auth:Password` configured on the server (empty config = 503),
-  then `core/services/auth.service.ts` stores the token and attaches it to every
-  admin request; admin mutations on the API are `[Authorize]`.
+---
 
-## Tests
+## 3. Frontend Architecture Highlights
+
+- **Reactive State with Signals**: Each feature domain is governed by a dedicated signal-driven service (`ProjectsService`, `SkillsService`, `ContactsService`, `LogsService`, etc.) providing immutable signals for loading states, errors, and entity collections.
+- **Standalone Components & Lazy Routing**: 100% standalone components configured with route-level lazy loading (`loadComponent`) in `src/app/app.routes.ts` for minimal initial bundle overhead.
+- **OnPush Change Detection**: Ensures high UI performance by evaluating templates only when signals change or inputs receive new references.
+- **Tailwind Design System**: Semantic color tokens configured in `tailwind.config.js` backed by CSS custom properties in `src/styles.css`, supporting both dark mode and light mode themes.
+- **Authentication & Interceptors**:
+  - `auth.interceptor.ts`: Attaches the JWT Bearer token to outgoing admin mutation requests.
+  - `api-error.interceptor.ts`: Intercepts 401/403/500 responses and standardizes user feedback via toast notifications.
+
+---
+
+## 4. Verification & Testing
 
 ```bash
+# Production bundle build
+cmd /c "npm run build"
+
+# Run Angular unit tests
 npm test
 ```
