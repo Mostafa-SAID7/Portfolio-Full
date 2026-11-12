@@ -1,4 +1,4 @@
-import { afterRenderEffect, Component, ElementRef, HostListener, computed, inject, isDevMode, signal, PLATFORM_ID, DestroyRef, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, afterRenderEffect, Component, ElementRef, HostListener, computed, inject, isDevMode, signal, PLATFORM_ID, DestroyRef, viewChild } from '@angular/core';
 import { CommonModule, DOCUMENT, isPlatformBrowser } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { NavigationEnd, NavigationStart, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
@@ -22,6 +22,7 @@ interface NavItem {
 @Component({
   selector: 'app-root',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive, ConfirmDialogComponent, ToastComponent],
   templateUrl: './app.html'
 })

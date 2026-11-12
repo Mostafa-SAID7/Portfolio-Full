@@ -1,4 +1,4 @@
-import { Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { finalize } from 'rxjs';
@@ -17,6 +17,7 @@ const PAGE_SIZE = 8;
 @Component({
   selector: 'app-messages',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, PaginatorComponent, EmptyStateComponent, ErrorStateComponent],
   templateUrl: './messages.component.html'
 })

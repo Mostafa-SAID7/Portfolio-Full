@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, OnDestroy, inject, signal, computed } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, OnDestroy, inject, signal, computed } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LogsService } from '../../core/services/logs.service';
 import { LogFileInfo, LogInfoResponse, ParsedLogEntry } from '../../core/models/logs.model';
@@ -9,6 +9,7 @@ import { PaginatorComponent } from '../../shared/paginator.component';
 @Component({
   selector: 'app-logs',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, FormsModule, SelectFieldComponent, PaginatorComponent],
   templateUrl: './logs.component.html'
 })

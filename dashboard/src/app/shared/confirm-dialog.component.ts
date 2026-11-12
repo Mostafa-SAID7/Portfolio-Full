@@ -1,4 +1,4 @@
-import { afterRenderEffect, Component, DestroyRef, ElementRef, Injectable, inject, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, afterRenderEffect, Component, DestroyRef, ElementRef, Injectable, inject, signal, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 export interface ConfirmDialogOptions {
@@ -46,6 +46,7 @@ export class ConfirmDialogService {
 @Component({
   selector: 'app-confirm-dialog',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule],
   templateUrl: './confirm-dialog.component.html'
 })

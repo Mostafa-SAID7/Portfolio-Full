@@ -1,4 +1,4 @@
-import { Component, Injectable, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Injectable, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 type ToastKind = 'info' | 'error';
@@ -34,6 +34,7 @@ export class ToastService {
 @Component({
   selector: 'app-toast',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule],
   templateUrl: "./toast.component.html"
 })
