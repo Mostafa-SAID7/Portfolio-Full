@@ -1,5 +1,6 @@
 using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
+using PortfolioAPI.Core.Common;
 using PortfolioAPI.Core.Entities;
 using PortfolioAPI.Core.Interfaces;
 using PortfolioAPI.Infrastructure.Data;
@@ -117,6 +118,37 @@ namespace PortfolioAPI.Infrastructure.Repositories
         public async Task<T?> GetFirstOrDefaultAsync(Expression<Func<T, bool>> predicate)
         {
             return await _dbSet.FirstOrDefaultAsync(predicate);
+        }
+
+        public virtual async Task<PagedResult<T>> GetPagedAsync<TKey>(
+            Expression<Func<T, bool>>? predicate,
+            Expression<Func<T, TKey>> orderBy,
+            bool descending,
+            int page,
+            int pageSize)
+        {
+            var query = _dbSet.AsNoTracking();
+            if (predicate != null)
+            {
+                query = query.Where(predicate);
+            }
+
+            // Count the FILTERED set so the page math holds when a predicate is
+            // active; without a predicate it is the full unfiltered count.
+            var totalCount = await query.CountAsync();
+
+            var ordered = descending
+                ? Queryable.OrderByDescending(query, orderBy)
+                : Queryable.OrderBy(query, orderBy);
+
+            // page/pageSize are clamped by the controller; Skip/Take alone keep
+            // the SQL server-side — no full-table materialization (issue #132).
+            var items = await ordered
+                .Skip((Math.Max(1, page) - 1) * Math.Max(1, pageSize))
+                .Take(Math.Max(1, pageSize))
+                .ToListAsync();
+
+            return new PagedResult<T>(items, totalCount, page, pageSize);
         }
 
         public async Task<bool> AnyAsync(Expression<Func<T, bool>> predicate)

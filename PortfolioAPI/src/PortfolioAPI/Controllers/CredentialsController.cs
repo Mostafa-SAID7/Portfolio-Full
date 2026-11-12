@@ -8,7 +8,6 @@ namespace PortfolioAPI.Controllers
 {
     [ApiController]
     [Route("api/v1/[controller]")]
-    [Route("api/[controller]")]
     public class CredentialsController : ControllerBase
     {
         private readonly ICredentialService _credentialService;

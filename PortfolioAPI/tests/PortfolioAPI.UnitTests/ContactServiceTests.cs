@@ -2,6 +2,7 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Moq;
 using PortfolioAPI.Application.Exceptions;
+using PortfolioAPI.Core.Common;
 using PortfolioAPI.Core.Entities;
 using PortfolioAPI.Core.Interfaces;
 using PortfolioAPI.Application.Services;
@@ -61,6 +62,70 @@ namespace PortfolioAPI.UnitTests
             // Assert
             result.Should().BeEquivalentTo(contacts);
             _unitOfWorkMock.Verify(u => u.Contacts.GetAllAsync(), Times.Once);
+        }
+
+        [Fact]
+        public async Task GetPagedContactsAsync_ShouldDelegateToRepositoryPagedQuery()
+        {
+            // Arrange — newest-first page comes straight from the repository.
+            var contacts = new List<Contact>
+            {
+                new Contact { Id = 2, Name = "Jane Smith", CreatedAt = DateTime.UtcNow },
+                new Contact { Id = 1, Name = "John Doe", CreatedAt = DateTime.UtcNow.AddDays(-1) }
+            };
+            var paged = new PagedResult<Contact>(contacts, 2, 1, 25);
+            _unitOfWorkMock
+                .Setup(u => u.Contacts.GetPagedAsync(
+                    null,
+                    It.IsAny<Expression<Func<Contact, DateTime>>>(),
+                    true,
+                    1,
+                    25))
+                .ReturnsAsync(paged);
+
+            // Act
+            var result = await _contactService.GetPagedContactsAsync(1, 25);
+
+            // Assert
+            result.Should().BeSameAs(paged);
+            _unitOfWorkMock.Verify(
+                u => u.Contacts.GetPagedAsync(null, It.IsAny<Expression<Func<Contact, DateTime>>>(), true, 1, 25),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task GetPagedContactsAsync_WithUnreadFilter_ShouldPassPredicateToRepository()
+        {
+            // Arrange
+            var paged = new PagedResult<Contact>(new List<Contact>(), 0, 1, 25);
+            var capturedPredicates = new List<Expression<Func<Contact, bool>>>();
+            _unitOfWorkMock
+                .Setup(u => u.Contacts.GetPagedAsync(
+                    Capture.In(capturedPredicates),
+                    It.IsAny<Expression<Func<Contact, DateTime>>>(),
+                    true,
+                    1,
+                    25))
+                .ReturnsAsync(paged);
+
+            // Act
+            var result = await _contactService.GetPagedContactsAsync(1, 25, unread: true);
+
+            // Assert — the filter must reach the repository as a real
+            // predicate (evaluated here: unread rows match, read rows don't).
+            result.Should().BeSameAs(paged);
+            capturedPredicates.Should().ContainSingle();
+            var predicate = capturedPredicates.Single().Compile();
+            predicate(new Contact { IsRead = false }).Should().BeTrue();
+            predicate(new Contact { IsRead = true }).Should().BeFalse();
+            _unitOfWorkMock.Verify(
+                u => u.Contacts.GetPagedAsync(
+                    It.IsAny<Expression<Func<Contact, bool>>>(),
+                    It.IsAny<Expression<Func<Contact, DateTime>>>(),
+                    true,
+                    1,
+                    25),
+                Times.Once);
         }
 
         [Fact]

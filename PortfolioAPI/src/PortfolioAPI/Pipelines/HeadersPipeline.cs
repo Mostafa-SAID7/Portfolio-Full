@@ -50,12 +50,13 @@ namespace PortfolioAPI.Pipelines
         }
 
         /// <summary>
-        /// API versioning headers (issue #24): JSON endpoints answer under
-        /// /api/v1/... (canonical) and on the legacy unversioned paths as
-        /// deprecated aliases: responses advertise the version, and the aliases
-        /// carry Deprecation/Link headers. Static file serving (/api/files/...)
-        /// is intentionally exempt — those URLs are immutable content stored in
-        /// the database, not a versioned contract.
+        /// API versioning headers (issue #24): JSON endpoints answer only under
+        /// /api/v1/... — responses advertise the version. The unversioned
+        /// aliases were removed (issue #128), so the Deprecation branch now
+        /// only ever fires for unknown /api/* paths (harmless on a 404).
+        /// Static file serving (/api/files/...) is intentionally exempt — those
+        /// URLs are immutable content stored in the database, not a versioned
+        /// contract.
         /// </summary>
         public static IApplicationBuilder UseApiVersionHeaders(this IApplicationBuilder app)
         {

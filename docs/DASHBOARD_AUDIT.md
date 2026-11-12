@@ -30,7 +30,7 @@ Audit baseline: 2026-10-21, current local dashboard, after the startup repairs i
 
 ## API contract inventory
 
-All JSON routes use `/api/v1`; legacy aliases remain supported. Writes send request DTOs, not entities. Timestamps, route identifiers and project slugs are server-owned. ASP.NET serializes camelCase. PUTs are full replacement, generally returning 204.
+All JSON routes use `/api/v1` (the legacy aliases were removed — issue #128). Writes send request DTOs, not entities. Timestamps, route identifiers and project slugs are server-owned. ASP.NET serializes camelCase. PUTs are full replacement, generally returning 204.
 
 | Resource | Request/response relationship | Endpoints | Persistence/validation notes |
 | --- | --- | --- | --- |

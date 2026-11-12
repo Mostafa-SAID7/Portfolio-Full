@@ -8,7 +8,6 @@ namespace PortfolioAPI.Controllers
 {
     [ApiController]
     [Route("api/v1/[controller]")]
-    [Route("api/[controller]")]
     public class TestimonialsController : ControllerBase
     {
         private readonly ITestimonialService _testimonialService;

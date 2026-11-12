@@ -206,7 +206,7 @@ namespace PortfolioAPI.IntegrationTests
             var contact = _contactFaker.Generate();
 
             // Act - Create contact through API (which should send email)
-            var response = await PostAsync("api/contact", contact);
+            var response = await PostAsync("api/v1/contact", contact);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.Created);

@@ -26,13 +26,12 @@ namespace PortfolioAPI.Configuration
                     Version = "v1",
                     Description = "Centralized backend for the Portfolio admin dashboard and the public portfolio site. "
                                   + "All JSON endpoints are versioned under /api/v1/*; the public, read-only surface used "
-                                  + "by the portfolio frontend lives under /api/v1/public/* (legacy unversioned paths stay "
-                                  + "available as deprecated aliases — see docs/API_VERSIONING.md)."
+                                  + "by the portfolio frontend lives under /api/v1/public/* (the legacy unversioned "
+                                  + "aliases have been removed — see docs/API_VERSIONING.md)."
                 });
 
-                // Issue #24: document only the canonical /api/v1/... routes. The legacy
-                // unversioned aliases keep working during the transition but stay out of
-                // the spec so consumers only ever copy the versioned paths.
+                // Issue #128: only /api/v1/... routes exist. The former unversioned
+                // aliases were removed, so the spec only ever shows versioned paths.
                 options.DocInclusionPredicate((_, apiDescription) =>
                     apiDescription.RelativePath?.Contains("v1/", StringComparison.Ordinal) == true);
 

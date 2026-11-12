@@ -24,6 +24,17 @@
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
   </ItemGroup>
 
+  <!-- Six Labors Split License (applies from ImageSharp 3.2.0): Release
+       builds hard-fail without a license key. This mapping lets CI/CD and
+       local shells pass the key as an environment variable instead of a
+       file, so bumping to >= 3.2.0 (issue #127) becomes a one-secret change:
+       set SIXLABORS_LICENSE_KEY (GitHub Actions secret / MonsterASP env).
+       Obtain the free community license at https://sixlabors.com/pricing/.
+       Deliberately inert until SIXLABORS_LICENSE_KEY is defined. -->
+  <PropertyGroup>
+    <SixLaborsLicenseKey Condition="'$(SixLaborsLicenseKey)' == '' and '$(SIXLABORS_LICENSE_KEY)' != ''">$(SIXLABORS_LICENSE_KEY)</SixLaborsLicenseKey>
+  </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\PortfolioAPI.Core\PortfolioAPI.Core.csproj" />
     <ProjectReference Include="..\PortfolioAPI.Application\PortfolioAPI.Application.csproj" />

@@ -8,7 +8,6 @@ using PortfolioAPI.Infrastructure.Services;
 namespace PortfolioAPI.Controllers
 {
     [Route("api/v1/[controller]")]
-    [Route("api/[controller]")]
     public class ProjectsController : ApiControllerBase
     {
         private readonly IProjectService _projectService;

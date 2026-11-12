@@ -8,7 +8,6 @@ using PortfolioAPI.Application.Interfaces;
 namespace PortfolioAPI.Controllers
 {
     [Route("api/v1/[controller]")]
-    [Route("api/[controller]")]
     public class WebsitesController : ApiControllerBase
     {
         private readonly IWebsiteService _websiteService;

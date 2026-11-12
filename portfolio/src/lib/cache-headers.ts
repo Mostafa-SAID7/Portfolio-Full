@@ -41,7 +41,8 @@ const HASHED_PREFIXES = ["/assets/", "/_build/", "/_serverFn/assets/"];
 /**
  * `/api/` here is a *static image* folder in `public/`, not a server route
  * namespace; real endpoints live under the versioned `/api/v1/public/*`
- * (with legacy `/api/public/*` aliases) and are excluded below.
+ * (the legacy unversioned aliases were removed — issue #128) and are
+ * excluded from the media cache rules below.
  */
 const MEDIA_PREFIXES = ["/lottie/", "/wasm/", "/images/", "/projects/", "/api/", "/fonts/"];
 

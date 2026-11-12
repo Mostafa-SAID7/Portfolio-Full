@@ -48,7 +48,11 @@ namespace PortfolioAPI.Pipelines
                         break;
 
                     case AnalyticsNotConfiguredException analyticsNotConfigured:
-                        status = StatusCodes.Status501NotImplemented;
+                        // 501 was misleading (issue #130): "NotImplemented" made
+                        // the dashboard wait forever and monitoring see a bogus
+                        // server-side defect. The feature exists; it is just not
+                        // configured on this host — 503 says "not available now".
+                        status = StatusCodes.Status503ServiceUnavailable;
                         message = analyticsNotConfigured.Message;
                         logger.LogInformation("Analytics requested but not configured on this host for {Method} {Path}", method, path);
                         break;
