@@ -1,4 +1,5 @@
 import {
+  ChangeDetectionStrategy,
   Component,
   ElementRef,
   forwardRef,
@@ -39,6 +40,7 @@ let nextFieldId = 0;
 @Component({
   selector: 'app-select-field',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: "./select-field.component.html",
   providers: [
     {

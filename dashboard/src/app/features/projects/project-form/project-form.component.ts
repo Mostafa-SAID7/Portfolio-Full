@@ -1,4 +1,4 @@
-import { Component, ElementRef, OnDestroy, OnInit, ViewChild, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, OnDestroy, OnInit, ViewChild, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidatorFn, Validators } from '@angular/forms';
@@ -62,6 +62,7 @@ const SERVER_CONTROL_NAMES: Record<string, FormControlName> = {
 @Component({
   selector: 'app-project-form',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, ReactiveFormsModule, RouterLink, SelectFieldComponent, TagsInputComponent, MetricEditorComponent],
   templateUrl: './project-form.component.html'
 })

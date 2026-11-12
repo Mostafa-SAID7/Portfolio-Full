@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 /** One metric row: a label (bilingual) and its value. */
@@ -11,6 +11,7 @@ export interface MetricRow {
 @Component({
   selector: 'app-metric-editor',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [FormsModule],
   templateUrl: './metric-editor.component.html'
 })

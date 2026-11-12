@@ -1,10 +1,11 @@
-import { Component, ElementRef, forwardRef, HostListener, Input, signal, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, forwardRef, HostListener, Input, signal, inject } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 
 /** Suggestion-assisted tags CVA; the public value remains a comma-separated string. */
 @Component({
   selector: 'app-tags-input',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './tags-input.component.html',
   providers: [{ provide: NG_VALUE_ACCESSOR, useExisting: forwardRef(() => TagsInputComponent), multi: true }]
 })
