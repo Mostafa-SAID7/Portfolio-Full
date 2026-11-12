@@ -233,17 +233,23 @@ a {
     @apply bg-danger/15 text-danger;
   }
   /* ---------------- Alerts / Banners ---------------- */
+  .alert-error,
+  .alert-warning,
+  .alert-success,
+  .alert-info {
+    @apply rounded-xl border p-4 text-xs font-medium;
+  }
   .alert-error {
-    @apply rounded-xl border border-danger/30 bg-danger/10 p-4 text-xs font-medium text-danger;
+    @apply border-danger/30 bg-danger/10 text-danger;
   }
   .alert-warning {
-    @apply rounded-xl border border-warning/30 bg-warning/10 p-4 text-xs font-medium text-warning;
+    @apply border-warning/30 bg-warning/10 text-warning;
   }
   .alert-success {
-    @apply rounded-xl border border-success/30 bg-success/10 p-4 text-xs font-medium text-success;
+    @apply border-success/30 bg-success/10 text-success;
   }
   .alert-info {
-    @apply rounded-xl border border-accent/30 bg-accent/10 p-4 text-xs font-medium text-accent-text;
+    @apply border-accent/30 bg-accent/10 text-accent-text;
   }
 
   /* ---------------- Tables ---------------- */
@@ -287,33 +293,39 @@ a {
      (state lives in AppComponent and is persisted next to the theme). */
   .sidebar {
     @apply fixed inset-y-0 left-0 z-40 flex w-[280px] -translate-x-full flex-col shadow-card transition-[width,transform] duration-200 ease-out;
-    /* Layered gradient panel: a faint accent bloom from the top corner over a
-       vertical surface→canvas fade — reads as depth in both themes. */
     background:
       radial-gradient(130% 90% at 0% 0%, rgb(var(--accent) / 0.09), transparent 55%),
       linear-gradient(180deg, rgb(var(--surface)), rgb(var(--canvas)));
     border-right: 1px solid rgb(var(--line) / 0.1);
     border-radius: 0 16px 16px 0;
-    overflow-x: hidden;
+    overflow: hidden !important;
   }
   .sidebar.is-open {
     @apply translate-x-0;
     box-shadow: 0 24px 60px -12px rgb(0 0 0 / 0.55);
   }
-  /* The nav scroll region never scrolls horizontally on any breakpoint.
-     We enforce overflow-x: hidden to prevent width-transition overflow or focus
-     rings from ever creating an ugly horizontal scrollbar. */
+  /* The nav scroll region never scrolls horizontally on any breakpoint. */
   .sidebar-scroll {
     overflow-x: hidden !important;
-    overflow-y: auto;
+    overflow-y: auto !important;
     overscroll-behavior-y: contain;
   }
-  /* Suppress any webkit horizontal scrollbar inside the sidebar */
-  .sidebar::-webkit-scrollbar:horizontal,
-  .sidebar *::-webkit-scrollbar:horizontal {
+  /* Suppress all scrollbars inside the sidebar on every browser */
+  .sidebar,
+  .sidebar * {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+  }
+  .sidebar::-webkit-scrollbar,
+  .sidebar *::-webkit-scrollbar {
     display: none !important;
     height: 0 !important;
     width: 0 !important;
+  }
+  /* Inset focus outlines so focus rings never poke outside the sidebar container */
+  .sidebar :focus-visible,
+  .sidebar :focus {
+    outline-offset: -2px !important;
   }
   /* The collapse control is desktop-only (mobile uses the full drawer). */
   .sidebar .sidebar-toggle {
@@ -374,9 +386,12 @@ a {
       gap: 12px;
       @apply justify-center items-center;
     }
+    .sidebar[data-collapsed='true'] .sidebar-footer-container {
+      padding: 12px 8px !important;
+    }
     .sidebar[data-collapsed='true'] .sidebar-scroll {
       overflow-x: hidden !important;
-      overflow-y: auto;
+      overflow-y: auto !important;
     }
 
     .sidebar[data-collapsed='true'] .sidebar-toggle:hover {
@@ -385,17 +400,6 @@ a {
     }
     .sidebar[data-collapsed='true'] .sidebar-toggle svg {
       transform: rotate(180deg);
-    }
-
-    /* In collapsed mode, prevent any pseudo-elements from triggering horizontal
-       overflow or clipping artifacts; native title tooltips provide clean, accessible
-       floating labels without any layout shift. */
-    .sidebar [data-tip] {
-      position: relative;
-    }
-    .sidebar[data-collapsed='true'] [data-tip]::after,
-    .sidebar[data-collapsed='true'] [data-tip]::before {
-      display: none !important;
     }
   }
   /* Main column offset: expanded = 12px sidebar offset + 264px rail + 16px gap;
