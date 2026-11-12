@@ -4,11 +4,12 @@ import { FormsModule } from '@angular/forms';
 import { LogsService } from '../../core/services/logs.service';
 import { LogFileInfo, LogInfoResponse, ParsedLogEntry } from '../../core/models/logs.model';
 import { SelectFieldComponent, SelectOptionValue } from '../../shared/select-field.component';
+import { PaginatorComponent } from '../../shared/paginator.component';
 
 @Component({
   selector: 'app-logs',
   standalone: true,
-  imports: [CommonModule, FormsModule, SelectFieldComponent],
+  imports: [CommonModule, FormsModule, SelectFieldComponent, PaginatorComponent],
   templateUrl: './logs.component.html'
 })
 export class LogsComponent implements OnInit, OnDestroy {
@@ -26,6 +27,26 @@ export class LogsComponent implements OnInit, OnDestroy {
   searchQuery: string = '';
   selectedLimit: string = '250';
   autoRefreshRate: string = '0';
+
+  /** Pagination state: 25 log entries per page for fast DOM rendering */
+  readonly page = signal<number>(1);
+  readonly pageSize = signal<number>(25);
+
+  readonly pagedEntries = computed<ParsedLogEntry[]>(() => {
+    const list = this.entries();
+    const p = this.page();
+    const size = this.pageSize();
+    const start = (p - 1) * size;
+    return list.slice(start, start + size);
+  });
+
+  readonly pageFrom = computed<number>(() => {
+    return this.entries().length === 0 ? 0 : (this.page() - 1) * this.pageSize() + 1;
+  });
+
+  readonly pageTo = computed<number>(() => {
+    return Math.min(this.page() * this.pageSize(), this.entries().length);
+  });
 
   readonly limitOptions: readonly SelectOptionValue[] = [
     { value: '100', label: '100 entries' },
@@ -93,6 +114,7 @@ export class LogsComponent implements OnInit, OnDestroy {
         this.entries.set(res.entries || []);
         this.totalEntries.set(res.totalEntries || 0);
         this.filteredEntries.set(res.filteredEntries || 0);
+        this.page.set(1);
         this.loading.set(false);
       },
       error: (err) => {

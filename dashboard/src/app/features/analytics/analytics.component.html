@@ -14,10 +14,24 @@
         <button type="button" class="segmented" [class.active]="preset() === d" [attr.aria-pressed]="preset() === d" (click)="applyPreset($any(d))">{{ d }}d</button>
       }
       <div class="flex items-center gap-2">
-        <input type="date" class="input py-2" [ngModel]="startInput()" (ngModelChange)="startInput.set($event.toString())" />
+        <div class="w-36">
+          <app-date-picker
+            [ngModel]="startInput()"
+            (ngModelChange)="startInput.set($event)"
+            inputClass="!py-2 text-xs"
+            placeholder="Start date"
+          />
+        </div>
         <span class="text-soft">–</span>
-        <input type="date" class="input py-2" [ngModel]="endInput()" (ngModelChange)="endInput.set($event.toString())" />
-        <button type="button" class="btn-ghost" (click)="applyCustom()">Apply</button>
+        <div class="w-36">
+          <app-date-picker
+            [ngModel]="endInput()"
+            (ngModelChange)="endInput.set($event)"
+            inputClass="!py-2 text-xs"
+            placeholder="End date"
+          />
+        </div>
+        <button type="button" class="btn-ghost !py-2 text-xs" (click)="applyCustom()">Apply</button>
       </div>
     </div>
   </div>
@@ -32,14 +46,14 @@
   }
 
   <!-- Loading -->
-  @if (loading()) {
+  @if (loading() && !notConfigured()) {
     <div class="card flex min-h-[280px] items-center justify-center">
       <div class="spinner" role="status" aria-label="Loading analytics"></div>
     </div>
   }
 
   <!-- Error -->
-  @if (error() && !notConfigured()) {
+  @if (error() && !notConfigured() && !loading()) {
     <app-error-state
       title="Failed to load analytics"
       [error]="error()"

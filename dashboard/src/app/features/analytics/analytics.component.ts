@@ -7,13 +7,14 @@ import { AnalyticsReport } from '../../core/models/analytics.model';
 import { EmptyStateComponent } from '../../shared/empty-state.component';
 import { ErrorStateComponent } from '../../shared/error-state.component';
 import { PaginatorComponent } from '../../shared/paginator.component';
+import { DatePickerComponent } from '../../shared/date-picker.component';
 
 type RangePreset = 7 | 28 | 90;
 
 @Component({
   selector: 'app-analytics',
   standalone: true,
-  imports: [CommonModule, FormsModule, EmptyStateComponent, ErrorStateComponent],
+  imports: [CommonModule, FormsModule, EmptyStateComponent, ErrorStateComponent, DatePickerComponent],
   templateUrl: './analytics.component.html'
 })
 export class AnalyticsComponent {

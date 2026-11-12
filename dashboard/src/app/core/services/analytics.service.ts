@@ -1,6 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Observable, catchError, defer, finalize, tap, throwError } from 'rxjs';
+import { Observable, catchError, defer, finalize, tap, throwError, timeout, TimeoutError } from 'rxjs';
 import { AnalyticsReport } from '../models/analytics.model';
 import { API_URL } from '../api.config';
 
@@ -47,11 +47,17 @@ export class AnalyticsService {
       this.errorSignal.set(null);
       this.notConfiguredSignal.set(false);
       return this.http.get<AnalyticsReport>(`${ENDPOINT}/report`, { params: { start, end } }).pipe(
+        timeout(15000),
         tap(report => {
           this.reportSignal.set(report);
           this.notConfiguredSignal.set(report.notConfigured ?? false);
         }),
         catchError((err: unknown) => {
+          if (err instanceof TimeoutError) {
+            const message = 'Analytics request timed out after 15 seconds. The server might be recycling or cold-starting.';
+            this.errorSignal.set(message);
+            return throwError(() => new Error(message));
+          }
           const body: unknown = err instanceof HttpErrorResponse ? err.error : err;
           const message = typeof body === 'object' && body !== null && 'message' in body
             ? String((body as { message: unknown }).message)

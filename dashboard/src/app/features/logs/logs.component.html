@@ -118,7 +118,7 @@
               No log entries found matching criteria.
             </td>
           </tr>
-          <tr *ngFor="let entry of entries()" class="transition hover:bg-line/[0.03]">
+          <tr *ngFor="let entry of pagedEntries()" class="transition hover:bg-line/[0.03]">
             <td class="whitespace-nowrap text-muted align-top">{{ entry.timestamp }}</td>
             <td class="align-top">
               <span class="badge" [ngClass]="getLevelClass(entry.level)">
@@ -138,9 +138,18 @@
     </div>
   </div>
 
+  <!-- Pagination Controls -->
+  <app-paginator
+    *ngIf="entries().length > pageSize()"
+    [totalItems]="entries().length"
+    [pageSize]="pageSize()"
+    [page]="page()"
+    (pageChange)="page.set($event)"
+  />
+
   <!-- Footer status -->
   <div class="flex items-center justify-between text-xs text-muted">
-    <span>Showing {{ filteredEntries() }} of {{ totalEntries() }} entries</span>
+    <span>Showing {{ pageFrom() }}–{{ pageTo() }} of {{ filteredEntries() }} entries ({{ totalEntries() }} total)</span>
     <span>Portfolio Clean Architecture Logging</span>
   </div>
 </div>
