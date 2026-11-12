@@ -54,6 +54,10 @@
 
   body {
     margin: 0;
+    /* Prevent the fixed sidebar (or any absolutely-positioned child that
+       temporarily escapes its bounds during the width transition) from
+       producing a horizontal scrollbar at the page level. */
+    overflow-x: hidden;
     background-color: rgb(var(--canvas));
     color: rgb(var(--ink));
     font-family: 'DM Sans', 'Segoe UI', system-ui, sans-serif;
@@ -129,6 +133,12 @@ a {
   .eyebrow {
     @apply text-[10px] font-bold uppercase tracking-[0.16em] text-muted;
   }
+  .type-label {
+    @apply text-xs font-semibold text-ink;
+  }
+  .type-micro {
+    @apply text-[11px] font-medium text-soft;
+  }
 
   /* ---------------- Sidebar navigation ---------------- */
   .nav-link {
@@ -145,17 +155,22 @@ a {
   }
 
   /* ---------------- Buttons ---------------- */
-  .btn {
+  .btn,
+  .btn-primary,
+  .btn-ghost,
+  .btn-secondary,
+  .btn-danger {
     @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60;
   }
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 bg-accent font-bold text-on-accent shadow-accent-glow hover:brightness-110;
+    @apply bg-accent font-bold text-on-accent shadow-accent-glow hover:brightness-110;
   }
-  .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 border border-line/15 bg-line/[0.03] text-soft hover:border-line/25 hover:bg-line/[0.07] hover:text-ink;
+  .btn-ghost,
+  .btn-secondary {
+    @apply border border-line/15 bg-line/[0.03] text-soft hover:border-line/25 hover:bg-line/[0.07] hover:text-ink;
   }
   .btn-danger {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 border border-danger/30 bg-danger/10 text-danger hover:bg-danger/20;
+    @apply border border-danger/30 bg-danger/10 text-danger hover:bg-danger/20;
   }
   .icon-btn {
     @apply flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-line/10 text-muted transition hover:border-line/25 hover:text-ink;
@@ -182,26 +197,67 @@ a {
   }
 
   /* ---------------- Badges / pills ---------------- */
-  .badge {
+  .badge,
+  .badge-accent,
+  .badge-success,
+  .badge-warning,
+  .badge-violet,
+  .badge-muted,
+  .badge-danger,
+  .badge-inf,
+  .badge-wrn,
+  .badge-err,
+  .badge-fatal {
     @apply inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide;
   }
-  .badge-accent {
-    @apply inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide bg-accent/15 text-accent-text;
+  .badge-accent,
+  .badge-inf {
+    @apply bg-accent/15 text-accent-text;
   }
   .badge-success {
-    @apply inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide bg-success/15 text-success;
+    @apply bg-success/15 text-success;
   }
-  .badge-warning {
-    @apply inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide bg-warning/15 text-warning;
+  .badge-warning,
+  .badge-wrn {
+    @apply bg-warning/15 text-warning;
   }
   .badge-violet {
-    @apply inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide bg-violet/15 text-violet;
+    @apply bg-violet/15 text-violet;
   }
   .badge-muted {
-    @apply inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide bg-line/10 text-muted;
+    @apply bg-line/10 text-muted;
   }
-  .badge-danger {
-    @apply inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide bg-danger/15 text-danger;
+  .badge-danger,
+  .badge-err,
+  .badge-fatal {
+    @apply bg-danger/15 text-danger;
+  }
+  /* ---------------- Alerts / Banners ---------------- */
+  .alert-error {
+    @apply rounded-xl border border-danger/30 bg-danger/10 p-4 text-xs font-medium text-danger;
+  }
+  .alert-warning {
+    @apply rounded-xl border border-warning/30 bg-warning/10 p-4 text-xs font-medium text-warning;
+  }
+  .alert-success {
+    @apply rounded-xl border border-success/30 bg-success/10 p-4 text-xs font-medium text-success;
+  }
+  .alert-info {
+    @apply rounded-xl border border-accent/30 bg-accent/10 p-4 text-xs font-medium text-accent-text;
+  }
+
+  /* ---------------- Tables ---------------- */
+  .table-wrap {
+    @apply overflow-hidden rounded-2xl border border-line/10 bg-surface shadow-card;
+  }
+  .table-custom {
+    @apply w-full text-left text-sm;
+  }
+  .table-custom th {
+    @apply border-b border-line/10 bg-line/[0.03] px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted;
+  }
+  .table-custom td {
+    @apply px-4 py-3 text-soft transition;
   }
 
   /* ---------------- Segmented control (tabs) ---------------- */
@@ -225,7 +281,6 @@ a {
   .skeleton {
     @apply animate-pulse rounded-lg bg-line/[0.07];
   }
-
   /* Floating card sidebar. Below lg: off-canvas drawer hidden until .is-open.
      At lg+: always visible as a rounded floating panel, with an optional
      icon-only collapsed rail driven by the [data-collapsed] attribute
@@ -239,17 +294,26 @@ a {
       linear-gradient(180deg, rgb(var(--surface)), rgb(var(--canvas)));
     border-right: 1px solid rgb(var(--line) / 0.1);
     border-radius: 0 16px 16px 0;
+    overflow-x: hidden;
   }
   .sidebar.is-open {
     @apply translate-x-0;
     box-shadow: 0 24px 60px -12px rgb(0 0 0 / 0.55);
   }
-  /* The nav scroll region never scrolls horizontally — during the width
-     transition wide labels would momentarily overflow and flash a scrollbar;
-     clipping it is intentional (tooltips escape via overflow:visible in
-     collapsed mode, and absolutely-positioned tooltips don't create scroll). */
+  /* The nav scroll region never scrolls horizontally on any breakpoint.
+     We enforce overflow-x: hidden to prevent width-transition overflow or focus
+     rings from ever creating an ugly horizontal scrollbar. */
   .sidebar-scroll {
-    overflow-x: hidden;
+    overflow-x: hidden !important;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+  }
+  /* Suppress any webkit horizontal scrollbar inside the sidebar */
+  .sidebar::-webkit-scrollbar:horizontal,
+  .sidebar *::-webkit-scrollbar:horizontal {
+    display: none !important;
+    height: 0 !important;
+    width: 0 !important;
   }
   /* The collapse control is desktop-only (mobile uses the full drawer). */
   .sidebar .sidebar-toggle {
@@ -269,7 +333,7 @@ a {
       @apply flex;
     }
     /* Icon-only rail: labels disappear, links collapse to centered icon
-       squares and a right-side tooltip carries the label. */
+       squares. The native title attribute handles tooltips without clipping or scrollbars. */
     .sidebar[data-collapsed='true'] {
       width: 80px;
     }
@@ -291,6 +355,7 @@ a {
       flex-direction: column-reverse;
       align-items: center;
       gap: 12px;
+      padding-inline: 8px;
       padding-bottom: 14px;
     }
     /* The expand control inside the rail: accent-tinted pill, static flow. */
@@ -307,12 +372,11 @@ a {
     .sidebar[data-collapsed='true'] .sidebar-footer {
       flex-direction: column;
       gap: 12px;
-      @apply justify-center;
+      @apply justify-center items-center;
     }
-    /* The icon rail cannot scroll, so tooltips must NOT be clipped by the
-       nav scroll container (overflow-y:auto would clip the ::after). */
     .sidebar[data-collapsed='true'] .sidebar-scroll {
-      overflow: visible;
+      overflow-x: hidden !important;
+      overflow-y: auto;
     }
 
     .sidebar[data-collapsed='true'] .sidebar-toggle:hover {
@@ -323,37 +387,17 @@ a {
       transform: rotate(180deg);
     }
 
-    /* Pure-CSS tooltips (no JS on hover): hover/focus reveal the label to the
-       right of the collapsed rail; ink-on-canvas keeps AAA-level contrast in
-       both themes. */
+    /* In collapsed mode, prevent any pseudo-elements from triggering horizontal
+       overflow or clipping artifacts; native title tooltips provide clean, accessible
+       floating labels without any layout shift. */
     .sidebar [data-tip] {
       position: relative;
-      overflow: visible;
     }
-    .sidebar[data-collapsed='true'] [data-tip]:hover::after,
-    .sidebar[data-collapsed='true'] [data-tip]:focus-visible::after {
-      content: attr(data-tip);
-      @apply pointer-events-none absolute rounded-lg px-2.5 py-1.5 text-[11px] font-semibold shadow-card;
-      left: calc(100% + 14px);
-      top: 50%;
-      transform: translateY(-50%);
-      white-space: nowrap;
-      z-index: 80;
-      background: rgb(var(--ink));
-      color: rgb(var(--canvas));
-    }
-    .sidebar[data-collapsed='true'] [data-tip]:hover::before,
-    .sidebar[data-collapsed='true'] [data-tip]:focus-visible::before {
-      content: '';
-      @apply pointer-events-none absolute z-[80] h-2 w-2 rotate-45;
-      left: calc(100% + 10px);
-      top: 50%;
-      transform: translateY(-50%);
-      z-index: 80;
-      background: rgb(var(--ink));
+    .sidebar[data-collapsed='true'] [data-tip]::after,
+    .sidebar[data-collapsed='true'] [data-tip]::before {
+      display: none !important;
     }
   }
-
   /* Main column offset: expanded = 12px sidebar offset + 264px rail + 16px gap;
      collapsed = 12px + 80px + 16px. */
   .shell-main {
