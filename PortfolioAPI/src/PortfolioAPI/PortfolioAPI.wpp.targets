@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Forces the MSDeploy AppOffline rule on every publish, so the running app
+     pool releases PortfolioAPI.Application.dll instead of locking it. -->
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <EnableMSDeployAppOffline>True</EnableMSDeployAppOffline>
+    <EnableMSDeployBackup>True</EnableMSDeployBackup>
+  </PropertyGroup>
+</Project>
